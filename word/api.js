@@ -13652,7 +13652,25 @@ background-repeat: no-repeat;\
 		oCtx.drawImage(oOverlayCanvas, 0, 0);
 		return oCtx.getImageData(0, 0, oCanvas.width, oCanvas.height);
 	};
-
+	// custom asc_docs_api
+	asc_docs_api.prototype.asc_MoveCursorToParagraphEnd = function()
+	{
+		// 移动光标到选中段落的末尾
+		const ApiDocument = window['AscBuilder']['ApiDocument'];
+		const document =  new ApiDocument(this.WordControl.m_oLogicDocument).Document; 
+		if (document) {
+			const selectParagraph = document.GetSelectedParagraphs && document.GetSelectedParagraphs()[0];
+			const index = (selectParagraph && selectParagraph.Index) || 0;
+			const documentContent = document.Content && document.Content[index];
+			documentContent && documentContent.MoveCursorToEndPos && documentContent.MoveCursorToEndPos()
+		}
+	};
+	asc_docs_api.prototype.asc_FindRepeatText = function(selectIndex)
+	{
+		// 重句定位
+		const oLogicDocument = this.private_GetLogicDocument();
+    oLogicDocument && oLogicDocument.SelectSearchElement && oLogicDocument.SelectSearchElement(selectIndex)
+	};
 	//-------------------------------------------------------------export---------------------------------------------------
 	window['Asc']                                                       = window['Asc'] || {};
 	CAscSection.prototype['get_PageWidth']                              = CAscSection.prototype.get_PageWidth;
@@ -14437,6 +14455,10 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_drawPrintPreview"] 	= asc_docs_api.prototype.asc_drawPrintPreview;
 	asc_docs_api.prototype["asc_closePrintPreview"] = asc_docs_api.prototype.asc_closePrintPreview;
 	asc_docs_api.prototype["asc_getPageSize"] 		= asc_docs_api.prototype.asc_getPageSize;
+
+	// custom asc_docs_api
+	asc_docs_api.prototype['asc_MoveCursorToParagraphEnd']                              = asc_docs_api.prototype.asc_MoveCursorToParagraphEnd;
+	asc_docs_api.prototype['asc_FindRepeatText']                              = asc_docs_api.prototype.asc_FindRepeatText;
 
 	CDocInfoProp.prototype['get_PageCount']             = CDocInfoProp.prototype.get_PageCount;
 	CDocInfoProp.prototype['put_PageCount']             = CDocInfoProp.prototype.put_PageCount;
