@@ -13656,12 +13656,11 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.asc_MoveCursorToParagraphEnd = function()
 	{
 		// 移动光标到选中段落的末尾
-		const ApiDocument = window['AscBuilder']['ApiDocument'];
-		const document =  new ApiDocument(this.WordControl.m_oLogicDocument).Document; 
-		if (document) {
-			const selectParagraph = document.GetSelectedParagraphs && document.GetSelectedParagraphs()[0];
+		const oLogicDocument =  this.private_GetLogicDocument();
+		if (oLogicDocument) {
+			const selectParagraph = oLogicDocument.GetSelectedParagraphs && oLogicDocument.GetSelectedParagraphs()[0];
 			const index = (selectParagraph && selectParagraph.Index) || 0;
-			const documentContent = document.Content && document.Content[index];
+			const documentContent = oLogicDocument.Content && oLogicDocument.Content[index];
 			documentContent && documentContent.MoveCursorToEndPos && documentContent.MoveCursorToEndPos()
 		}
 	};
@@ -13669,7 +13668,9 @@ background-repeat: no-repeat;\
 	{
 		// 重句定位
 		const oLogicDocument = this.private_GetLogicDocument();
-    oLogicDocument && oLogicDocument.SelectSearchElement && oLogicDocument.SelectSearchElement(selectIndex)
+		if (oLogicDocument) {
+      oLogicDocument.SelectSearchElement && oLogicDocument.SelectSearchElement(selectIndex)
+		}
 	};
 	//-------------------------------------------------------------export---------------------------------------------------
 	window['Asc']                                                       = window['Asc'] || {};
