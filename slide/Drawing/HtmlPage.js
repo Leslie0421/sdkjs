@@ -666,30 +666,6 @@ function CEditorPage(api)
 				.back_image_buttons { position:absolute; left: 0px; top: 0px; background-image: url('" + _images_url + "buttons@2x.png');background-size: 40px 120px; }\
 			}";
 
-			var xOffset1 = "0";
-			var xOffset2 = "-20";
-			if (AscCommon.GlobalSkin.Type === "dark")
-			{
-				xOffset1 = "-20";
-				xOffset2 = "0";
-			}
-
-			styleContent += (".btn-play { background-position: " + xOffset1 + "px -40px; }");
-			styleContent += (".btn-prev { background-position: " + xOffset1 + "px 0px; }");
-			styleContent += (".btn-next { background-position: " + xOffset1 + "px -20px; }");
-			styleContent += (".btn-pause { background-position: " + xOffset1 + "px -80px; }");
-			styleContent += (".btn-pointer { background-position: " + xOffset1 + "px -100px; }");
-			styleContent += (".btn-pointer-active { background-position: " + xOffset2 + "px -100px; }");
-
-			if (false) // менять цвет при нажатии
-			{
-				styleContent += (".btn-play:active { background-position: " + xOffset2 + "px -40px; }");
-				styleContent += (".btn-prev:active { background-position: " + xOffset2 + "px 0px; }");
-				styleContent += (".btn-next:active { background-position: " + xOffset2 + "px -20px; }");
-				styleContent += (".btn-pause:active { background-position: " + xOffset2 + "px -80px; }");
-				styleContent += (".btn-pointer:active { background-position: " + xOffset2 + "px -100px; }");
-			}
-
 			styleContent += this.getStylesReporter();
 
 			var style		 = document.createElement('style');
@@ -736,7 +712,8 @@ function CEditorPage(api)
 					return;
 
 				var _count = window.editor.getCountPages();
-				var _current = slideNum + 1;
+				var _first_slide_number = window.editor.WordControl.m_oLogicDocument.getFirstSlideNumber();
+				var _current = slideNum + _first_slide_number;
 				if (_current > _count)
 					_current = _count;
 
@@ -744,12 +721,21 @@ function CEditorPage(api)
 				if (window.editor.WordControl.reporterTranslates)
 					_text = window.editor.WordControl.reporterTranslates[1];
 				_text = _text.replace("{0}", _current);
-				_text = _text.replace("{1}", _count);
+				var _count_string;
+				if(_first_slide_number === 1)
+				{
+					_count_string = "" + _count;
+				}
+				else
+				{
+					_count_string = _first_slide_number + ' .. ' + (_count + _first_slide_number - 1)
+				}
+				_text = _text.replace("{1}", _count_string);
 
 				_elem.innerHTML = _text;
 
 				//window.editor.WordControl.Thumbnails.SelectPage(_current - 1);
-				window.editor.WordControl.GoToPage(_current - 1, false, false, true);
+				window.editor.WordControl.GoToPage(slideNum, false, false, true);
 
 				window.editor.WordControl.OnResizeReporter();
 			});
@@ -2637,6 +2623,7 @@ function CEditorPage(api)
 
 		// remove media
 		this.m_oApi.hideVideoControl();
+		AscCommon.g_specialPasteHelper.SpecialPasteButton_Update_Position();
 	};
 
 	// scrolls
@@ -3105,7 +3092,23 @@ function CEditorPage(api)
 	// reporter
 	this.getStylesReporter = function()
 	{
-		var styleContent = "";
+		let styleContent = "";
+
+		let xOffset1 = "0";
+		let xOffset2 = "-20";
+		if (AscCommon.GlobalSkin.Type === "dark")
+		{
+			xOffset1 = "-20";
+			xOffset2 = "0";
+		}
+
+		styleContent += (".btn-play { background-position: "           + xOffset1 + "px -40px; }");
+		styleContent += (".btn-prev { background-position: "           + xOffset1 + "px 0px; }");
+		styleContent += (".btn-next { background-position: "           + xOffset1 + "px -20px; }");
+		styleContent += (".btn-pause { background-position: "          + xOffset1 + "px -80px; }");
+		styleContent += (".btn-pointer { background-position: "        + xOffset1 + "px -100px; }");
+		styleContent += (".btn-pointer-active { background-position: " + xOffset2 + "px -100px; }");
+
 		styleContent += (".btn-text-default { position: absolute; background: " + AscCommon.GlobalSkin.DemButtonBackgroundColor + "; border: 1px solid " + AscCommon.GlobalSkin.DemButtonBorderColor + "; border-radius: 2px; color: " + AscCommon.GlobalSkin.DemButtonTextColor + "; font-size: 11px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; height: 22px; cursor: pointer; }");
 		styleContent += ".btn-text-default-img { background-repeat: no-repeat; position: absolute; background: transparent; border: none; height: 22px; cursor: pointer; }";
 		styleContent += (".btn-text-default-img:focus { outline: 0; outline-offset: 0; } .btn-text-default-img:hover { background-color: " + AscCommon.GlobalSkin.DemButtonBackgroundColorHover + "; }");
@@ -4530,6 +4533,9 @@ function CEditorPage(api)
 
 		if (this.m_oDrawingDocument.TransitionSlide.IsPlaying())
 			this.m_oDrawingDocument.TransitionSlide.End(true);
+
+		if (this.m_oLogicDocument.IsStartedPreview())
+			this.m_oApi.asc_StopAnimationPreview();
 
 		if (lPageNum != -1 && (lPageNum < 0 || lPageNum >= drDoc.SlidesCount))
 			return;
