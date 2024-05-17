@@ -1249,6 +1249,45 @@
 		return logicDocument.ReplaceCurrentSentence(private_GetTextDirection(type), _replaceString);
 	};
 
+	/**
+	 * 批量映射表格数据
+	 * @memberof Api
+	 * @alias TableWithBookmarkHandler
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("TableWithBookmarkHandler");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_TableWithBookmarkHandler"] = function(params)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument || !params?.length)
+			return;
+
+		const bookmarkManagement = this.asc_GetBookmarksManager();
+		const bookmarks = bookmarkManagement?.Bookmarks || [];
+
+		params.forEach(data => {
+			let oTable = {};
+
+			// 通过书签选中父级的 table 元素
+			bookmarks.forEach((item) => {
+				const currentBookmark = item?.[0];
+				const name = currentBookmark?.BookmarkName;
+				if (name === data?.bookmark) {
+					oTable = currentBookmark?.Parent?.Parent?.Parent?.GetTable()
+				}
+			});
+	
+			// 依次处理单元格的内容
+			data?.tableProps?.forEach(tableData => {
+				const element = oTable.GetRow(tableData?.row).GetCell(tableData?.col).GetContent().GetElement(0);
+				const paragraph = element.GetElement(0);
+				paragraph.ClearContent();
+				paragraph.AddText(tableData.content);
+			})
+		})
+	};
+
 	function private_ReadContentControlCommonPr(commonPr)
 	{
 		var resultPr;
