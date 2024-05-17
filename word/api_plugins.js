@@ -1265,25 +1265,24 @@
 
 		const bookmarkManagement = this.asc_GetBookmarksManager();
 		const bookmarks = bookmarkManagement?.Bookmarks || [];
-
-		params.forEach(data => {
+		params.forEach(item => {
 			let oTable = {};
 
 			// 通过书签选中父级的 table 元素
-			bookmarks.forEach((item) => {
-				const currentBookmark = item?.[0];
+			bookmarks.forEach((bookmark) => {
+				const currentBookmark = bookmark?.[0];
 				const name = currentBookmark?.BookmarkName;
-				if (name === data?.bookmark) {
-					oTable = currentBookmark?.Parent?.Parent?.Parent?.GetTable()
+				if (name === item['bookmark']) {
+					oTable = currentBookmark?.Parent?.Parent?.Parent?.GetTable();
 				}
 			});
 	
 			// 依次处理单元格的内容
-			data?.tableProps?.forEach(tableData => {
-				const element = oTable.GetRow(tableData?.row).GetCell(tableData?.col).GetContent().GetElement(0);
+			item?.['tableProps']?.forEach(tableData => {
+				const element = oTable.GetRow(tableData?.['row']).GetCell(tableData?.['col']).GetContent().GetElement(0);
 				const paragraph = element.GetElement(0);
 				paragraph.ClearContent();
-				paragraph.AddText(tableData.content);
+				paragraph.AddText(tableData?.['content']);
 			})
 		})
 	};
