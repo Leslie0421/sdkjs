@@ -1265,9 +1265,10 @@
 
 		const bookmarkManagement = this.asc_GetBookmarksManager();
 		const bookmarks = bookmarkManagement?.Bookmarks || [];
+		
 		params.forEach(item => {
 			let oTable = {};
-
+			
 			// 通过书签选中父级的 table 元素
 			bookmarks.forEach((bookmark) => {
 				const currentBookmark = bookmark?.[0];
@@ -1276,14 +1277,33 @@
 					oTable = currentBookmark?.Parent?.Parent?.Parent?.GetTable();
 				}
 			});
-	
-			// 依次处理单元格的内容
-			item?.['tableProps']?.forEach(tableData => {
-				const element = oTable.GetRow(tableData?.['row']).GetCell(tableData?.['col']).GetContent().GetElement(0);
-				const paragraph = element.GetElement(0);
-				paragraph.ClearContent();
-				paragraph.AddText(tableData?.['content']);
-			})
+			
+			if (oTable) {
+				// 计算传入数据和表格行的差值，手动添加/删除行。
+				const rowConut = oTable.Get_RowsCount() - 1;
+				const rowCountDiff = item?.['tableProps']?.[0].row - rowConut;
+
+				if (rowCountDiff > 0) {
+					oTable.AddTableRow(false,rowCountDiff)
+				} else if(rowCountDiff < 0 ) {
+					const list = new Array(Math.abs(rowCountDiff)).fill(false);
+					list.forEach(() => {
+						const length = oTable.Get_RowsCount()
+						oTable.RemoveTableRow(length - 1)
+					})
+				}
+
+				// 依次处理单元格的内容
+				item?.['tableProps']?.forEach(tableData => {
+					const currentRow = oTable.GetRow(tableData?.['row']);
+					const element = currentRow.GetCell(tableData?.['col']).GetContent().GetElement(0);
+					const paragraph = element.GetElement(0);
+					paragraph.ClearContent();
+					paragraph.AddText(tableData?.['content']);
+				})
+			} else {
+				console.warn('未找到书签所在的表格！');
+			}
 		})
 	};
 
