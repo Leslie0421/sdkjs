@@ -1278,18 +1278,17 @@
 				}
 			});
 			
-			if (oTable) {
+			if (oTable?.Get_RowsCount) {
 				// 计算传入数据和表格行的差值，手动添加/删除行。
-				const rowConut = oTable.Get_RowsCount() - 1;
-				const rowCountDiff = item?.['tableProps']?.[0].row - rowConut;
-
+				const rowCount = oTable.Get_RowsCount() - 1;
+				const rowCountDiff = item?.['tableProps']?.[0]?.['row'] - rowCount;
 				if (rowCountDiff > 0) {
 					oTable.AddTableRow(false,rowCountDiff)
 				} else if(rowCountDiff < 0 ) {
 					const list = new Array(Math.abs(rowCountDiff)).fill(false);
 					list.forEach(() => {
-						const length = oTable.Get_RowsCount()
-						oTable.RemoveTableRow(length - 1)
+						const length = oTable.Get_RowsCount();
+						oTable.RemoveTableRow(length - 1);
 					})
 				}
 
@@ -1302,7 +1301,7 @@
 					paragraph.AddText(tableData?.['content']);
 				})
 			} else {
-				console.warn('未找到书签所在的表格！');
+				console.warn(`未找到书签所在的表格！`);
 			}
 		})
 	};
