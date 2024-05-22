@@ -1283,8 +1283,10 @@
 				const rowCount = oTable.Get_RowsCount() - 1;
 				const rowCountDiff = item?.['tableProps']?.[0]?.['row'] - rowCount;
 				if (rowCountDiff > 0) {
-					oTable.AddTableRow(false,rowCountDiff)
-				} else if(rowCountDiff < 0 ) {
+					// 因 AddTableRow 是在选中的行下方添加，所以需要手动选择最后一行
+					oTable.SelectRows(rowCount, rowCount);
+					oTable.AddTableRow(false, rowCountDiff);
+				} else if (rowCountDiff < 0 ) {
 					const list = new Array(Math.abs(rowCountDiff)).fill(false);
 					list.forEach(() => {
 						const length = oTable.Get_RowsCount();
