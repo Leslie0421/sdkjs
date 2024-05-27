@@ -1308,6 +1308,39 @@
 		})
 	};
 
+	/**
+	 * 获取所有书签列表
+	 * @memberof Api
+	 * @alias GetAllBookmarks
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("GetAllBookmarks");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_GetAllBookmarks"] = function()
+	{
+		const manager = this.asc_GetBookmarksManager();
+		if (!manager) {
+			console.warn("书签初始化失败！");
+			return;
+		}
+
+		const bookmarks = manager?.Bookmarks || [];
+		let bookmarkList = [];
+
+		bookmarkList =  bookmarks?.map((item) => {
+			const currentBookmark = item?.[0];
+			const id = currentBookmark?.BookmarkId;
+			const name = currentBookmark?.BookmarkName;
+
+			return {
+				'bookmarkId': id,
+				'bookmarkName': name,
+			};
+		});
+
+		return bookmarkList
+	};
+
 	function private_ReadContentControlCommonPr(commonPr)
 	{
 		var resultPr;
