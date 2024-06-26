@@ -105,7 +105,11 @@
 	};
 	CRunPageNum.prototype.Set_Page = function(PageNum)
 	{
-		this.String = "" + PageNum;
+		// 在本页之后插入页码
+		const afterIndex = sessionStorage.getItem('afterIndex');
+		if(PageNum - 1 < afterIndex ) return;
+
+		this.String = "" + (PageNum - afterIndex) ;
 		var Len     = this.String.length;
 
 		var RealWidth = 0;
