@@ -106,7 +106,7 @@
 	CRunPageNum.prototype.Set_Page = function(PageNum)
 	{
 		// 在本页之后插入页码
-		const afterIndex = sessionStorage.getItem('afterIndex');
+		const afterIndex = window.sessionStorage.getItem('afterIndex');
 		if(PageNum - 1 < afterIndex ) return;
 
 		this.String = "" + (PageNum - afterIndex) ;
