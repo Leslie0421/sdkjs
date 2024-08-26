@@ -41,6 +41,7 @@ function (window, undefined) {
   // Import
   var CellValueType = AscCommon.CellValueType;
   var cBoolLocal = AscCommon.cBoolLocal;
+  var cBoolOrigin = AscCommon.cBoolOrigin;
   var cErrorOrigin = AscCommon.cErrorOrigin;
   var cErrorLocal = AscCommon.cErrorLocal;
   var FormulaSeparators = AscCommon.FormulaSeparators;
@@ -70,7 +71,9 @@ function (window, undefined) {
 
 	var TOK_SUBTYPE_UNION = 15;
 
-	var arrayFunctionsMap = {"SUMPRODUCT": 1, "FILTER": 1};
+	var arrayFunctionsMap = {"SUMPRODUCT": 1, "FILTER": 1, "SUM": 1, "LOOKUP": 1};
+
+	var importRangeLinksState = {importRangeLinks: null, startBuildImportRangeLinks: null};
 
 	function getArrayCopy(arr) {
 		var newArray = [];
@@ -432,6 +435,41 @@ function (window, undefined) {
 		return tokens;
 	}
 
+	function prepareTypedArrayUniversal(array, lookingElem, isByRangeCall) {
+		const typedArr = [];
+
+		for (let i = 0; i < array.length; i++) {
+			let arrayElemValue = isByRangeCall ? array[i].v : array[i];
+			// let elemType = isByRangeCall ? array[i].v.type : array[i].type;
+			let elemType = arrayElemValue.type;
+			let elemIndex = isByRangeCall ? array[i].i : i;
+
+			if (lookingElem.type === cElementType.bool) {
+				// return only bool
+				if (lookingElem.type !== elemType) {
+					continue
+				}
+				typedArr.push({i: elemIndex, v: arrayElemValue});
+			} else if (lookingElem.type === cElementType.number) {
+				// return only numbers or string.tocNumber
+				if (elemType !== cElementType.string && elemType !== cElementType.number) {
+					continue
+				}
+				let temp = arrayElemValue.tocNumber();
+				if (temp.type !== cElementType.error) {
+					typedArr.push({i: elemIndex, v: temp});
+				}
+			} else if (cElementType.string === lookingElem.type) {
+				// return only strings
+				if (lookingElem.type !== elemType) {
+					continue
+				}
+				typedArr.push({i: elemIndex, v: new cString(arrayElemValue.toString().toLowerCase())});
+			}
+		}
+
+		return typedArr;
+	}
 
 /** @enum */
 var cElementType = {
@@ -465,10 +503,9 @@ var cErrorType = {
 		wrong_name          : 5,
 		not_numeric         : 6,
 		not_available       : 7,
-		getting_data        : 8
+		getting_data        : 8,
+		array_not_calc      : 9
   };
-
-
 //добавляю константу cReturnFormulaType для корректной обработки формул массива
 // value - функция умеет возвращать только значение(не массив)
 // в этом случае данная функция вызывается множество раз для каждого элемента внутренних массивов
@@ -499,12 +536,20 @@ var c_Date1900Const = 25568; //разница в днях между 01.01.1970 
 var rx_sFuncPref = /_xlfn\./i;
 var rx_sFuncPrefXlWS = /_xlws\./i;// /_xlfn\.(_xlws\.)?/i;
 var rx_sDefNamePref = /_xlnm\./i;
+var rx_sFuncPrefXLUFD = /__xludf.DUMMYFUNCTION\./i;
 var cNumFormatFirstCell = -1;
 var cNumFormatNone = -2;
 var cNumFormatNull = -3;
 var g_nFormulaStringMaxLength = 255;
 
 
+// set type weight of base types
+let cElementTypeWeight =  new Map();
+	cElementTypeWeight.set(cElementType.number, 0);
+	cElementTypeWeight.set(cElementType.empty, 0);
+	cElementTypeWeight.set(cElementType.string, 1);
+	cElementTypeWeight.set(cElementType.bool, 2);
+	cElementTypeWeight.set(cElementType.error, 3);
 
 
 
@@ -591,7 +636,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		return res;
 	};
 
-	cBaseType.prototype.toArray = function (putValue, checkOnError) {
+	cBaseType.prototype.toArray = function (putValue, checkOnError, fPrepareElem) {
 		let arr = [];
 		if (this.getMatrix) {
 			arr = this.getMatrix();
@@ -604,6 +649,14 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 							if (checkOnError) {
 								if (arr[i][j].type === cElementType.error) {
 									return arr[i][j];
+								}
+							}
+							if (fPrepareElem) {
+								arr[i][j] = fPrepareElem(arr[i][j]);
+								if (checkOnError) {
+									if (arr[i][j].type === cElementType.error) {
+										return arr[i][j];
+									}
 								}
 							}
 							if (putValue) {
@@ -619,11 +672,16 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 					return this;
 				}
 			}
-
+			let _res = fPrepareElem ? fPrepareElem(this) : this;
+			if (fPrepareElem && checkOnError) {
+				if (this.type === cElementType.error) {
+					return this;
+				}
+			}
 			if (!arr[0]) {
 				arr[0] = [];
 			}
-			arr[0][0] = putValue ? this.getValue() : this;
+			arr[0][0] = putValue ? _res.getValue() : _res;
 		}
 		return arr;
 	};
@@ -710,6 +768,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		return res;
 	};
 	cString.prototype.tocBool = function () {
+		//TODO value === cBoolLocal.t || value === cBoolLocal.f || value === cBoolOrigin.t || value === cBoolOrigin.f
 		var res;
 		if (parserHelp.isBoolean(this.value, 0)) {
 			res = new cBool(parserHelp.operand_str.toUpperCase() === cBoolLocal.t);
@@ -721,8 +780,15 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cString.prototype.tocString = function () {
 		return this;
 	};
-	cString.prototype.getValue = function () {
-		return this.value.replace(/\"\"/g, "\"");
+	cString.prototype.getValue = function (doNotReplace) {
+		//TODO many function calls -> many calls indexOf/replaceAll - review and if only necessary to do the conversion
+		if (!doNotReplace && -1 !== this.value.indexOf("\"\"")) {
+			return this.value.replaceAll("\"\"", "\"");
+		}
+		return this.value;
+	};
+	cString.prototype.toString = function () {
+		return this.value;
 	};
 
 	/**
@@ -731,11 +797,18 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	 */
 	function cBool(val) {
 		var v = false;
-		switch (val.toString().toUpperCase()) {
-			case "TRUE":
-			case cBoolLocal.t:
-				v = true;
+		if (val === true) {
+			v = true;
+		} else if (val === false) {
+			v = false;
+		} else {
+			switch (val.toString().toUpperCase()) {
+				case "TRUE":
+				case cBoolLocal.t:
+					v = true;
+			}
 		}
+
 		cBaseType.call(this, v);
 	}
 
@@ -743,7 +816,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cBool.prototype.constructor = cBool;
 	cBool.prototype.type = cElementType.bool;
 	cBool.prototype.toString = function () {
-		return this.value.toString().toUpperCase();
+		return this.value ? cBoolOrigin.t : cBoolOrigin.f;
 	};
 	cBool.prototype.getValue = function () {
 		return this.toString();
@@ -837,6 +910,13 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				this.errorType = cErrorType.unsupported_function;
 				break;
 			}
+			case cErrorLocal["calc"]:
+			case cErrorOrigin["calc"]:
+			case cErrorType.array_not_calc: {
+				this.value = "#CALC!";
+				this.errorType = cErrorType.array_not_calc;
+				break;
+			}
 		}
 
 		return this;
@@ -893,6 +973,11 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 			case cErrorType.unsupported_function: {
 				return cErrorLocal["uf"];
 			}
+
+			case cErrorOrigin["calc"]:
+			case cErrorType.array_not_calc: {
+				return cErrorLocal["calc"];
+			}
 		}
 		return cErrorLocal["na"];
 	};
@@ -933,6 +1018,10 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 			}
 			case cErrorOrigin["uf"]: {
 				res = cErrorType.unsupported_function;
+				break;
+			}
+			case cErrorOrigin["calc"]: {
+				res = cErrorType.array_not_calc;
 				break;
 			}
 			default: {
@@ -979,6 +1068,10 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 			}
 			case cErrorType.unsupported_function: {
 				res = cErrorOrigin["uf"];
+				break;
+			}
+			case cErrorType.array_not_calc: {
+				res = cErrorOrigin["calc"];
 				break;
 			}
 			default:
@@ -1050,7 +1143,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		}
 		return res;
 	};
-	cArea.prototype.getValueByRowCol = function (i, j) {
+	cArea.prototype.getValueByRowCol = function (i, j, checkEmpty) {
 		let res, r;
 		r = this.getRange();
 		r.worksheet._getCellNoEmpty(r.bbox.r1 + i, r.bbox.c1 + j, function(cell) {
@@ -1058,6 +1151,9 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				res = checkTypeCell(cell);
 			}
 		});
+		if (checkEmpty && res == null) {
+			res = new cEmpty();
+		}
 		return res;
 	};
 	cArea.prototype.getRange = function () {
@@ -1272,7 +1368,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		return res;
 	};
 	cArea.prototype.getFirstElement = function () {
-		return this.getValueByRowCol(0, 0);
+		return this.getValueByRowCol(0, 0, true);
 	};
 	cArea.prototype._getCol = function (colIndex) {
 		let dimensions = this.getDimensions();
@@ -1282,7 +1378,6 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 
 		let col = [];
 		for (let i = 0; i < dimensions.row; i++) {
-			let valInRow = this.getValueByRowCol(i, colIndex);
 			let elem = this.getValueByRowCol(i, colIndex);
 			if (!elem) {
 				elem = new cEmpty();
@@ -1344,6 +1439,9 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		return oRes;
 	};
 	cArea3D.prototype.wsRange = function () {
+		if (this.externalLink != null) {
+			return [this.wsFrom];
+		}
 		var wb = this.wsFrom.workbook;
 		var wsF = this.wsFrom.getIndex(), wsL = this.wsTo.getIndex(), r = [];
 		for (var i = wsF; i <= wsL; i++) {
@@ -1439,7 +1537,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 
 		return (null == _val[0]) ? new cEmpty() : _val[0];
 	};
-	cArea3D.prototype.getValueByRowCol = function (i, j) {
+	cArea3D.prototype.getValueByRowCol = function (i, j, checkEmpty) {
 		let r = this.getRanges(), res;
 
 		if (r[0]) {
@@ -1448,6 +1546,10 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 					res = checkTypeCell(cell);
 				}
 			});
+		}
+
+		if (checkEmpty && res == null) {
+			res = new cEmpty();
 		}
 
 		return res;
@@ -1682,7 +1784,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		return res;
 	};
 	cArea3D.prototype.getFirstElement = function () {
-		return this.getValueByRowCol(0, 0);
+		return this.getValueByRowCol(0, 0, true);
 	};
 	cArea3D.prototype._getCol = function (colIndex) {
 		let dimensions = this.getDimensions();
@@ -1692,7 +1794,6 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 
 		let col = [];
 		for (let i = 0; i < dimensions.row; i++) {
-			let valInRow = this.getValueByRowCol(i, colIndex);
 			let elem = this.getValueByRowCol(i, colIndex);
 			if (!elem) {
 				elem = new cEmpty();
@@ -2356,7 +2457,6 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		} else {
 			this.area = new cError(cErrorType.bad_reference);
 		}
-
 		return this.area;
 	};
 	cStrucTable.prototype._createAreaError = function (isThisRow) {
@@ -2539,6 +2639,9 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				}
 			}
 		}
+	};
+	cStrucTable.prototype.getRange = function () {
+		return this.area && this.area.getRange && this.area.getRange();
 	};
 
 	/**
@@ -2906,20 +3009,20 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cUndefined.prototype = Object.create(cBaseType.prototype);
 	cUndefined.prototype.constructor = cUndefined;
 
-	function checkTypeCell(cell) {
+	function checkTypeCell(cell, opt_toLowerCase) {
 		if (cell && !cell.isNullText()) {
 			var type = cell.getType();
 			if (CellValueType.Number === type) {
 				return new cNumber(cell.getNumberValue());
-			} else{
+			} else {
 				var val = cell.getValueWithoutFormat();
 				if (CellValueType.Bool === type) {
-				return new cBool(val);
-			} else if (CellValueType.Error === type) {
-				return new cError(val);
-			} else {
-				return new cString(val);
-			}
+					return new cBool(val);
+				} else if (CellValueType.Error === type) {
+					return new cError(val);
+				} else {
+					return new cString(opt_toLowerCase ? val.toLowerCase() : val);
+				}
 			}
 		} else {
 			return new cEmpty();
@@ -3063,6 +3166,8 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		}
 		if (this.isXLFN || this.isXLWS) {
 			return new cString((this.isXLFN ? "_xlfn." : "") + (this.isXLWS ? "_xlws." : "") + this.name + "(" + str + ")");
+		} else if (this.isXLUDF) {
+			//return new cString("__xludf.DUMMYFUNCTION." + this.name + "(" + str + ")");
 		}
 		return new cString(this.toString() + "(" + str + ")");
 	};
@@ -3085,7 +3190,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cBaseFunction.prototype.toString = function (/*locale*/) {
 		/*var name = this.toString();
 		var localeName = locale ? locale[name] : name;*/
-		return this.name.replace(rx_sFuncPref, "_xlfn.").replace(rx_sFuncPrefXlWS, "_xlws.");
+		return this.name.replace(rx_sFuncPref, "_xlfn.").replace(rx_sFuncPrefXlWS, "_xlws.").replace(rx_sFuncPrefXLUFD, "__xludf.DUMMYFUNCTION.");
 	};
 	cBaseFunction.prototype.toLocaleString = function (/*locale*/) {
 		var name = this.toString();
@@ -3178,7 +3283,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				}
 			} else if (cElementType.cellsRange === arg.type || cElementType.cellsRange3D === arg.type) {
 				newArgs[i] = bFirstRangeElem ? arg.getValueByRowCol(0,0) : arg.cross(arg1);
-				if (newArgs[i] == undefined) {
+				if (newArgs[i] == null) {
 					newArgs[i] = arg.cross(arg1);
 				}
 			} else if (cElementType.array === arg.type) {
@@ -3647,6 +3752,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		this.name = name;
 		this.isXLFN = null;
 		this.isXLWS = null;
+		this.isXLUDF = null;
 	}
 	cUnknownFunction.prototype = Object.create(cBaseFunction.prototype);
 	cUnknownFunction.prototype.constructor = cUnknownFunction;
@@ -3692,7 +3798,13 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cRangeUnionOperator.prototype.priority = 50;
 	cRangeUnionOperator.prototype.argumentsCurrent = 2;
 	cRangeUnionOperator.prototype.Calculate = function (arg) {
-		var arg0 = arg[0], arg1 = arg[1], ws0, ws1, ws, res;
+		let arg0 = arg[0], arg1 = arg[1], ws0, ws1, ws, res;
+		if (cElementType.error === arg0.type) {
+			return arg0;
+		}
+		if (cElementType.error === arg1.type) {
+			return arg1;
+		}
 		if (( cElementType.cell === arg0.type || cElementType.cellsRange === arg0.type ||
 			cElementType.cell3D === arg0.type ||
 			cElementType.cellsRange3D === arg0.type && (ws0 = arg0.wsFrom) === arg0.wsTo ) &&
@@ -3989,33 +4101,13 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 	cPowOperator.prototype.priority = 40;
 	cPowOperator.prototype.argumentsCurrent = 2;
 	cPowOperator.prototype.Calculate = function (arg) {
-		var arg0 = arg[0], arg1 = arg[1];
-		if (arg0 instanceof cArea) {
-			arg0 = arg0.cross(arguments[1]);
-		} else if (arg0 instanceof cArea3D) {
-			arg0 = arg0.cross(arguments[1], arguments[3]);
-		}
-		arg0 = arg0.tocNumber();
-		if (arg1 instanceof cArea) {
-			arg1 = arg1.cross(arguments[1]);
-		} else if (arg1 instanceof cArea3D) {
-			arg1 = arg1.cross(arguments[1], arguments[3]);
-		}
-		arg1 = arg1.tocNumber();
-		if (arg0 instanceof cError) {
-			return arg0;
-		}
-		if (arg1 instanceof cError) {
-			return arg1;
+		let res = AscCommonExcel.cFormulaFunction["POWER"].prototype.Calculate(arg, arguments[1]);
+
+		if (res) {
+			return res;
 		}
 
-		var _v = Math.pow(arg0.getValue(), arg1.getValue());
-		if (isNaN(_v)) {
-			return new cError(cErrorType.not_numeric);
-		} else if (_v === Number.POSITIVE_INFINITY) {
-			return new cError(cErrorType.division_by_zero);
-		}
-		return new cNumber(_v);
+		return new cError(cErrorType.wrong_value_type);
 	};
 
 	/**
@@ -4452,6 +4544,22 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 		}
 		return list;
 	}
+	function addNewFunction(func) {
+		if (!func) {
+			return;
+		}
+		let a = new func();
+		let f = new AscCommon.asc_CFormula(a);
+		cFormulaFunction[f.asc_getName()] = func;
+		cAllFormulaFunction[a.name] = func;
+	}
+	function removeCustomFunction(sName) {
+		if (!sName) {
+			return;
+		}
+		delete cFormulaFunction[sName];
+		delete cAllFormulaFunction[sName];
+	}
 	function getRangeByRef(ref, ws, onlyRanges, checkMultiSelection, checkFormula) {
 		var activeCell = ws.getSelection().activeCell;
 		var bbox = new Asc.Range(activeCell.col, activeCell.row, activeCell.col, activeCell.row);
@@ -4557,89 +4665,104 @@ _func[cElementType.number][cElementType.number] = function ( arg0, arg1, what ) 
 	var compareNumbers = function(){
 		return AscCommon.compareNumbers(arg0.getValue(), arg1.getValue());
 	};
-	if ( what === ">" ) {
-		return new cBool( compareNumbers() > 0 );
-  } else if (what === ">=") {
-		return new cBool( !(compareNumbers() < 0) );
-  } else if (what === "<") {
-		return new cBool( compareNumbers() < 0 );
-  } else if (what === "<=") {
-		return new cBool( !(compareNumbers() > 0) );
-  } else if (what === "=") {
-		return new cBool( compareNumbers() === 0 );
-  } else if (what === "<>") {
-		return new cBool( compareNumbers() !== 0 );
-  } else if (what === "-") {
-        return new cNumber( arg0.getValue() - arg1.getValue() );
-  } else if (what === "+") {
-        return new cNumber( arg0.getValue() + arg1.getValue() );
-  } else if (what === "/") {
-        if ( arg1.getValue() !== 0 ) {
-            return new cNumber( arg0.getValue() / arg1.getValue() );
-    } else {
-            return new cError( cErrorType.division_by_zero );
-        }
-  } else if (what === "*") {
-        return new cNumber( arg0.getValue() * arg1.getValue() );
-    }
+	let opt_return_bool = arguments[5];
+	let res = null;
+	if (what === ">") {
+		res = compareNumbers() > 0;
+	} else if (what === ">=") {
+		res = !(compareNumbers() < 0);
+	} else if (what === "<") {
+		res = compareNumbers() < 0;
+	} else if (what === "<=") {
+		res = !(compareNumbers() > 0);
+	} else if (what === "=") {
+		res = (compareNumbers() === 0);
+	} else if (what === "<>") {
+		res = (compareNumbers() !== 0);
+	} else if (what === "-") {
+		return new cNumber(arg0.getValue() - arg1.getValue());
+	} else if (what === "+") {
+		return new cNumber(arg0.getValue() + arg1.getValue());
+	} else if (what === "/") {
+		if (arg1.getValue() !== 0) {
+			return new cNumber(arg0.getValue() / arg1.getValue());
+		} else {
+			return new cError(cErrorType.division_by_zero);
+		}
+	} else if (what === "*") {
+		return new cNumber(arg0.getValue() * arg1.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
     return new cError( cErrorType.wrong_value_type );
 };
 
 _func[cElementType.number][cElementType.string] = function ( arg0, arg1, what ) {
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( false );
-  } else if (what === "<" || what === "<=") {
-        return new cBool( true );
-  } else if (what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-" || what === "+" || what === "/" || what === "*") {
-        return new cError( cErrorType.wrong_value_type );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+	if (what === ">" || what === ">=") {
+		res = false;
+	} else if (what === "<" || what === "<=") {
+		res = true;
+	} else if (what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res = true;
+	} else if (what === "-" || what === "+" || what === "/" || what === "*") {
+		return new cError(cErrorType.wrong_value_type);
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.number][cElementType.bool] = function ( arg0, arg1, what ) {
-    var _arg;
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( false );
-  } else if (what === "<" || what === "<=") {
-        return new cBool( true );
-  } else if (what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( arg0.getValue() - _arg.getValue() );
-  } else if (what === "+") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( arg0.getValue() + _arg.getValue() );
-  } else if (what === "/") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        if ( _arg.getValue() !== 0 ) {
-            return new cNumber( arg0.getValue() / _arg.getValue() );
-    } else {
-            return new cError( cErrorType.division_by_zero );
-        }
-  } else if (what === "*") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( arg0.getValue() * _arg.getValue() );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let _arg;
+	let res = null;
+	let opt_return_bool = arguments[5];
+	if (what === ">" || what === ">=") {
+		res = false;
+	} else if (what === "<" || what === "<=") {
+		res = true;
+	} else if (what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res = true;
+	} else if (what === "-") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(arg0.getValue() - _arg.getValue());
+	} else if (what === "+") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(arg0.getValue() + _arg.getValue());
+	} else if (what === "/") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		if (_arg.getValue() !== 0) {
+			return new cNumber(arg0.getValue() / _arg.getValue());
+		} else {
+			return new cError(cErrorType.division_by_zero);
+		}
+	} else if (what === "*") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(arg0.getValue() * _arg.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.number][cElementType.error] = function ( arg0, arg1 ) {
@@ -4647,160 +4770,186 @@ _func[cElementType.number][cElementType.error] = function ( arg0, arg1 ) {
 };
 
 _func[cElementType.number][cElementType.empty] = function ( arg0, arg1, what ) {
-    if ( what === ">" ) {
-        return new cBool( arg0.getValue() > 0 );
-  } else if (what === ">=") {
-        return new cBool( arg0.getValue() >= 0 );
-  } else if (what === "<") {
-        return new cBool( arg0.getValue() < 0 );
-  } else if (what === "<=") {
-        return new cBool( arg0.getValue() <= 0 );
-  } else if (what === "=") {
-        return new cBool( arg0.getValue() === 0 );
-  } else if (what === "<>") {
-        return new cBool( arg0.getValue() !== 0 );
-  } else if (what === "-") {
-        return new cNumber( arg0.getValue() - 0 );
-  } else if (what === "+") {
-        return new cNumber( arg0.getValue() + 0 );
-  } else if (what === "/") {
-        return new cError( cErrorType.division_by_zero );
-  } else if (what === "*") {
-        return new cNumber( 0 );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+	if (what === ">") {
+		res = arg0.getValue() > 0;
+	} else if (what === ">=") {
+		res = arg0.getValue() >= 0;
+	} else if (what === "<") {
+		res = arg0.getValue() < 0;
+	} else if (what === "<=") {
+		res = arg0.getValue() <= 0;
+	} else if (what === "=") {
+		res = arg0.getValue() === 0;
+	} else if (what === "<>") {
+		res = arg0.getValue() !== 0;
+	} else if (what === "-") {
+		return new cNumber(arg0.getValue() - 0);
+	} else if (what === "+") {
+		return new cNumber(arg0.getValue() + 0);
+	} else if (what === "/") {
+		return new cError(cErrorType.division_by_zero);
+	} else if (what === "*") {
+		return new cNumber(0);
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 
 _func[cElementType.string][cElementType.number] = function ( arg0, arg1, what ) {
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( true );
-  } else if (what === "<" || what === "<=" || what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-" || what === "+" || what === "/" || what === "*") {
-        return new cError( cErrorType.wrong_value_type );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+	if (what === ">" || what === ">=") {
+		res = true;
+	} else if (what === "<" || what === "<=" || what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res = true;
+	} else if (what === "-" || what === "+" || what === "/" || what === "*") {
+		return new cError(cErrorType.wrong_value_type);
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.string][cElementType.string] = function ( arg0, arg1, what ) {
-    var _arg0, _arg1;
-    if ( what === ">" ) {
-        return new cBool( arg0.getValue() > arg1.getValue() );
-  } else if (what === ">=") {
-        return new cBool( arg0.getValue() >= arg1.getValue() );
-  } else if (what === "<") {
-        return new cBool( arg0.getValue() < arg1.getValue() );
-  } else if (what === "<=") {
-        return new cBool( arg0.getValue() <= arg1.getValue() );
-  } else if (what === "=") {
-        return new cBool( arg0.getValue().toLowerCase() === arg1.getValue().toLowerCase() );
-  } else if (what === "<>") {
-        return new cBool( arg0.getValue().toLowerCase() !== arg1.getValue().toLowerCase() );
-  } else if (what === "-") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() - _arg1.getValue() );
-  } else if (what === "+") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() + _arg1.getValue() );
-  } else if (what === "/") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        if ( _arg1.getValue() !== 0 ) {
-            return new cNumber( _arg0.getValue() / _arg1.getValue() );
-        }
-        return new cError( cErrorType.division_by_zero );
-  } else if (what === "*") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() * _arg1.getValue() );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	//TODO need change opt_return_bool. for example >  change on props -> .returnBool & .useLowerCase & ...
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	let isEqualStrings = function (str1, str2) {
+		return opt_return_bool ? str1 === str2 : str1.toLowerCase() === str2.toLowerCase();
+	};
+
+	let _arg0, _arg1;
+	if (what === ">") {
+		res = arg0.getValue(true) > arg1.getValue(true);
+	} else if (what === ">=") {
+		res = arg0.getValue(true) >= arg1.getValue(true);
+	} else if (what === "<") {
+		res = arg0.getValue(true) < arg1.getValue(true);
+	} else if (what === "<=") {
+		res = arg0.getValue(true) <= arg1.getValue(true);
+	} else if (what === "=") {
+		res = isEqualStrings(arg0.getValue(true), arg1.getValue(true));
+	} else if (what === "<>") {
+		res = !isEqualStrings(arg0.getValue(true), arg1.getValue(true));
+	} else if (what === "-") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue(true) - _arg1.getValue(true));
+	} else if (what === "+") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue(true) + _arg1.getValue(true));
+	} else if (what === "/") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		if (_arg1.getValue(true) !== 0) {
+			return new cNumber(_arg0.getValue(true) / _arg1.getValue(true));
+		}
+		return new cError(cErrorType.division_by_zero);
+	} else if (what === "*") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue(true) * _arg1.getValue(true));
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.string][cElementType.bool] = function ( arg0, arg1, what ) {
-    var _arg0, _arg1;
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( false );
-  } else if (what === "<" || what === "<=") {
-        return new cBool( true );
-  } else if (what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() - _arg1.getValue() );
-  } else if (what === "+") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() + _arg1.getValue() );
-  } else if (what === "/") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        if ( _arg1.getValue() !== 0 ) {
-            return new cNumber( _arg0.getValue() / _arg1.getValue() );
-        }
-        return new cError( cErrorType.division_by_zero );
-  } else if (what === "*") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg0 instanceof cError ) {
-            return _arg0;
-        }
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() * _arg1.getValue() );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+	let _arg0, _arg1;
+	if (what === ">" || what === ">=") {
+		res = false;
+	} else if (what === "<" || what === "<=") {
+		res = true;
+	} else if (what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res = true;
+	} else if (what === "-") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() - _arg1.getValue());
+	} else if (what === "+") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() + _arg1.getValue());
+	} else if (what === "/") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		if (_arg1.getValue() !== 0) {
+			return new cNumber(_arg0.getValue() / _arg1.getValue());
+		}
+		return new cError(cErrorType.division_by_zero);
+	} else if (what === "*") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg0 instanceof cError) {
+			return _arg0;
+		}
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() * _arg1.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.string][cElementType.error] = function ( arg0, arg1 ) {
@@ -4808,146 +4957,170 @@ _func[cElementType.string][cElementType.error] = function ( arg0, arg1 ) {
 };
 
 _func[cElementType.string][cElementType.empty] = function ( arg0, arg1, what ) {
-    if ( what === ">" ) {
-        return new cBool( arg0.getValue().length !== 0 );
-  } else if (what === ">=") {
-        return new cBool( arg0.getValue().length >= 0 );
-  } else if (what === "<") {
-        return new cBool( false );
-  } else if (what === "<=") {
-        return new cBool( arg0.getValue().length <= 0 );
-  } else if (what === "=") {
-        return new cBool( arg0.getValue().length === 0 );
-  } else if (what === "<>") {
-        return new cBool( arg0.getValue().length !== 0 );
-  } else if (what === "-" || what === "+" || what === "/" || what === "*") {
-        return new cError( cErrorType.wrong_value_type );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	if (what === ">") {
+		res = arg0.getValue(true).length !== 0;
+	} else if (what === ">=") {
+		res = arg0.getValue(true).length >= 0;
+	} else if (what === "<") {
+		res = false;
+	} else if (what === "<=") {
+		res = arg0.getValue(true).length <= 0;
+	} else if (what === "=") {
+		res = arg0.getValue(true).length === 0;
+	} else if (what === "<>") {
+		res = arg0.getValue(true).length !== 0;
+	} else if (what === "-" || what === "+" || what === "/" || what === "*") {
+		return new cError(cErrorType.wrong_value_type);
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 
 _func[cElementType.bool][cElementType.number] = function ( arg0, arg1, what ) {
-    var _arg;
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( true );
-  } else if (what === "<" || what === "<=") {
-        return new cBool( false );
-  } else if (what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-") {
-        _arg = arg0.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( _arg.getValue() - arg1.getValue() );
-  } else if (what === "+") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( _arg.getValue() + arg1.getValue() );
-  } else if (what === "/") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        if ( arg1.getValue() !== 0 ) {
-            return new cNumber( _arg.getValue() / arg1.getValue() );
-    } else {
-            return new cError( cErrorType.division_by_zero );
-        }
-  } else if (what === "*") {
-        _arg = arg1.tocNumber();
-        if ( _arg instanceof cError ) {
-            return _arg;
-        }
-        return new cNumber( _arg.getValue() * arg1.getValue() );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	var _arg;
+	if (what === ">" || what === ">=") {
+		res = true;
+	} else if (what === "<" || what === "<=") {
+		res = false;
+	} else if (what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res = true;
+	} else if (what === "-") {
+		_arg = arg0.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(_arg.getValue() - arg1.getValue());
+	} else if (what === "+") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(_arg.getValue() + arg1.getValue());
+	} else if (what === "/") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		if (arg1.getValue() !== 0) {
+			return new cNumber(_arg.getValue() / arg1.getValue());
+		} else {
+			return new cError(cErrorType.division_by_zero);
+		}
+	} else if (what === "*") {
+		_arg = arg1.tocNumber();
+		if (_arg instanceof cError) {
+			return _arg;
+		}
+		return new cNumber(_arg.getValue() * arg1.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.bool][cElementType.string] = function ( arg0, arg1, what ) {
-    var _arg0, _arg1;
-    if ( what === ">" || what === ">=" ) {
-        return new cBool( true );
-  } else if (what === "<" || what === "<=") {
-        return new cBool( false );
-  } else if (what === "=") {
-        return new cBool( false );
-  } else if (what === "<>") {
-        return new cBool( true );
-  } else if (what === "-") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() - _arg1.getValue() );
-  } else if (what === "+") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() + _arg1.getValue() );
-  } else if (what === "/") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        if ( _arg1.getValue() !== 0 ) {
-            return new cNumber( _arg0.getValue() / _arg1.getValue() );
-        }
-        return new cError( cErrorType.division_by_zero );
-  } else if (what === "*") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        if ( _arg1 instanceof cError ) {
-            return _arg1;
-        }
-        return new cNumber( _arg0.getValue() * _arg1.getValue() );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	var _arg0, _arg1;
+	if (what === ">" || what === ">=") {
+		res= true;
+	} else if (what === "<" || what === "<=") {
+		res= false;
+	} else if (what === "=") {
+		res = false;
+	} else if (what === "<>") {
+		res= true;
+	} else if (what === "-") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() - _arg1.getValue());
+	} else if (what === "+") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() + _arg1.getValue());
+	} else if (what === "/") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		if (_arg1.getValue() !== 0) {
+			return new cNumber(_arg0.getValue() / _arg1.getValue());
+		}
+		return new cError(cErrorType.division_by_zero);
+	} else if (what === "*") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		if (_arg1 instanceof cError) {
+			return _arg1;
+		}
+		return new cNumber(_arg0.getValue() * _arg1.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 _func[cElementType.bool][cElementType.bool] = function ( arg0, arg1, what ) {
-    var _arg0, _arg1;
-    if ( what === ">" ) {
-        return    new cBool( arg0.value > arg1.value );
-  } else if (what === ">=") {
-        return    new cBool( arg0.value >= arg1.value );
-  } else if (what === "<") {
-        return    new cBool( arg0.value < arg1.value );
-  } else if (what === "<=") {
-        return    new cBool( arg0.value <= arg1.value );
-  } else if (what === "=") {
-        return    new cBool( arg0.value === arg1.value );
-  } else if (what === "<>") {
-        return    new cBool( arg0.value !== arg1.value );
-  } else if (what === "-") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        return new cNumber( _arg0.getValue() - _arg1.getValue() );
-  } else if (what === "+") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        return new cNumber( _arg0.getValue() + _arg1.getValue() );
-  } else if (what === "/") {
-        if ( !arg1.value ) {
-            return new cError( cErrorType.division_by_zero );
-        }
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        return new cNumber( _arg0.getValue() / _arg1.getValue() );
-  } else if (what === "*") {
-        _arg0 = arg0.tocNumber();
-        _arg1 = arg1.tocNumber();
-        return new cNumber( _arg0.getValue() * _arg1.getValue() );
-    }
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	var _arg0, _arg1;
+	if (what === ">") {
+		res =arg0.value > arg1.value;
+	} else if (what === ">=") {
+		res =arg0.value >= arg1.value;
+	} else if (what === "<") {
+		res =arg0.value < arg1.value;
+	} else if (what === "<=") {
+		res =arg0.value <= arg1.value;
+	} else if (what === "=") {
+		res =arg0.value === arg1.value;
+	} else if (what === "<>") {
+		res =arg0.value !== arg1.value;
+	} else if (what === "-") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		return new cNumber(_arg0.getValue() - _arg1.getValue());
+	} else if (what === "+") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		return new cNumber(_arg0.getValue() + _arg1.getValue());
+	} else if (what === "/") {
+		if (!arg1.value) {
+			return new cError(cErrorType.division_by_zero);
+		}
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		return new cNumber(_arg0.getValue() / _arg1.getValue());
+	} else if (what === "*") {
+		_arg0 = arg0.tocNumber();
+		_arg1 = arg1.tocNumber();
+		return new cNumber(_arg0.getValue() * _arg1.getValue());
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
     return new cError( cErrorType.wrong_value_type );
 };
 
@@ -4956,28 +5129,34 @@ _func[cElementType.bool][cElementType.error] = function ( arg0, arg1 ) {
 };
 
 _func[cElementType.bool][cElementType.empty] = function ( arg0, arg1, what ) {
-    if ( what === ">" ) {
-        return new cBool( arg0.value > false );
-  } else if (what === ">=") {
-        return new cBool( arg0.value >= false );
-  } else if (what === "<") {
-        return new cBool( arg0.value < false );
-  } else if (what === "<=") {
-        return new cBool( arg0.value <= false );
-  } else if (what === "=") {
-        return new cBool( arg0.value === false );
-  } else if (what === "<>") {
-        return new cBool( arg0.value !== false );
-  } else if (what === "-") {
-        return new cNumber( arg0.value ? 1 : 0 );
-  } else if (what === "+") {
-        return new cNumber( arg0.value ? 1 : 0 );
-  } else if (what === "/") {
-        return new cError( cErrorType.division_by_zero );
-  } else if (what === "*") {
-        return new cNumber( 0 );
-    }
-    return new cError( cErrorType.wrong_value_type );
+	let opt_return_bool = arguments[5];
+	let res = null;
+
+	if (what === ">") {
+		res= arg0.value > false;
+	} else if (what === ">=") {
+		res= arg0.value >= false;
+	} else if (what === "<") {
+		res= arg0.value < false;
+	} else if (what === "<=") {
+		res= arg0.value <= false;
+	} else if (what === "=") {
+		res= arg0.value === false;
+	} else if (what === "<>") {
+		res= arg0.value !== false;
+	} else if (what === "-") {
+		res = arg0.value ? 1 : 0;
+	} else if (what === "+") {
+		res = arg0.value ? 1 : 0;
+	} else if (what === "/") {
+		return new cError(cErrorType.division_by_zero);
+	} else if (what === "*") {
+		return new cNumber(0);
+	}
+	if (res !== null) {
+		return opt_return_bool ? res : new cBool(res);
+	}
+	return new cError(cErrorType.wrong_value_type);
 };
 
 
@@ -5018,17 +5197,17 @@ _func[cElementType.empty][cElementType.number] = function ( arg0, arg1, what ) {
 
 _func[cElementType.empty][cElementType.string] = function ( arg0, arg1, what ) {
     if ( what === ">" ) {
-        return new cBool( 0 > arg1.getValue().length );
+        return new cBool( 0 > arg1.getValue(true).length );
   } else if (what === ">=") {
-        return new cBool( 0 >= arg1.getValue().length );
+        return new cBool( 0 >= arg1.getValue(true).length );
   } else if (what === "<") {
-        return new cBool( 0 < arg1.getValue().length );
+        return new cBool( 0 < arg1.getValue(true).length );
   } else if (what === "<=") {
-        return new cBool( 0 <= arg1.getValue().length );
+        return new cBool( 0 <= arg1.getValue(true).length );
   } else if (what === "=") {
-        return new cBool( 0 === arg1.getValue().length );
+        return new cBool( 0 === arg1.getValue(true).length );
   } else if (what === "<>") {
-        return new cBool( 0 !== arg1.getValue().length );
+        return new cBool( 0 !== arg1.getValue(true).length );
   } else if (what === "-" || what === "+" || what === "/" || what === "*") {
         return new cError( cErrorType.wrong_value_type );
     }
@@ -5108,7 +5287,7 @@ _func[cElementType.cellsRange][cElementType.cellsRange] = function ( arg0, arg1,
 
 _func[cElementType.array][cElementType.array] = function ( arg0, arg1, what, bbox, bIsSpecialFunction ) {
 	if (bIsSpecialFunction) {
-		var specialArray = specialFuncArrayToArray(arg0, arg1, what);
+		let specialArray = specialFuncArrayToArray(arg0, arg1, what);
 		if(null !== specialArray){
 			return specialArray;
 		}
@@ -5156,9 +5335,9 @@ _func[cElementType.number][cElementType.array] = _func[cElementType.string][cEle
 
 
 _func.binarySearch = function ( sElem, arrTagert, regExp ) {
-	var first = 0, /* Номер первого элемента в массиве */
-		last = arrTagert.length - 1, /* Номер элемента в массиве, СЛЕДУЮЩЕГО ЗА последним */
-		/* Если просматриваемый участок непустой, first<last */
+	var first = 0, /* The number of the first element in the array */
+		last = arrTagert.length - 1, /* The number of the element in the array that comes AFTER the last one */
+		/* If the viewed segment is not empty, first<last */
 		mid;
 
 	var arrTagertOneType = [], isString = false;
@@ -5176,98 +5355,129 @@ _func.binarySearch = function ( sElem, arrTagert, regExp ) {
 		}
 	}
 
+	// comparing the lengths of arrays and the first and last element
 	if (arrTagert.length === 0) {
 		return -1;
-		/* массив пуст */
+		/* array empty */
 	} else if (arrTagert[0].value > sElem.value) {
 		return -2;
 	} else if (arrTagert[arrTagert.length - 1].value < sElem.value) {
 		return arrTagert.length - 1;
 	}
 
+	// according to the sorting in MS, the comparison will be like this: cError > cBool > cText > (cNumber == cEmpty)
 	while (first < last) {
 		mid = Math.floor(first + (last - first) / 2);
-		if (sElem.value <= arrTagert[mid].value || ( regExp && regExp.test(arrTagert[mid].value) )) {
-			last = mid;
+		if (sElem.type !== arrTagert[mid].type) {
+			if (sElem.type === cElementType.empty || arrTagert[mid].type === cElementType.empty) {
+				if (sElem.value <= arrTagert[mid].value) {
+					// cEmpty.tocNumber() ?
+					last = mid;
+				} else {
+					first = mid + 1;
+				}
+			} else {
+				if (cElementTypeWeight.get(sElem.type) < cElementTypeWeight.get(arrTagert[mid].type)) {
+					last = mid;
+				} else {
+					first = mid + 1;
+				}
+			}
 		} else {
-			first = mid + 1;
+			// if cError && cError ?
+			if (sElem.value < arrTagert[mid].value || ( regExp && regExp.test(arrTagert[mid].value) )) {
+				last = mid;
+			} else {
+				first = mid + 1;
+			}
 		}
 	}
 
-	/* Если условный оператор if(n==0) и т.д. в начале опущен - значит, тут раскомментировать!    */
+	/* If the conditional operator if(n==0) and so on is omitted at the beginning - then uncomment it here!    */
 	if (/* last<n &&*/ arrTagert[last].value === sElem.value) {
 		return last;
-		/* Искомый элемент найден. last - искомый индекс */
+		/* The desired element is found. last is the desired index */
 	} else {
 		return last - 1;
-		/* Искомый элемент не найден. Но если вам вдруг надо его вставить со сдвигом, то его место - last.    */
+		/* The desired element is not found. But if you suddenly need to insert it with a shift, its place is at last.    */
 	}
 
 };
 
-_func.binarySearchByRange = function ( sElem, area, regExp ) {
-	var bbox, ws;
-	if (cElementType.cellsRange3D === area.type) {
-		bbox = area.bbox;
-		ws = area.getWS();
-	} else if (cElementType.cellsRange === area.type) {
-		bbox = area.range.bbox;
-		ws = area.ws;
-	}
-	var bVertical = bbox.r2 - bbox.r1 >= bbox.c2 - bbox.c1;//r>=c
-	var first = 0, /* Номер первого элемента в массиве */
-		last = bVertical ? bbox.r2 - bbox.r1 : bbox.c2 - bbox.c1, /* Номер элемента в массиве, СЛЕДУЮЩЕГО ЗА последним */
-		/* Если просматриваемый участок непустой, first<last */
-		mid;
+_func.lookupBinarySearch = function ( sElem, arrayNoEmpty, isByRangeCall, regExp ) {
+	let first = 0, last, mid;
+	let typedArr;
 
-	var getValuesNoEmpty = function () {
-		var _r1 = bbox.r1;
-		var _r2 = bVertical ? bbox.r2 : bbox.r1;
-		var _c1 = bbox.c1;
-		var _c2 = bVertical ? bbox.c1 : bbox.c2;
-		var _val = [];
-		ws.getRange3(_r1, _c1, _r2, _c2)._foreachNoEmpty(function(cell) {
-			var checkTypeVal = checkTypeCell(cell);
-			if (checkTypeVal.type !== cElementType.empty) {
-				_val.push(checkTypeVal);
-				mapEmptyFullValues[_val.length - 1] = bVertical ? cell.nRow - bbox.r1 : cell.nCol - bbox.c1;
-			}
-		});
-		return _val;
-	};
-
-	var mapEmptyFullValues = [];
-	var noEmptyValues = getValuesNoEmpty();
-	last = noEmptyValues.length - 1;
-
-	if (noEmptyValues.length === 0) {
+	typedArr = prepareTypedArrayUniversal(arrayNoEmpty, sElem, isByRangeCall);
+	
+	if (typedArr.length === 0) {
+		/* array empty */
 		return -1;
-		/* массив пуст */
-	} else if (noEmptyValues[0].value > sElem.value) {
-		return -2;
-	} else if (noEmptyValues[last].value < sElem.value) {
-		return last;
+	}
+	// 2 elements next to each other
+	if (typedArr.length === 2) {
+		// todo check two element behaviour
+	}
+	// With 0-9 < A-Z, if query is numeric and data found is string, or
+	// vice versa, the (yet another undocumented) Excel behavior is to
+	// return #N/A instead.
+
+	if (sElem.type === cElementType.string) {
+		sElem = new cString(sElem.toString().toLowerCase());
 	}
 
-	var tempValue;
+	let cacheIndex, isFound;
+	first = 0, last = typedArr.length - 1;
 	while (first < last) {
 		mid = Math.floor(first + (last - first) / 2);
-		tempValue = noEmptyValues[mid];
-		if (sElem.value <= tempValue.value || ( regExp && regExp.test(tempValue.value) )) {
+
+		let midValue = typedArr[mid].v;
+		// let cmp = compareValues(sElem, midValue)
+		if (sElem.value === midValue.value) {
+			/* cmp === 0 */
+			last = _func.getLastMatch(mid, sElem, typedArr);
+			break;
+		}
+
+		if (sElem.value < midValue.value || ( regExp && regExp.test(midValue.value) )) {
+			/* cmp > 0 */
 			last = mid;
 		} else {
+			/* cmp < 0 */	
+			cacheIndex = mid;														
 			first = mid + 1;
 		}
 	}
 
-	/* Если условный оператор if(n==0) и т.д. в начале опущен - значит, тут раскомментировать!    */
-	if (/* last<n &&*/ noEmptyValues[last].value === sElem.value) {
-		return mapEmptyFullValues[last];
-		/* Искомый элемент найден. last - искомый индекс */
+	if (typedArr[last].v.value <= sElem.value) {
+		return typedArr[last].i;
+	} else if (cacheIndex !== undefined && typedArr[cacheIndex].v.value <= sElem.value) {
+		return typedArr[cacheIndex].i;
 	} else {
-		return mapEmptyFullValues[last - 1];
-		/* Искомый элемент не найден. Но если вам вдруг надо его вставить со сдвигом, то его место - last.    */
+		return -2;
 	}
+};
+
+_func.getLastMatch = function (startIndex, lookingElem, array) {
+	// todo add compare to all types?
+	let resIndex = startIndex, exactMatchIndex;
+	for (let i = startIndex; i < array.length; i++) {
+		if (array[i].v.type !== lookingElem.type) {
+			continue;
+		}
+		if (lookingElem.type === cElementType.bool && array[i].v.value !== lookingElem.value) {
+			break;
+		}
+
+		if (array[i].v.value === lookingElem.value) {
+			exactMatchIndex = i;
+		} else if (array[i].v.value <= lookingElem.value) {
+			resIndex = i;
+		} else if (array[i].v.value > lookingElem.value) {
+			break;
+		}
+	}
+	return exactMatchIndex ? exactMatchIndex : resIndex;
 
 };
 
@@ -5651,6 +5861,9 @@ function parserFormula( formula, parent, _ws ) {
 
 	this.ref = null;
 
+	//mark function, when need reparse and recalculate on custom function change change
+	this.bUnknownOrCustomFunction = null;
+
 	if (AscFonts.IsCheckSymbols) {
 		AscFonts.FontPickerByCharacter.getFontsByString(this.Formula);
 	}
@@ -5703,6 +5916,10 @@ function parserFormula( formula, parent, _ws ) {
 		} else if (AscCommon.c_oNotifyType.Prepare === data.type) {
 			this.removeDependencies();
 			this.processNotifyPrepare(data);
+		} else if (AscCommon.c_oNotifyType.ChangeExternalLink === data.type) {
+			this._changeExternalLink(data);
+			this.Formula = this.assemble(true);
+			this.buildDependencies();
 		} else {
 			this.removeDependencies();
 			var needAssemble = true;
@@ -5719,6 +5936,15 @@ function parserFormula( formula, parent, _ws ) {
 			}
 			this.Formula = eventData.assemble;
 			this.buildDependencies();
+		}
+	};
+	parserFormula.prototype._changeExternalLink = function(data) {
+		for (var i = 0; i < this.outStack.length; i++) {
+			if (this.outStack[i].type === cElementType.cell3D || this.outStack[i].type === cElementType.cellsRange3D || this.outStack[i].type === cElementType.name3D) {
+				if (this.outStack[i].externalLink == data.data.from) {
+					this.outStack[i].externalLink = data.data.to;
+				}
+			}
 		}
 	};
 	parserFormula.prototype.processNotifyPrepare = function(data) {
@@ -5832,7 +6058,7 @@ function parserFormula( formula, parent, _ws ) {
 		var needAssemble = false;
 		var cFormulaList;
 
-		var startArrayFunc = false, counterArrayFunc = 0;
+		var startArrayFunc = false, counterArrayFunc = 0, isFoundImportFunctions;
 
 		if (this.isParsed) {
 			return this.isParsed;
@@ -6034,6 +6260,7 @@ function parserFormula( formula, parent, _ws ) {
 								elem = new cUnknownFunction(val);
 								let xlfnFrefix = "_xlfn.";
 								let xlwsFrefix = "_xlws.";
+								//let xludfFrefix = "__xludf.DUMMYFUNCTION.";
 								//_xlws only together with _xlfn
 								elem.isXLFN = (val.indexOf(xlfnFrefix) === 0);
 								elem.isXLWS = elem.isXLFN && xlfnFrefix.length === val.indexOf(xlwsFrefix);
@@ -6682,7 +6909,7 @@ function parserFormula( formula, parent, _ws ) {
 							if (!parseResult.externalReferenesNeedAdd[externalLink]) {
 								parseResult.externalReferenesNeedAdd[externalLink] = [];
 							}
-							parseResult.externalReferenesNeedAdd[externalLink].push(_3DRefTmp[1]);
+							parseResult.externalReferenesNeedAdd[externalLink].push({sheet: _3DRefTmp[1]});
 						}
 					}
 
@@ -6827,7 +7054,7 @@ function parserFormula( formula, parent, _ws ) {
 					elemArr.push(new cMultOperator());
 				}
 
-				var found_operator = null, operandStr = ph.operand_str.replace(rx_sFuncPref, "").replace(rx_sFuncPrefXlWS, "").toUpperCase();
+				var found_operator = null, operandStr = ph.operand_str.replace(rx_sFuncPref, "").replace(rx_sFuncPrefXlWS, "").replace(rx_sFuncPrefXLUFD, "").toUpperCase();
 				if (operandStr in cFormulaList) {
 					found_operator = cFormulaList[operandStr].prototype;
 				} else if (operandStr in cAllFormulaFunction) {
@@ -6836,9 +7063,19 @@ function parserFormula( formula, parent, _ws ) {
 					found_operator = new cUnknownFunction(operandStr);
 					let xlfnFrefix = "_xlfn.";
 					let xlwsFrefix = "_xlws.";
+					//let xludfFrefix = "__xludf.DUMMYFUNCTION.";
+
 					//_xlws only together with _xlfn
 					found_operator.isXLFN = (ph.operand_str.indexOf(xlfnFrefix) === 0);
 					found_operator.isXLWS = found_operator.isXLFN && xlfnFrefix.length === ph.operand_str.indexOf(xlwsFrefix);
+
+					t.bUnknownOrCustomFunction = true;
+				}
+
+				//mark function, when need reparse and recalculate on custom function change change
+				let wb = Asc["editor"] && Asc["editor"].wb;
+				if (wb && wb.customFunctionEngine && wb.customFunctionEngine.getFunc(operandStr)) {
+					t.bUnknownOrCustomFunction = true;
 				}
 
 				if (found_operator !== null) {
@@ -6853,6 +7090,10 @@ function parserFormula( formula, parent, _ws ) {
 					parseResult.addElem(found_operator);
 					if (arrayFunctionsMap[found_operator.name]) {
 						startArrayFunc = true;
+					}
+
+					if (found_operator.name === "IMPORTRANGE") {
+						isFoundImportFunctions = true;
 					}
 
 					if (needCalcArgPos) {
@@ -7021,6 +7262,44 @@ function parserFormula( formula, parent, _ws ) {
 		if (0 !== this.outStack.length) {
 			if (needAssemble) {
 				this.Formula = this.assemble();
+			}
+			if (isFoundImportFunctions && !parseResult.error) {
+				//share external links
+				AscCommonExcel.importRangeLinksState.startBuildImportRangeLinks = true;
+				this.calculate();
+				AscCommonExcel.importRangeLinksState.startBuildImportRangeLinks = null;
+
+				this.importFunctionsRangeLinks = AscCommonExcel.importRangeLinksState.importRangeLinks;
+
+				if (this.importFunctionsRangeLinks) {
+					for (let i in this.importFunctionsRangeLinks) {
+						let externalLink = this.wb.getExternalLinkIndexByName(i);
+						if (externalLink === null) {
+							externalLink = i;
+							if (!parseResult.externalReferenesNeedAdd) {
+								parseResult.externalReferenesNeedAdd = [];
+							}
+							if (!parseResult.externalReferenesNeedAdd[externalLink]) {
+								parseResult.externalReferenesNeedAdd[externalLink] = [];
+							}
+
+							for (var j = 0; j < this.importFunctionsRangeLinks[i].length; j++) {
+								parseResult.externalReferenesNeedAdd[externalLink].push({sheet: this.importFunctionsRangeLinks[i][j].sheet, notUpdateId: true});
+							}
+						}
+					}
+
+					if (AscCommonExcel.importRangeLinksState.importRangeLinks) {
+						if (!AscCommonExcel.importRangeLinksState.notUpdateIdMap) {
+							AscCommonExcel.importRangeLinksState.notUpdateIdMap = {};
+						}
+						for (let i in AscCommonExcel.importRangeLinksState.importRangeLinks) {
+							AscCommonExcel.importRangeLinksState.notUpdateIdMap[i] = true;
+						}
+					}
+
+					AscCommonExcel.importRangeLinksState.importRangeLinks = null;
+				}
 			}
 			return this.isParsed = true;
 		} else {
@@ -7819,6 +8098,22 @@ function parserFormula( formula, parent, _ws ) {
 				}
 			}
 		}
+
+		if (this.importFunctionsRangeLinks) {
+			for (let i in this.importFunctionsRangeLinks) {
+				let externalLink = this.wb.getExternalLinkByName(i);
+				if (externalLink) {
+					for (let j in this.importFunctionsRangeLinks[i]) {
+						let _rangeInfo = this.importFunctionsRangeLinks[i][j];
+						let _ws = externalLink.worksheets[_rangeInfo.sheet];
+						if (_ws) {
+							this._buildDependenciesRef(_ws.getId(), AscCommonExcel.g_oRangeCache.getRangesFromSqRef(_rangeInfo.range)[0], null, true);
+						}
+					}
+				}
+			}
+
+		}
 	};
 	parserFormula.prototype.removeDependencies = function() {
 		if (!this.isInDependencies) {
@@ -7955,7 +8250,8 @@ function parserFormula( formula, parent, _ws ) {
 		for (var i = 0; i < this.outStack.length; i++) {
 			var elem = this.outStack[i];
 			if (cElementType.cell === elem.type || cElementType.cell3D === elem.type ||
-				cElementType.cellsRange === elem.type || cElementType.cellsRange3D === elem.type) {
+				cElementType.cellsRange === elem.type || cElementType.cellsRange3D === elem.type
+				|| cElementType.table === elem.type) {
 				res = elem.getRange();
 				break;
 			}
@@ -8467,7 +8763,7 @@ function parserFormula( formula, parent, _ws ) {
 		if (_row > sizes.row - 1 || _col > sizes.col - 1) {
 			return new cError(cErrorType.not_available);
 		}
-		let res = array.getValueByRowCol ? array.getValueByRowCol(_row, _col) : array.getElementRowCol(_row, _col);
+		let res = array.getValueByRowCol ? array.getValueByRowCol(_row, _col, true) : array.getElementRowCol(_row, _col);
 		return res;
 	}
 
@@ -8729,8 +9025,8 @@ function parserFormula( formula, parent, _ws ) {
 	}
 
 	function specialFuncArrayToArray(arg0, arg1, what) {
-		var retArr = null, _arg0, _arg1;
-		var iRow, iCol;
+		let retArr = null, _arg0, _arg1;
+		let iRow, iCol;
 		if (arg0.getRowCount() === arg1.getRowCount() && 1 === arg0.getCountElementInRow()) {
 			retArr = new cArray();
 			for (iRow = 0; iRow < arg1.getRowCount(); iRow++, iRow < arg1.getRowCount() ? retArr.addRow() : true) {
@@ -8785,6 +9081,110 @@ function parserFormula( formula, parent, _ws ) {
 					retArr.addElement(_func[_arg0.type][_arg1.type](_arg0, _arg1, what));
 				}
 			}
+		} else if (arg0.getCountElement() !== arg1.getCountElement()) {
+			let arg0Copy = new cArray(), arg1Copy = new cArray();
+			let errNA = new cError(cErrorType.not_available);
+
+			arg0Copy.fillFromArray(arg0.array);
+			arg1Copy.fillFromArray(arg1.array);
+
+			// if there is only one element in the range, get this element and call the function again
+			if (arg0.isOneElement()) {
+				arg0Copy = arg0.getFirstElement();
+				return _func[arg0Copy.type][arg1.type](arg0Copy, arg1, what);
+			} else if (arg1.isOneElement()) {
+				arg1Copy = arg1.getFirstElement();
+				return _func[arg0.type][arg1Copy.type](arg0, arg1Copy, what);
+			}
+
+			let arg0Dimensions = arg0.getDimensions(),
+				arg1Dimensions = arg1.getDimensions();
+
+			let arrayMaxRows = Math.max(arg0.getRowCount(), arg1.getRowCount()),
+				arrayMaxCols = Math.max(arg0.getCountElementInRow(), arg1.getCountElementInRow());
+				retArr = new cArray();
+
+			// The logic for creating the final array when the argument sizes do not match:
+			// If we have arrays consisting of a single row/column, we fill a copy of that array with these columns/rows (up to the maximum number of rows/columns).
+			// Then we redefine dimensions based on the copies.
+			// Next, we iterate over the missing columns (those that are less than maxCol) and fill the missing columns with #N/A errors (for correct calculations, as in normal conditions, an empty cell would return cEmpty).
+			// We do the same for rows, but we fill them entirely since they are completely empty.
+			// Then, we fill the final array with two loops, with its dimensions being maxRows and maxCols.
+			// In MS returns the maximum RowCol in the dynamic array.
+
+			// check if we have single row/col in arg0
+			if ((arg0Dimensions.row === 1 && arrayMaxRows > 1) || (arg0Dimensions.col === 1 && arrayMaxCols > 1)) {
+				if (arg0Dimensions.row === 1) {
+					let firstRow = arg0._getRow(0);
+					for (let i = 1; i < arrayMaxRows; i++) {
+						arg0Copy.pushRow(firstRow, 0);
+					}
+ 				} else if (arg0Dimensions.col === 1) {
+					let firstCol = arg0._getCol(0);
+					for (let i = 1; i < arrayMaxCols; i++) {
+						arg0Copy.pushCol(firstCol, 0);
+					}
+				}
+			}
+
+			// check arg0 col dimensions and fill missing positions with errors
+			arg0Dimensions = arg0Copy.getDimensions();
+			if (arg0Dimensions.col < arrayMaxCols) {
+				// fill the cols with N/A
+				let errArray = new Array(arg0Dimensions.row).fill([errNA]);
+				for (let i = arg0Dimensions.col; i < arrayMaxCols; i++) {
+					arg0Copy.pushCol(errArray, 0);
+				}
+			}
+			// check arg0 row dimensions and fill missing positions with errors
+			if (arg0Dimensions.row < arrayMaxRows) {
+				// fill rows with N/A
+				let errArray = new Array(arrayMaxCols).fill(errNA);
+				for (let i = arg0Dimensions.row; i < arrayMaxRows; i++) {
+					arg0Copy.pushRow([errArray], 0);
+				}
+			}
+
+			// check if we have single row/col in arg1
+			if ((arg1Dimensions.row === 1 && arrayMaxRows > 1) || (arg1Dimensions.col === 1 && arrayMaxCols > 1)) {
+				if (arg1Dimensions.row === 1) {
+					for (let i = 0; i < arrayMaxRows; i++) {
+						arg1Copy.pushRow(arg1._getRow(0), 0);
+					}
+ 				} else if (arg1Dimensions.col === 1) {
+					let firstCol = arg0._getCol(0);
+					for (let i = 1; i < arrayMaxCols; i++) {
+						arg0Copy.pushCol(firstCol, 0);
+					}
+				}
+			}
+
+			// check arg1 col dimensions and fill missing positions with errors
+			arg1Dimensions = arg1Copy.getDimensions();
+			if (arg1Dimensions.col < arrayMaxCols) {
+				// fill cols with N/A
+				let errArray = new Array(arg1Dimensions.row).fill([errNA]);
+				for (let i = arg1Dimensions.col; i < arrayMaxCols; i++) {
+					arg1Copy.pushCol(errArray, 0);
+				}
+			}
+			// check arg1 row dimensions and fill missing positions with errors
+			if (arg1Dimensions.row < arrayMaxRows) {
+				// fill rows with N/A
+				let errArray = new Array(arrayMaxCols).fill(errNA);
+				for (let i = arg1Dimensions.row; i < arrayMaxRows; i++) {
+					arg1Copy.pushRow([errArray], 0);
+				}
+			}
+
+			// fill result array
+			for (iRow = 0; iRow < arrayMaxRows; iRow++, iRow < arrayMaxRows ? retArr.addRow() : true) {
+				for (iCol = 0; iCol < arrayMaxCols; iCol++) {
+					_arg0 = arg0Copy.getElementRowCol(iRow, iCol);
+					_arg1 = arg1Copy.getElementRowCol(iRow, iCol);
+					retArr.addElement(_func[_arg0.type][_arg1.type](_arg0, _arg1, what));
+				}
+			}
 		}
 		return retArr;
 	}
@@ -8793,6 +9193,7 @@ function parserFormula( formula, parent, _ws ) {
 	window['AscCommonExcel'] = window['AscCommonExcel'] || {};
 	window['AscCommonExcel'].cElementType = cElementType;
 	window['AscCommonExcel'].cErrorType = cErrorType;
+	window['AscCommonExcel'].cElementTypeWeight = cElementTypeWeight;
 	window['AscCommonExcel'].cExcelSignificantDigits = cExcelSignificantDigits;
 	window['AscCommonExcel'].cExcelMaxExponent = cExcelMaxExponent;
 	window['AscCommonExcel'].cExcelMinExponent = cExcelMinExponent;
@@ -8823,6 +9224,7 @@ function parserFormula( formula, parent, _ws ) {
 	window['AscCommonExcel'].cBaseFunction = cBaseFunction;
 	window['AscCommonExcel'].cUnknownFunction = cUnknownFunction;
 	window['AscCommonExcel'].cStrucTable = cStrucTable;
+	window['AscCommonExcel'].cBaseOperator = cBaseOperator;
 
 	window['AscCommonExcel'].checkTypeCell = checkTypeCell;
 	window['AscCommonExcel'].cFormulaFunctionGroup = cFormulaFunctionGroup;
@@ -8833,6 +9235,8 @@ function parserFormula( formula, parent, _ws ) {
 
 	window['AscCommonExcel'].getFormulasInfo = getFormulasInfo;
 	window['AscCommonExcel'].getRangeByRef = getRangeByRef;
+	window['AscCommonExcel'].addNewFunction = addNewFunction;
+	window['AscCommonExcel'].removeCustomFunction = removeCustomFunction;
 
 	window['AscCommonExcel']._func = _func;
 
@@ -8853,5 +9257,7 @@ function parserFormula( formula, parent, _ws ) {
 	window['AscCommonExcel'].convertAreaToArray = convertAreaToArray;
 	window['AscCommonExcel'].convertAreaToArrayRefs = convertAreaToArrayRefs;
 	window['AscCommonExcel'].getArrayHelper = getArrayHelper;
+
+	window['AscCommonExcel'].importRangeLinksState = importRangeLinksState;
 
 })(window);

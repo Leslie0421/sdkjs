@@ -39,24 +39,29 @@ const allTests = [
 	'cell/spreadsheet-calculation/AutoFilterTests.html',
 	'word/unit-tests/paragraphContentPos.html',
 	'word/content-control/block-level/cursorAndSelection.html',
+	'word/content-control/inline-level/checkbox.html',
 	'word/content-control/inline-level/cursorAndSelection.html',
 	'word/document-calculation/floating-position/drawing.html',
 	'word/document-calculation/paragraph.html',
 	'word/document-calculation/table/correctBadTable.html',
 	'word/document-calculation/table/flowTablePosition.html',
 	'word/document-calculation/table/pageBreak.html',
+	'word/document-calculation/table/table-header.html',
 	'word/document-calculation/textShaper/textShaper.html',
 	'word/document-calculation/text-hyphenator/text-hyphenator.html',
 	'word/forms/forms.html',
 	'word/forms/complexForm.html',
 	'word/numbering/numberingApplicator.html',
 	'word/numbering/numberingCalculation.html',
+	'word/numbering/numberingAutocorrect.html',
 	'word/api/api.html',
 	'word/api/textInput.html',
 	'word/styles/displayStyle.html',
 	'word/styles/paraPr.html',
 	'word/styles/styleApplicator.html',
 	'word/plugins/pluginsApi.html',
+	'word/revisions/document-content.html',
+	'word/revisions/paragraph.html',
 	'word/merge-documents/mergeDocuments.html',
 
 	'cell/shortcuts/shortcuts.html',
@@ -95,6 +100,7 @@ const {
 			.then(result =>
 			{
 				count++;
+				console.log("\n" + allTests[nIndex].yellow.bold);
 				printResultSummary(result, console);
 
 				if (result.stats.failed > 0)

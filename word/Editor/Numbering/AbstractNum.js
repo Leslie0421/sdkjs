@@ -47,7 +47,7 @@ function CAbstractNum()
 	this.Lock = new AscCommon.CLock();
 	if (false === AscCommon.g_oIdCounter.m_bLoad)
 	{
-		this.Lock.Set_Type(AscCommon.locktype_Mine, false);
+		this.Lock.Set_Type(AscCommon.c_oAscLockTypes.kLockTypeMine, false);
 		if (typeof AscCommon.CollaborativeEditing !== "undefined")
 			AscCommon.CollaborativeEditing.Add_Unlock2(this);
 	}
@@ -59,7 +59,6 @@ function CAbstractNum()
 	for (var nLvl = 0; nLvl < 9; ++nLvl)
 	{
 		this.Lvl[nLvl] = new CNumberingLvl();
-		this.Lvl[nLvl].InitDefault(nLvl);
 	}
 
 	this.MultiLvlType = Asc.c_oAbstractNumMultiLvlTypes.MultiLevel;
@@ -341,7 +340,7 @@ CAbstractNum.prototype.Refresh_RecalcData = function(Data)
 		var oNum = oNumbering.Num[sId];
 		if (this.Id === oNum.GetAbstractNumId())
 		{
-			arrNumPr.push(new CNumPr(oNum.GetId(), Data.Index));
+			arrNumPr.push(new AscWord.NumPr(oNum.GetId(), Data.Index));
 		}
 	}
 

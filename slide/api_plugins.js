@@ -123,4 +123,117 @@
 		}
 	};
 
+	/**
+	 * Returns all the comments from the document.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias GetAllComments
+	 * @returns {comment[]} - An array of comment objects containing the comment data.
+	 * @since 8.1.0
+	 */
+	Api.prototype["pluginMethod_GetAllComments"] = function()
+	{
+		const oLogicDocument = this.WordControl.m_oLogicDocument;
+		if (!oLogicDocument)
+			return;
+
+		const arrResult = [];
+
+		const oComments = oLogicDocument.GetAllComments();
+		for (let index = 0; index < oComments.length; index++)
+		{
+			const oComment = oComments[index].comment;
+			arrResult.push({"Id" : oComment.GetId(), "Data" : oComment.GetData().ConvertToSimpleObject()});
+		}
+
+		return arrResult;
+	};
+
+	/**
+	 * Starts the presentation slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias StartSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_StartSlideShow"] = function()
+	{
+		this.sendEvent("asc_onStartDemonstration");
+	};
+
+	/**
+	 * Pauses the current slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias PauseSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_PauseSlideShow"] = function()
+	{
+		this.WordControl.DemonstrationManager.Pause();
+		this.sendEvent("asc_onDemonstrationStatus", "pause");
+	};
+	/**
+	 * Resumes the current slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias ResumeSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_ResumeSlideShow"] = function()
+	{
+		this.WordControl.DemonstrationManager.Play();
+		this.sendEvent("asc_onDemonstrationStatus", "play");
+	};
+
+
+	/**
+	 * Ends the current slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias EndSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_EndSlideShow"] = function()
+	{
+		this.EndDemonstration();
+	};
+
+	/**
+	 * Displays the slide following the current slide in the slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias GoToNextSlideInSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_GoToNextSlideInSlideShow"] = function()
+	{
+		this.DemonstrationNextSlide();
+	};
+
+	/**
+	 * Displays the slide following the current slide in the slide show.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias GoToPreviousSlideInSlideShow
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_GoToPreviousSlideInSlideShow"] = function()
+	{
+		this.DemonstrationPrevSlide();
+	};
+
+	/**
+	 * Displays the slide with the specific index.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias GoToSlideInSlideShow
+	 * @param {number} nSlideIndex - The slide index.
+	 * @since 8.0.0
+	 */
+	Api.prototype["pluginMethod_GoToSlideInSlideShow"] = function(nSlideIndex)
+	{
+		this.DemonstrationGoToSlide(nSlideIndex - 1);
+	};
+
 })(window);

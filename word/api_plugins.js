@@ -410,7 +410,7 @@
 			oCD.ReadFromSimpleObject(oCommentData);
 		}
 
-		return this.asc_addComment(new window['Asc']['asc_CCommentDataWord'](oCD));
+		return this.asc_addComment(new window['Asc'].asc_CCommentDataWord(oCD));
 	};
     /**
      * Moves a cursor to the beginning of the current editing area (document body, footer/header, footnote, or autoshape).
@@ -474,6 +474,35 @@
 
         this.WordControl.m_oLogicDocument.ReplaceSearchElement(sReplace, true, null, false);
     };
+	/**
+	 * Finds and selects the next occurrence of the text starting at the current position.
+	 * @memberof Api
+	 * @typeofeditors ["CDE"]
+	 * @alias SearchNext
+	 * @param {Object} oProperties - An object which contains the search string.
+	 * @param {string} oProperties.searchString - The search string.
+	 * @param {boolean} [oProperties.matchCase=true] - Case sensitive or not.
+	 * @param {boolean} [isForward=true] - Search direction.
+	 * @returns {boolean} returns false if text was not found
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_SearchNext"] = function(oProperties, isForward)
+	{
+		let logicDocument = this.WordControl.m_oLogicDocument;
+		if (!logicDocument)
+			return false;
+		
+		let searchProps = new AscCommon.CSearchSettings();
+		searchProps.SetText(oProperties["searchString"]);
+		searchProps.SetMatchCase(undefined !== oProperties["matchCase"] ? oProperties["matchCase"] : true);
+		
+		logicDocument.Search(searchProps);
+		let elementId = logicDocument.GetSearchElementId(!(false === isForward || 0 === isForward));
+		if (null === elementId)
+			return false;
+		
+		logicDocument.SelectSearchElement(elementId);
+		return true;
+	};
     /**
      * Returns file content in the HTML format.
      * @memberof Api
@@ -551,7 +580,7 @@
 			}
 		}
 
-		this.asc_changeComment(sId, new window['Asc']['asc_CCommentDataWord'](oCD));
+		this.asc_changeComment(sId, new window['Asc'].asc_CCommentDataWord(oCD));
 	};
 	/**
 	 * Moves a cursor to the specified comment.

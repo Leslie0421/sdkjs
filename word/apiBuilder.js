@@ -201,10 +201,9 @@
 			let oDrawing = oApiDrawing.Drawing;
 			if(oDrawing)
 			{
-				if(oDrawing.GraphicObj &&
-					oDrawing.GraphicObj.getObjectType() === AscDFH.historyitem_type_OleObject)
+				if(oDrawing.getObjectType() === AscDFH.historyitem_type_OleObject)
 				{
-					let oData = oDrawing.GraphicObj.getDataObject();
+					let oData = oDrawing.getDataObject();
 					window.g_asc_plugins.onPluginEvent("onInsertOleObjects", [oData]);
 				}
 			}
@@ -1240,7 +1239,7 @@
 			
 			for (var nPos = 0; nPos < nCurPos; ++nPos)
 			{
-				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type)
+				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type || para_NewLine === oRun.Content[nPos].Type || para_End === oRun.Content[nPos].Type)
 					nRangePos++;
 			}
 
@@ -1270,8 +1269,6 @@
 			this.Element.CheckRunContent(calcSumChars);
 			
 			this.End = charsCount;
-			if (this.End > 0)
-				this.End--;
 		}
 		else if (typeof(End) === "number")
 			this.End = End;
@@ -1294,15 +1291,13 @@
 
 		function callback(oRun)
 		{
-			var nRangePos = 0;
-
 			var nCurPos = oRun.Content.length;
 			for (var nPos = 0; nPos < nCurPos; ++nPos)
 			{
-				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type)
-					nRangePos++;
+				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type || para_NewLine === oRun.Content[nPos].Type || para_End === oRun.Content[nPos].Type)
+					charsCount++;
 
-				if (StartChar - charsCount === nRangePos - 1 && !isStartDocPosFinded)
+				if (StartChar - (charsCount - 1) === 0 && !isStartDocPosFinded)
 				{
 					DocPosInRun =
 					{
@@ -1319,7 +1314,7 @@
 					isStartDocPosFinded = true;
 				}
 				
-				if (EndChar - charsCount === nRangePos - 1 && !isEndDocPosFinded)
+				if (EndChar - charsCount === 0 && !isEndDocPosFinded)
 				{
 					DocPosInRun =
 					{
@@ -1336,9 +1331,6 @@
 					isEndDocPosFinded = true;
 				}
 			}
-
-			if (nRangePos !== 0)
-				charsCount += nRangePos;
 		}
 
 		if (this.Element instanceof CDocument || this.Element instanceof CDocumentContent || this.Element instanceof CTable || this.Element instanceof CBlockLevelSdt)
@@ -1453,8 +1445,8 @@
 		private_RefreshRangesPosition();
 		private_RemoveEmptyRanges();
 
-		var Document = private_GetLogicDocument();
-		Document.RemoveSelection();
+		let oDocument = private_GetLogicDocument();
+		oDocument.RemoveSelection();
 
 		if (this.isEmpty || this.isEmpty === undefined || typeof(sText) !== "string")
 			return false;
@@ -1464,35 +1456,66 @@
 		
 		if (sPosition === "after")
 		{
-			var lastRun				= this.EndPos[this.EndPos.length - 1].Class;
-			var lastRunPos			= this.EndPos[this.EndPos.length - 1].Position;
-			var lastRunPosInParent	= this.EndPos[this.EndPos.length - 2].Position;
-			var lastRunParent		= lastRun.GetParent();
-			var newRunPos			= lastRunPos;
-			if (lastRunPos === 0)
+			let oTargetRun	= this.EndPos[this.EndPos.length - 1].Class;
+			let oPrevApiRun	= null;
+
+			if (oTargetRun.IsParaEndRun())
 			{
-				if (lastRunPosInParent - 1 >= 0)
+				oPrevApiRun = new ApiRun(oTargetRun).private_GetPreviousInParent();
+				
+				if (oPrevApiRun)
 				{
-					lastRunPosInParent--;
-					lastRun		= lastRunParent.GetElement(lastRunPosInParent);
-					lastRunPos	= lastRun.Content.length;
+					oTargetRun = oPrevApiRun.Run;
+				}
+				else
+				{
+					oTargetRun = null;
 				}
 			}
-			else 
-				for (var oIterator = sText.getUnicodeIterator(); oIterator.check(); oIterator.next())
-					newRunPos++;
 
-			lastRun.AddText(sText, lastRunPos);
-			this.EndPos[this.EndPos.length - 1].Class = lastRun;
-			this.EndPos[this.EndPos.length - 1].Position = newRunPos;
-			this.EndPos[this.EndPos.length - 2].Position = lastRunPosInParent;
+			if (!oTargetRun)
+			{
+				return false; 	
+			}
+
+			let nPosInRun		= this.EndPos[this.EndPos.length - 1].Position;
+			let nRunPosInParent	= this.EndPos[this.EndPos.length - 2].Position;
+			let oRunParent		= oTargetRun.GetParent();
+			let nNewPosInRun	= nPosInRun;
+
+			if (nPosInRun === 0)
+			{
+				if (nRunPosInParent - 1 >= 0)
+				{
+					nRunPosInParent--;
+					oTargetRun		= oRunParent.GetElement(nRunPosInParent);
+					nPosInRun	= oTargetRun.Content.length;
+				}
+			}
+			else {
+				for (let oIterator = sText.getUnicodeIterator(); oIterator.check(); oIterator.next())
+					nNewPosInRun++;
+			}
+
+			// если ран окончания параграфа, позиция в нём не изменится
+			if (null == oPrevApiRun) {
+				oTargetRun.AddText(sText, nPosInRun);
+				this.EndPos[this.EndPos.length - 1].Class = oTargetRun;
+				this.EndPos[this.EndPos.length - 1].Position = nNewPosInRun;
+				this.EndPos[this.EndPos.length - 2].Position = nRunPosInParent;
+			}
+			else {
+				nPosInRun = oTargetRun.Content.length;
+				oTargetRun.AddText(sText, nPosInRun);
+			}
+			
 			private_TrackRangesPositions(true);
 		}
 		else if (sPosition === "before")
 		{
-			var firstRun		= this.StartPos[this.StartPos.length - 1].Class;
-			var firstRunPos		= this.StartPos[this.StartPos.length - 1].Position;
-			firstRun.AddText(sText, firstRunPos);
+			let oTargetRun	= this.StartPos[this.StartPos.length - 1].Class;
+			let nPosInRun	= this.StartPos[this.StartPos.length - 1].Position;
+			oTargetRun.AddText(sText, nPosInRun);
 		}
 
 		return true;
@@ -2804,9 +2827,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {?ApiComment} - Returns null if the comment was not added.
 	 */
-	ApiRange.prototype.AddComment = function(sText, sAuthor)
+	ApiRange.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		let oDocument = private_GetLogicDocument();
 
@@ -2815,10 +2839,11 @@
 		if (typeof(sAuthor) !== "string")
 			sAuthor = "";
 		
-		var CommentData = new AscCommon.CCommentData();
-		CommentData.SetText(sText);
-		if (sAuthor !== "")
-			CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		var documentState = oDocument.SaveDocumentState();
 		this.Select();
@@ -2898,7 +2923,8 @@
 
 			for (; nPos < nLenght; ++nPos)
 			{
-				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type) {
+				if (para_Text === oRun.Content[nPos].Type || para_Space === oRun.Content[nPos].Type || para_Tab === oRun.Content[nPos].Type || para_NewLine === oRun.Content[nPos].Type || para_End === oRun.Content[nPos].Type)
+				{
 					nRangePos++;
 					tempCharsCount++;
 				}
@@ -3103,10 +3129,6 @@
 	 * Class representing a document form base.
 	 * @constructor
 	 * @typeofeditors ["CDE", "CFE"]
-	 * @property {string} key - Form key.
-	 * @property {string} tip - Form tip text.
-	 * @property {boolean} required - Specifies if the form is required or not.
-	 * @property {string} placeholder - Form placeholder text.
 	 */
 	function ApiFormBase(oSdt)
 	{
@@ -3117,11 +3139,6 @@
 	 * Class representing a document text field.
 	 * @constructor
 	 * @typeofeditors ["CDE", "CFE"]
-	 * @property {boolean} comb - Specifies if the text field should be a comb of characters with the same cell width. The maximum number of characters must be set to a positive value.
-	 * @property {number} maxCharacters - The maximum number of characters in the text field.
-	 * @property {number} cellWidth - The cell width for each character measured in millimeters. If this parameter is not specified or equal to 0 or less, then the width will be set automatically.
-	 * @property {boolean} multiLine - Specifies if the current fixed size text field is multiline or not.
-	 * @property {boolean} autoFit - Specifies if the text field content should be autofit, i.e. whether the font size adjusts to the size of the fixed size form.
 	 * @extends {ApiFormBase}
 	 */
 	function ApiTextForm(oSdt)
@@ -3136,12 +3153,6 @@
 	 * Class representing a document combo box / dropdown list.
 	 * @constructor
 	 * @typeofeditors ["CDE", "CFE"]
-	 * @property {boolean} editable - Specifies if the combo box text can be edited.
-	 * @property {boolean} autoFit - Specifies if the combo box form content should be autofit, i.e. whether the font size adjusts to the size of the fixed size form.
-	 * @property {Array.<string | Array.<string>>} items - The combo box items.
-     * This array consists of strings or arrays of two strings where the first string is the displayed value and the second one is its meaning.
-     * If the array consists of single strings, then the displayed value and its meaning are the same.
-     * Example: ["First", ["Second", "2"], ["Third", "3"], "Fourth"].
 	 * @extends {ApiFormBase}
 	 */
 	function ApiComboBoxForm(oSdt)
@@ -3156,7 +3167,6 @@
 	 * Class representing a document checkbox / radio button.
 	 * @constructor
 	 * @typeofeditors ["CDE", "CFE"]
-	 * @property {boolean} radio - Specifies if the current checkbox is a radio button. In this case, the key parameter is considered as an identifier for the group of radio buttons.
 	 * @extends {ApiFormBase}
 	 */
 	function ApiCheckBoxForm(oSdt)
@@ -3171,17 +3181,6 @@
 	 * Class representing a document picture form.
 	 * @constructor
 	 * @typeofeditors ["CDE", "CFE"]
-	 * @property {ScaleFlag} scaleFlag - The condition to scale an image in the picture form: "always", "never", "tooBig" or "tooSmall".
-	 * @property {boolean} lockAspectRatio - Specifies if the aspect ratio of the picture form is locked or not.
-	 * @property {boolean} respectBorders - Specifies if the form border width is respected or not when scaling the image.
-	 * @property {percentage} shiftX - Horizontal picture position inside the picture form measured in percent:
-	 * * <b>0</b> - the picture is placed on the left;
-	 * * <b>50</b> - the picture is placed in the center;
-	 * * <b>100</b> - the picture is placed on the right.
-	 * @property {percentage} shiftY - Vertical picture position inside the picture form measured in percent:
-	 * * <b>0</b> - the picture is placed on top;
-	 * * <b>50</b> - the picture is placed in the center;
-	 * * <b>100</b> - the picture is placed on the bottom.
 	 * @extends {ApiFormBase}
 	 */
 	function ApiPictureForm(oSdt)
@@ -3191,6 +3190,20 @@
 
 	ApiPictureForm.prototype = Object.create(ApiFormBase.prototype);
 	ApiPictureForm.prototype.constructor = ApiPictureForm;
+
+	/**
+	 * Class representing a document date field.
+	 * @constructor
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @extends {ApiFormBase}
+	 */
+	function ApiDateForm(oSdt)
+	{
+		ApiFormBase.call(this, oSdt);
+	}
+
+	ApiDateForm.prototype = Object.create(ApiFormBase.prototype);
+	ApiDateForm.prototype.constructor = ApiDateForm;
 
 	/**
 	 * Class representing a complex field.
@@ -3524,7 +3537,7 @@
 	 */
 	function ApiImage(Image)
 	{
-		ApiDrawing.call(this, Image.parent);
+		ApiDrawing.call(this, Image);
 		this.Image = Image
 	}
 	ApiImage.prototype = Object.create(ApiDrawing.prototype);
@@ -3536,7 +3549,7 @@
 	 */
 	function ApiOleObject(OleObject)
 	{
-		ApiDrawing.call(this, OleObject.parent);
+		ApiDrawing.call(this, OleObject);
 		this.OleObject = OleObject
 	}
 	ApiOleObject.prototype = Object.create(ApiDrawing.prototype);
@@ -3548,7 +3561,7 @@
 	 * */
 	function ApiShape(Shape)
 	{
-		ApiDrawing.call(this, Shape.parent);
+		ApiDrawing.call(this, Shape);
 		this.Shape = Shape;
 	}
 	ApiShape.prototype = Object.create(ApiDrawing.prototype);
@@ -3561,11 +3574,22 @@
 	 */
 	function ApiChart(Chart)
 	{
-		ApiDrawing.call(this, Chart.parent);
+		ApiDrawing.call(this, Chart);
 		this.Chart = Chart;
 	}
 	ApiChart.prototype = Object.create(ApiDrawing.prototype);
 	ApiChart.prototype.constructor = ApiChart;
+
+	/**
+	 * Class representing a chart series.
+	 * @constructor
+	 *
+	 */
+	function ApiChartSeries(oChartSpace, nIdx)
+	{
+		this.ChartSpace = oChartSpace;
+		this.Idx = nIdx;
+	}
 
 	/**
 	 * Class representing a base class for color types.
@@ -3852,8 +3876,16 @@
 	 *     "barStackedPercent3DPerspective" | "horizontalBar" | "horizontalBarStacked" | "horizontalBarStackedPercent"
 	 *     | "horizontalBar3D" | "horizontalBarStacked3D" | "horizontalBarStackedPercent3D" | "lineNormal" |
 	 *     "lineStacked" | "lineStackedPercent" | "line3D" | "pie" | "pie3D" | "doughnut" | "scatter" | "stock" |
-	 *     "area" | "areaStacked" | "areaStackedPercent")} ChartType
+	 *     "area" | "areaStacked" | "areaStackedPercent" | "comboBarLine" | "comboBarLineSecondary" | "comboCustom" | "unknown")} ChartType
 	 */
+
+	/**
+	 * This type specifies the type of drawing lock.
+	 * @typedef {("noGrp" | "noUngrp" | "noSelect" | "noRot" | "noChangeAspect" | "noMove" | "noResize" | "noEditPoints" | "noAdjustHandles"
+	 * 	| "noChangeArrowheads" | "noChangeShapeType" | "noDrilldown" | "noTextEdit" | "noCrop" | "txBox")} DrawingLockType
+	 */
+
+
 
 	/**
      * The available text vertical alignment (used to align text in a shape with a placement for text inside it).
@@ -4036,7 +4068,7 @@
 
 	/**
 	 * Types of all supported forms.
-	 * @typedef {ApiTextForm | ApiComboBoxForm | ApiCheckBoxForm | ApiPictureForm | ApiComplexForm} ApiForm
+	 * @typedef {ApiTextForm | ApiComboBoxForm | ApiCheckBoxForm | ApiPictureForm | ApiDateForm | ApiComplexForm} ApiForm
 	 */
 
 	/**
@@ -4165,7 +4197,7 @@
 	 */
 	Api.prototype.CreateParagraph = function()
 	{
-		return new ApiParagraph(new Paragraph(private_GetDrawingDocument(), private_GetLogicDocument()));
+		return new ApiParagraph(new AscWord.Paragraph(private_GetLogicDocument()));
 	};
 	/**
 	 * Creates an element range.
@@ -4333,7 +4365,7 @@
 		oChartSpace.setParent(oDrawing);
 		oDrawing.Set_GraphicObject(oChartSpace);
 		oDrawing.setExtent( oChartSpace.spPr.xfrm.extX, oChartSpace.spPr.xfrm.extY );
-		return new ApiChart(oChartSpace);
+		return this.private_CreateApiChart(oChartSpace);
 	};
 
 	/**
@@ -4885,14 +4917,14 @@
 					// other
 					oCurSectPr.Set_TitlePage(oNewSectPr.TitlePage);
 					oCurSectPr.Set_Type(oNewSectPr.Type);
-					oCurSectPr.Set_PageNum_Start(oNewSectPr.PageNumType.Start);
+					oCurSectPr.SetPageNumStart(oNewSectPr.PageNumType.Start);
 
 				}
 
 				var aContent = oReader.ContentFromJSON(oParsedObj["content"]);
 				for (var nElm = 0; nElm < aContent.length; nElm++)
 				{
-					if (aContent[nElm] instanceof AscCommonWord.Paragraph)
+					if (aContent[nElm] instanceof AscWord.Paragraph)
 						aContent[nElm] = new ApiParagraph(aContent[nElm]);
 					else if (aContent[nElm] instanceof AscCommonWord.CTable)
 						aContent[nElm] = new ApiTable(aContent[nElm]);
@@ -4929,7 +4961,7 @@
 				oResult = new ApiTable(oReader.TableFromJSON(oParsedObj));
 				break;
 			case "paraDrawing":
-				oResult = new ApiDrawing(oReader.ParaDrawingFromJSON(oParsedObj));
+				oResult = new ApiDrawing(oReader.ParaDrawingFromJSON(oParsedObj).GraphicObj);
 				break;
 			case "nextPage":
 			case "oddPage":
@@ -5029,9 +5061,10 @@
 	 * @param {ApiRun[] | DocumentElement} oElement - The element where the comment will be added. It may be applied to any element which has the *AddComment* method.
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	Api.prototype.AddComment = function(oElement, sText, sAuthor)
+	Api.prototype.AddComment = function(oElement, sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -5069,9 +5102,11 @@
 			
 			var oDocument = private_GetLogicDocument();
 
-			var CommentData = new AscCommon.CCommentData();
-			CommentData.SetText(sText);
-			CommentData.SetUserName(sAuthor);
+			let CommentData = private_CreateCommentData({
+				text: sText,
+				author: sAuthor,
+				userId: sUserId
+			});
 
 			var oStartRun = private_GetFirstRunInArray(oElement); 
 			var oStartPos = oStartRun.Run.GetDocumentPositionFromObject();
@@ -5298,7 +5333,7 @@
 
 			if (oTempElm instanceof AscCommonWord.CTable)
 				aContent.push(new ApiTable(oTempElm));
-			else if (oTempElm instanceof AscCommonWord.Paragraph)
+			else if (oTempElm instanceof AscWord.Paragraph)
 				aContent.push(new ApiParagraph(oTempElm));
 			else if (oTempElm instanceof AscCommonWord.CBlockLevelSdt)
 				aContent.push(new ApiBlockLvlSdt(oTempElm));
@@ -5318,7 +5353,7 @@
 		var arrApiShapes  = [];
 
 		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-			arrApiShapes.push(new ApiDrawing(arrAllDrawing[Index]));
+			arrApiShapes.push(new ApiDrawing(arrAllDrawing[Index].GraphicObj));
 		
 		return arrApiShapes;
 	};
@@ -5330,16 +5365,9 @@
 	 */
 	ApiDocumentContent.prototype.GetAllShapes = function()
 	{
-		var arrAllDrawing = this.Document.GetAllDrawingObjects();
-		var arrApiShapes  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CShape)
-				arrApiShapes.push(new ApiShape(arrAllDrawing[Index].GraphicObj));
-		}
-		
-		return arrApiShapes;
+		let arrAllDrawing = this.Document.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_Shape,
+			function(oDrawing) {return new ApiShape(oDrawing);});
 	};
 	/**
 	 * Returns a collection of image objects from the document content.
@@ -5349,16 +5377,9 @@
 	 */
 	ApiDocumentContent.prototype.GetAllImages = function()
 	{
-		var arrAllDrawing = this.Document.GetAllDrawingObjects();
-		var arrApiImages  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CImageShape)
-				arrApiImages.push(new ApiImage(arrAllDrawing[Index].GraphicObj));
-		}
-		
-		return arrApiImages;
+		let arrAllDrawing = this.Document.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_ImageShape,
+			function(oDrawing) {return new ApiImage(oDrawing);});
 	};
 	/**
 	 * Returns a collection of chart objects from the document content.
@@ -5368,16 +5389,9 @@
 	 */
 	ApiDocumentContent.prototype.GetAllCharts = function()
 	{
-		var arrAllDrawing = this.Document.GetAllDrawingObjects();
-		var arrApiCharts  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CChartSpace)
-				arrApiCharts.push(new ApiChart(arrAllDrawing[Index].GraphicObj));
-		}
-		
-		return arrApiCharts;
+		let arrAllDrawing = this.Document.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_ChartSpace,
+			function(oDrawing) {return new ApiChart(oDrawing);});
 	};
 	/**
 	 * Returns a collection of OLE objects from the document content.
@@ -5387,16 +5401,9 @@
 	 */
 	ApiDocumentContent.prototype.GetAllOleObjects = function()
 	{
-		var arrAllDrawing = this.Document.GetAllDrawingObjects();
-		var arrApiOleObjects  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.COleObject)
-				arrApiOleObjects.push(new ApiOleObject(arrAllDrawing[Index].GraphicObj));
-		}
-		
-		return arrApiOleObjects;
+		let arrAllDrawing = this.Document.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_OleObject,
+			function(oDrawing) {return new ApiOleObject(oDrawing);});
 	};
 	/**
 	 * Returns an array of all paragraphs from the current document content.
@@ -5501,6 +5508,7 @@
 		}
 
 		oStyles.Add(oStyle);
+		oStyles.UpdateDefaultStyleLinks();
 		return new ApiStyle(oStyle);
 	};
 	/**
@@ -5564,16 +5572,16 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {ApiParagraph} oParagraph - The paragraph after which a new document section will be inserted.
 	 * Paragraph must be in a document.
-	 * @returns {ApiSection | null}
+	 * @returns {ApiSection | null} Returns null if parametr is invalid.
 	 */
 	ApiDocument.prototype.CreateSection = function(oParagraph)
 	{
 		if (!(oParagraph instanceof ApiParagraph)) {
-			console.error(new Error('Parameter is invalid.'));
+			logError(new Error('Parameter is invalid.'));
 			return null;
 		}
 		if (!oParagraph.Paragraph.CanAddSectionPr()) {
-			console.error(new Error('Paragraph must be in a document.'));
+			logError(new Error('Paragraph must be in a document.'));
 			return null;
 		}
 
@@ -5584,7 +5592,7 @@
 
 		oSectPr.Copy(oCurSectPr);
 		oCurSectPr.Set_Type(oSectPr.Type);
-		oCurSectPr.Set_PageNum_Start(-1);
+		oCurSectPr.SetPageNumStart(-1);
 		oCurSectPr.Clear_AllHdrFtr();
 
 		oParagraph.private_GetImpl().Set_SectionPr(oSectPr);
@@ -6027,7 +6035,51 @@
 
 		return arrResult;
 	};
-
+	/**
+	 * The specific form type.
+	 * @typedef {("text" | "checkBox" | "picture" | "comboBox" | "dropDownList" | "dateTime" | "radio")} FormSpecificType
+	 */
+	/**
+	 * Form data.
+	 * @typedef {Object} FormData
+	 * @property {string} key - The form key. If the current form is a radio button, then this field contains the group key.
+	 * @property {string | boolean} value - The current field value.
+	 * @property {string} tag - The form tag.
+	 * @property {FormSpecificType} type - The form type.
+	 * @example
+	 * 	{
+	 * 	  "key" : "CompanyName",
+	 * 	  "tag" : "companyName",
+	 * 	  "value" : "ONLYOFFICE",
+	 * 	  "type" : "text"
+	 * 	}
+	 */
+	/**
+	 * Returns the data from all forms present in the current document.
+	 * If a form was created and not assigned to any part of the document, it won't appear in this list.
+	 * @memberof ApiDocument
+	 * @typeofeditors ["CDE"]
+	 * @returns {Array.<FormData>}
+	 * @since 8.0.0
+	 */
+	ApiDocument.prototype.GetFormsData = function()
+	{
+		return this.Document.GetFormsManager().GetAllFormsData();
+	};
+	/**
+	 * Sets the data to the specified forms.
+	 * @memberof ApiDocument
+	 * @typeofeditors ["CDE"]
+	 * @param {Array.<FormData>} arrData - An array of form data to set to the specified forms.
+	 * @since 8.0.0
+	 */
+	ApiDocument.prototype.SetFormsData = function(arrData)
+	{
+		if (!arrData || !Array.isArray(arrData))
+			return;
+		
+		this.Document.GetFormsManager().SetAllFormsData(arrData);
+	};
 	/**
 	 * Sets the change tracking mode.
 	 * @memberof ApiDocument
@@ -6128,9 +6180,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	ApiDocument.prototype.AddComment = function(sText, sAuthor)
+	ApiDocument.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -6138,9 +6191,11 @@
 		if (typeof(sAuthor) !== "string")
 			sAuthor = "";
 		
-		var CommentData = new AscCommon.CCommentData();
-		CommentData.SetText(sText);
-		CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		return AddGlobalCommentToDocument(this.Document, CommentData);
 	};
@@ -6208,6 +6263,43 @@
 		}
 
 		return arrApiAllTables;
+	};
+	/**
+	 * Adds a shape to the specified page.
+	 * <note>This method can be a little bit slow, because it runs the document calculation
+	 * process to arrange tables on the specified page.</note>
+	 * @memberof ApiDocument
+	 * @typeofeditors ["CDE"]
+	 * @param oDrawing {ApiDrawing} - A shape to add to the page.
+	 * @param nPage {number} - The page number.
+	 * @param x {EMU} - The X coordinate in English measure units.
+	 * @param y {EMU} - The Y coordinate in English measure units.
+	 * @return {boolean}
+	 */
+	ApiDocument.prototype.AddDrawingToPage = function(oDrawing, nPage, x, y)
+	{
+		if (!(oDrawing instanceof ApiDrawing))
+			return false;
+
+		let drawing = oDrawing.getParaDrawing();
+		if(drawing.IsUseInDocument())
+			return false;
+
+		this.ForceRecalculate(nPage + 1);
+		if (this.Document.GetPagesCount() <= nPage)
+			return false;
+		
+		this.Document.RemoveSelection();
+		this.Document.GoToPage(nPage);
+		let paragraph = this.Document.GetCurrentParagraph();
+		if (!paragraph)
+			return false;
+
+		drawing.Set_PositionH(Asc.c_oAscRelativeFromH.Page, false, private_EMU2MM(x), false);
+		drawing.Set_PositionV(Asc.c_oAscRelativeFromV.Page, false, private_EMU2MM(y), false);
+		drawing.Set_DrawingType(drawing_Anchor);
+		paragraph.AddToParagraph(drawing);
+		return true;
 	};
 	/**
 	 * Removes the current selection.
@@ -6435,7 +6527,7 @@
 
 					for (var nParaIndex = 0, nParasCount = arrParagraphs.length; nParaIndex < nParasCount; ++nParaIndex)
 					{
-						var arrPageNumbers = arrParagraphs[nParaIndex].GetComplexFieldsArrayByType(AscCommonWord.fieldtype_PAGEREF);
+						var arrPageNumbers = arrParagraphs[nParaIndex].GetComplexFieldsArrayByType(AscWord.fieldtype_PAGEREF);
 						for (var nRefIndex = 0, nRefsCount = arrPageNumbers.length; nRefIndex < nRefsCount; ++nRefIndex)
 						{
 							arrPageNumbers[nRefIndex].Update();
@@ -6491,7 +6583,7 @@
 
 				for (var nParaIndex = 0, nParasCount = arrParagraphs.length; nParaIndex < nParasCount; ++nParaIndex)
 				{
-					var arrPageNumbers = arrParagraphs[nParaIndex].GetComplexFieldsArrayByType(AscCommonWord.fieldtype_PAGEREF);
+					var arrPageNumbers = arrParagraphs[nParaIndex].GetComplexFieldsArrayByType(AscWord.fieldtype_PAGEREF);
 					for (var nRefIndex = 0, nRefsCount = arrPageNumbers.length; nRefIndex < nRefsCount; ++nRefIndex)
 					{
 						arrPageNumbers[nRefIndex].Update();
@@ -6764,7 +6856,7 @@
 			else if (aSelected[nDrawing].isShape())
 				aResult.push(new ApiShape(aSelected[nDrawing]));
 			else
-				aResult.push(new ApiDrawing(aSelected[nDrawing].parent));
+				aResult.push(new ApiDrawing(aSelected[nDrawing]));
 		}
 
 		var aSelectedInText = this.Document.GetSelectedDrawingObjectsInText();
@@ -6777,7 +6869,7 @@
 			else if (aSelectedInText[nDrawing].GraphicObj.isShape())
 				aResult.push(new ApiShape(aSelectedInText[nDrawing].GraphicObj));
 			else
-				aResult.push(new ApiDrawing(aSelected[nDrawing]));
+				aResult.push(new ApiDrawing(aSelected[nDrawing].GraphicObj));
 		}
 
 		return aResult;
@@ -6811,28 +6903,31 @@
 	 */
 	ApiDocument.prototype.ReplaceDrawing = function(oOldDrawing, oNewDrawing, bSaveOldDrawingPr)
 	{
-		if (!(oOldDrawing instanceof ApiDrawing) || !oOldDrawing.Drawing.Parent || !(oNewDrawing instanceof ApiDrawing))
+		if (!(oOldDrawing instanceof ApiDrawing) || !(oNewDrawing instanceof ApiDrawing))
 			return false;
 
-		var oDrawing = oNewDrawing.Copy();
+		let oOldParaDrawing = oOldDrawing.getParaDrawing();
+		if(!oOldParaDrawing || !oOldParaDrawing.Parent)
+			return false;
+		let oDrawing = oNewDrawing.Copy();
 
 		if (bSaveOldDrawingPr === true)
 			oDrawing.SetDrawingPrFromDrawing(oOldDrawing);
 
-		var oDocument = private_GetLogicDocument();
-		var oRun = oOldDrawing.Drawing.Parent.Get_DrawingObjectRun(oOldDrawing.Drawing.Id);
+		let oDocument = private_GetLogicDocument();
+		let oRun = oOldParaDrawing.Parent.Get_DrawingObjectRun(oOldParaDrawing.Id);
 		if (oRun)
 		{
-			var oldSelectionInfo = oDocument.SaveDocumentState();
+			let oldSelectionInfo = oDocument.SaveDocumentState();
 
-			for ( var CurPos = 0; CurPos < oRun.Content.length; CurPos++ )
+			for ( let CurPos = 0; CurPos < oRun.Content.length; CurPos++ )
 			{
-				var Element = oRun.Content[CurPos];
+				let Element = oRun.Content[CurPos];
 
-				if ( para_Drawing === Element.Type && oOldDrawing.Drawing.Id === Element.Get_Id() )
+				if ( para_Drawing === Element.Type && oOldParaDrawing.Id === Element.Get_Id() )
 				{
 					oRun.Remove_FromContent(CurPos, 1);
-					oRun.Add_ToContent(CurPos, oDrawing.Drawing);
+					oRun.Add_ToContent(CurPos, oDrawing.getParaDrawing());
 					break;
 				}
 			}
@@ -6852,11 +6947,11 @@
 	 */
 	ApiDocument.prototype.AddFootnote = function()
 	{
-		let oResult = this.Document.AddFootnote();
-		if (!oResult)
+		let footnote = this.Document._addFootnote();
+		if (!footnote)
 			return null;
 
-		return new ApiDocumentContent(oResult);
+		return new ApiDocumentContent(footnote);
 	};
 
 	/**
@@ -6867,11 +6962,11 @@
 	 */
 	ApiDocument.prototype.AddEndnote = function()
 	{
-		let oResult = this.Document.AddEndnote();
-		if (!oResult)
+		let endnote = this.Document._addEndnote();
+		if (!endnote)
 			return null;
 
-		return new ApiDocumentContent(oResult);
+		return new ApiDocumentContent(endnote);
 	};
 
 	/**
@@ -7256,7 +7351,6 @@
 	};
 	/**
 	 * Inserts a number of the current document page into the paragraph.
-	 * <note>This method works for the paragraphs in the document header/footer only.</note>
 	 * @memberof ApiParagraph
 	 * @typeofeditors ["CDE"]
 	 * @returns {ApiRun}
@@ -7270,7 +7364,6 @@
 	};
 	/**
 	 * Inserts a number of pages in the current document into the paragraph.
-	 * <note>This method works for the paragraphs in the document header/footer only.</note>
 	 * @memberof ApiParagraph
 	 * @typeofeditors ["CDE"]
 	 * @returns {ApiRun}
@@ -7454,7 +7547,6 @@
 	{
 		var oParagraph = this.Paragraph.Copy(undefined, private_GetDrawingDocument(), {
 			SkipComments          : true,
-			SkipAnchors           : true,
 			SkipFootnoteReference : true,
 			SkipComplexFields     : true
 		});
@@ -7515,14 +7607,18 @@
 	 */
 	ApiParagraph.prototype.AddDrawing = function(oDrawing)
 	{
-		var oRun = new ParaRun(this.Paragraph, false);
+		let oRun = new ParaRun(this.Paragraph, false);
 
 		if (!(oDrawing instanceof ApiDrawing))
 			return new ApiRun(oRun);
 
-		oRun.Add_ToContent(0, oDrawing.Drawing);
+		let oParaDrawing = oDrawing.getParaDrawing();
+		if(!oParaDrawing)
+			return new ApiRun(oRun);
+
+		oRun.Add_ToContent(0, oParaDrawing);
 		private_PushElementToParagraph(this.Paragraph, oRun);
-		oDrawing.Drawing.Set_Parent(oRun);
+		oParaDrawing.Set_Parent(oRun);
 		private_CheckDrawingOnAdd(oDrawing);
 		return new ApiRun(oRun);
 	};
@@ -7553,9 +7649,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	ApiParagraph.prototype.AddComment = function(sText, sAuthor)
+	ApiParagraph.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -7568,10 +7665,12 @@
 		var oDocument = private_GetLogicDocument();
 
 		var sQuotedText = this.GetText();
-		var CommentData = new AscCommon.CCommentData();
-		CommentData.Set_QuoteText(sQuotedText);
-		CommentData.SetText(sText);
-		CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId,
+			quoteText: sQuotedText
+		});
 
 		var oComment = new AscCommon.CComment(oDocument.Comments, CommentData);
 		oComment.GenerateDurableId();
@@ -7827,10 +7926,16 @@
 	 */
 	ApiParagraph.prototype.GetFontNames = function()
 	{
-		var fontMap = {};
-		var arrFonts = [];
-		this.Paragraph.Document_Get_AllFontNames(fontMap);
-		for (var key in fontMap)
+		let fontMap = {};
+		let arrFonts = [];
+		// this.Paragraph.Document_Get_AllFontNames(fontMap);
+		this.Paragraph.Get_CompiledPr().TextPr.Document_Get_AllFontNames(fontMap);
+		for (let i = 0; i < this.Paragraph.Content.length; i++)
+		{
+			let element = this.Paragraph.Content[i];
+			element.Get_CompiledTextPr().Document_Get_AllFontNames(fontMap);
+		}
+		for (let key in fontMap)
 		{
 			arrFonts.push(key);
 		}
@@ -8074,7 +8179,7 @@
 
 		for (var Index = 0; Index < arrAllDrawing.length; Index++)
 		{
-			arrApiShapes.push(new ApiDrawing(arrAllDrawing[Index]));
+			arrApiShapes.push(new ApiDrawing(arrAllDrawing[Index].GraphicObj));
 		}
 		
 		return arrApiShapes;
@@ -8087,16 +8192,9 @@
 	 */
 	ApiParagraph.prototype.GetAllShapes = function()
 	{
-		var arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
-		var arrApiShapes  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CShape)
-				arrApiShapes.push(new ApiShape(arrAllDrawing[Index].GraphicObj));
-		}
-
-		return arrApiShapes;
+		let arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_Shape,
+			function(oDrawing) {return new ApiShape(oDrawing);});
 	};
 	/**
 	 * Returns a collection of image objects in the paragraph.
@@ -8106,16 +8204,9 @@
 	 */
 	ApiParagraph.prototype.GetAllImages = function()
 	{
-		var arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
-		var arrApiImages  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CImageShape)
-				arrApiImages.push(new ApiImage(arrAllDrawing[Index].GraphicObj));
-		}
-
-		return arrApiImages;
+		let arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_ImageShape,
+			function(oDrawing) {return new ApiImage(oDrawing);});
 	};
 	/**
 	 * Returns a collection of chart objects in the paragraph.
@@ -8125,16 +8216,9 @@
 	 */
 	ApiParagraph.prototype.GetAllCharts = function()
 	{
-		var arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
-		var arrApiCharts  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.CChartSpace)
-				arrApiCharts.push(new ApiChart(arrAllDrawing[Index].GraphicObj));
-		}
-
-		return arrApiCharts;
+		let arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_ChartSpace,
+			function(oDrawing) {return new ApiChart(oDrawing);});
 	};
 	/**
 	 * Returns a collection of OLE objects in the paragraph.
@@ -8144,16 +8228,9 @@
 	 */
 	ApiParagraph.prototype.GetAllOleObjects = function()
 	{
-		var arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
-		var arrApiOleObjects  = [];
-
-		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-		{
-			if (arrAllDrawing[Index].GraphicObj instanceof AscFormat.COleObject)
-				arrApiOleObjects.push(new ApiOleObject(arrAllDrawing[Index].GraphicObj));
-		}
-
-		return arrApiOleObjects;
+		let arrAllDrawing = this.Paragraph.GetAllDrawingObjects();
+		return private_GetAllDrawingsWithType(arrAllDrawing, AscDFH.historyitem_type_OleObject,
+			function(oDrawing) {return new ApiOleObject(oDrawing);});
 	};
 	/**
 	 * Returns a content control that contains the current paragraph.
@@ -8422,8 +8499,6 @@
 
 			var StartChar	= this.Paragraph.ConvertParaContentPosToRangePos(StartSearchContentPos);
 			var EndChar		= this.Paragraph.ConvertParaContentPosToRangePos(EndSearchContentPos);
-			if (EndChar > 0)
-				EndChar--;
 
 			arrApiRanges.push(this.GetRange(StartChar, EndChar));
 		}
@@ -8439,7 +8514,7 @@
 	{
 		var oDocument = private_GetLogicDocument();
 		var fieldName = this.GetText();
-		var oField    = new ParaField(fieldtype_MERGEFIELD, [fieldName], []);
+		var oField    = new ParaField(AscWord.fieldtype_MERGEFIELD, [fieldName], []);
 		
 		var leftQuote  = new ParaRun();
 		var rightQuote = new ParaRun();
@@ -8587,7 +8662,7 @@
 	 * <note>Please note that this paragraph must be in the document.</note>
 	 * @memberof ApiParagraph
 	 * @typeofeditors ["CDE"]
-	 * @param {bookmarkRefTo} sRefType - The text or numeric value of a bookmark reference you want to insert.
+	 * @param {bookmarkRefTo} sRefTo - The text or numeric value of a bookmark reference you want to insert.
 	 * @param {string} sBookmarkName - The name of the bookmark to be referred to (must be in the document).
 	 * @param {boolean} [bLink=true] - Specifies if the reference will be inserted as a hyperlink.
 	 * @param {boolean} [bAboveBelow=false] - Specifies if the above/below words indicating the position of the reference should be included (don't used with the "text" and "aboveBelow" sRefType).
@@ -8618,7 +8693,7 @@
 				nRefTo = 5;
 				break;
 		}
-		if (nRefTo === -1 || typeof(sBookmarkName) !== "string" || sBookmarkName.length === 0 || !this.Paragraph.IsUseInDocument())
+		if (nRefTo === -1 || typeof(sBookmarkName) !== "string" || sBookmarkName.length === 0)
 			return false;
 		if (typeof(bLink) !== "boolean")
 			bLink = true;
@@ -8626,21 +8701,17 @@
 			bAboveBelow = false;
 		if (typeof(sSepWith) !== "string" || nRefTo !== 4)
 			sSepWith = "";
-
-		var oDocument = private_GetLogicDocument();
-		var oManager = oDocument.GetBookmarksManager();
-		var sName, oldSelectionInfo;
+		
+		let logicDocument = private_GetLogicDocument();
+		let oManager = logicDocument.GetBookmarksManager();
 		for (var nBookmark = 0, nCount = oManager.GetCount(); nBookmark < nCount; nBookmark++)
 		{
-			sName = oManager.GetName(nBookmark);
-			if (!oManager.IsInternalUseBookmark(sName) && !oManager.IsHiddenBookmark(sName) && sName === sBookmarkName)
+			if (sBookmarkName === oManager.GetName(nBookmark)
+				&& !oManager.IsInternalUseBookmark(sBookmarkName)
+				&& !oManager.IsHiddenBookmark(sBookmarkName))
 			{
-				oldSelectionInfo = oDocument.SaveDocumentState();
-				oDocument.RemoveSelection();
-				this.Paragraph.Document_SetThisElementCurrent();
-				this.Paragraph.SetCurrentPos(this.Paragraph.Content.length - 1);
-				oDocument.AddRefToBookmark(sBookmarkName, nRefTo, bLink, bAboveBelow, sSepWith);
-				oDocument.LoadDocumentState(oldSelectionInfo);
+				let instr = AscWord.getRefInstruction(sBookmarkName, nRefTo, bLink, bAboveBelow, sSepWith);
+				logicDocument.addFieldWithInstructionToParagraph(this.Paragraph, instr, null, true);
 				return true;
 			}
 		}
@@ -9004,7 +9075,7 @@
 			return false;
 
 		if (!this.Paragraph.CanAddSectionPr()) {
-			console.error(new Error('Paragraph must be in a document.'));
+			logError(new Error('Paragraph must be in a document.'));
 			return false;
 		}
 
@@ -9017,7 +9088,7 @@
 		let oCurSectPr = oDoc.SectionsInfo.Get_SectPr(nContentPos).SectPr;
 
 		oCurSectPr.Set_Type(oSectPr.Type);
-		oCurSectPr.Set_PageNum_Start(-1);
+		oCurSectPr.SetPageNumStart(-1);
 		oCurSectPr.Clear_AllHdrFtr();
 
 		this.private_GetImpl().Set_SectionPr(oSectPr);
@@ -9146,8 +9217,9 @@
 		if (!(oDrawing instanceof ApiDrawing))
 			return false;
 
-		this.Run.Add_ToContent(this.Run.Content.length, oDrawing.Drawing);
-		oDrawing.Drawing.Set_Parent(this.Run);
+		let oParaDrawing = oDrawing.getParaDrawing();
+		this.Run.Add_ToContent(this.Run.Content.length, oParaDrawing);
+		oParaDrawing.Set_Parent(this.Run);
 		private_CheckDrawingOnAdd(oDrawing);
 		return true;
 	};
@@ -9457,10 +9529,11 @@
 	 */
 	ApiRun.prototype.GetFontNames = function()
 	{
-		var fontMap = {};
-		var arrFonts = [];
-		this.Run.Get_AllFontNames(fontMap);
-		for (var key in fontMap)
+		let fontMap = {};
+		let arrFonts = [];
+		// this.Run.Get_AllFontNames(fontMap);
+		this.Run.Get_CompiledTextPr().Document_Get_AllFontNames(fontMap);
+		for (let key in fontMap)
 		{
 			arrFonts.push(key);
 		}
@@ -9655,7 +9728,7 @@
 	{
 		var oDocument = private_GetLogicDocument();
 		var fieldName = this.Run.GetText();
-		var oField    = new ParaField(fieldtype_MERGEFIELD, [fieldName], []);
+		var oField    = new ParaField(AscWord.fieldtype_MERGEFIELD, [fieldName], []);
 		var runParent = this.Run.GetParent();
 
 		var leftQuote  = new ParaRun();
@@ -9700,9 +9773,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	ApiRun.prototype.AddComment = function(sText, sAuthor)
+	ApiRun.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -9713,11 +9787,11 @@
 			return null;
 
 		var oDocument = private_GetLogicDocument();
-		var CommentData = new AscCommon.CCommentData();
-
-		CommentData.SetText(sText);
-		if (sAuthor !== "")
-			CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		var oDocumentState = oDocument.SaveDocumentState();
 		this.Run.SelectThisElement();
@@ -9851,6 +9925,27 @@
 		this.Section.SetPageSize(private_Twips2MM(nWidth), private_Twips2MM(nHeight));
 		this.Section.SetOrientation(false === isPortrait ? Asc.c_oAscPageOrientation.PageLandscape : Asc.c_oAscPageOrientation.PagePortrait, false);
 	};
+	/**
+	 * Gets page height for current section.
+	 * @memberof ApiSection
+	 * @typeofeditors ["CDE"]
+	 * @returns {twips}
+	 */
+	ApiSection.prototype.GetPageHeight = function()
+	{
+		return private_MM2Twips(this.Section.GetPageHeight());
+	};
+	/**
+	 * Gets page width for current section.
+	 * @memberof ApiSection
+	 * @typeofeditors ["CDE"]
+	 * @returns {twips}
+	 */
+	ApiSection.prototype.GetPageWidth = function()
+	{
+		return private_MM2Twips(this.Section.GetPageWidth());
+	};
+
 	/**
 	 * Specifies the page margins for all the pages in this section.
 	 * @memberof ApiSection
@@ -10464,7 +10559,7 @@
 	/**
 	 * Selects the current table.
 	 * @memberof ApiTable
-	 * @typeofeditors ["CDE", "CPE"]
+	 * @typeofeditors ["CDE"]
 	 * @returns {boolean}
 	 */
 	ApiTable.prototype.Select = function()
@@ -10730,66 +10825,6 @@
 		}
 		return arrTables;
 	};
-	/**
-     * Returns the next table if exists.
-     * @memberof ApiTable
-	 * @typeofeditors ["CDE"]
-     * @return {ApiTable | null} - returns null if table is last.  
-     */
-    ApiTable.prototype.GetNext = function()
-    {
-		var oDocument = editor.GetDocument();
-
-		var absEndPage = this.Table.GetAbsolutePage(this.Table.Pages.length - 1); // страница, на которой заканчивается таблица
-        
-		for (var curPage = absEndPage; curPage < oDocument.Document.Pages.length; curPage++)
-		{
-			var curPageTables = oDocument.Document.GetAllTablesOnPage(curPage); // все таблицы на странице 
-			for (var Index = 0; Index < curPageTables.length; Index++)
-			{
-				if (curPageTables[Index].Table.Id === this.Table.Id)
-				{
-					if (curPageTables[Index + 1])
-					{
-						return new ApiTable(curPageTables[Index + 1].Table)
-					}
-				}
-				else 
-					return new ApiTable(curPageTables[Index].Table);
-			}
-		}
-		
-		return null; 
-	};
-	/**
-     * Returns the previous table if exists.
-     * @memberof ApiTable
-	 * @typeofeditors ["CDE"]
-     * @return {ApiTable | null} - returns null if table is first.  
-     */
-    ApiTable.prototype.GetPrevious = function()
-    {
-		var oDocument = editor.GetDocument();
-
-		var absEndPage = this.Table.GetAbsolutePage(0); // страница, на которой заканчивается таблица
-        
-		for (var curPage = absEndPage; curPage >= 0; curPage--)
-		{
-			var curPageTables = oDocument.Document.GetAllTablesOnPage(curPage); // все таблицы на странице 
-			for (var Index = curPageTables.length - 1; Index >= 0; Index--)
-			{
-				if (curPageTables[Index].Table.Id === this.Table.Id)
-				{
-					if (curPageTables[Index - 1])
-						return new ApiTable(curPageTables[Index - 1].Table)
-				}
-				else 
-					return new ApiTable(curPageTables[Index].Table);
-			}
-		}
-		
-		return null; 
-    };
     /**
      * Returns a table cell that contains the current table.
      * @memberof ApiTable
@@ -10988,9 +11023,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	ApiTable.prototype.AddComment = function(sText, sAuthor)
+	ApiTable.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -11001,11 +11037,11 @@
 			return null;
 
 		var oDocument = private_GetLogicDocument();
-		var CommentData = new AscCommon.CCommentData();
-
-		CommentData.SetText(sText);
-		if (sAuthor !== "")
-			CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		var oDocumentState = oDocument.SaveDocumentState();
 		this.Table.SelectAll();
@@ -12016,6 +12052,27 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the style of the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?ApiStyle} - The used style.
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetStyle = function()
+	{
+		var oDocument	= private_GetLogicDocument();
+		var oStyles		= oDocument.GetStyles();
+		let nStyleId	= this.TextPr.RStyle;
+
+		if (nStyleId != undefined) {
+			return new ApiStyle(oStyles.Get(nStyleId));
+		}
+
+		return null;
+	};
+
 	/**
 	 * Sets the bold property to the text character.
 	 * @memberof ApiTextPr
@@ -12029,6 +12086,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the bold property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetBold = function()
+	{
+		return this.TextPr.GetBold();
+	};
+
 	/**
 	 * Sets the italic property to the text character.
 	 * @memberof ApiTextPr
@@ -12042,6 +12112,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the italic property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetItalic = function()
+	{
+		return this.TextPr.GetItalic();
+	};
+
 	/**
 	 * Specifies that the contents of the run are displayed with a single horizontal line through the center of the line.
 	 * @memberof ApiTextPr
@@ -12055,6 +12138,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the strikeout property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetStrikeout = function()
+	{
+		return this.TextPr.GetStrikeout();
+	};
+
 	/**
 	 * Specifies that the contents of the run are displayed along with a line appearing directly below the character
 	 * (less than all the spacing above and below the characters on the line).
@@ -12069,6 +12165,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the underline property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetUnderline = function()
+	{
+		return this.TextPr.GetUnderline();
+	};
+
 	/**
 	 * Sets all 4 font slots with the specified font family.
 	 * @memberof ApiTextPr
@@ -12082,6 +12191,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the font family from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?string}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetFontFamily = function()
+	{
+		return this.TextPr.GetFontFamily();
+	};
+
 	/**
 	 * Sets the font size to the characters of the current text run.
 	 * @memberof ApiTextPr
@@ -12095,6 +12217,23 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the font size from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?hps}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetFontSize = function()
+	{
+		let nFontSize = this.TextPr.GetFontSize();
+		if (nFontSize !== undefined)
+			return 2 * nFontSize;
+
+		return nFontSize;
+	};
+
 	/**
 	 * Sets the text color to the current text run in the RGB format.
 	 * @memberof ApiTextPr
@@ -12111,6 +12250,24 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the RGB color from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?ApiRGBColor}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetColor = function()
+	{
+		let oColor = this.TextPr.GetColor();
+		if (oColor !== undefined) {
+			return new ApiRGBColor(oColor.r, oColor.g, oColor.b);
+		}
+
+		return null;
+	};
+
 	/**
 	 * Specifies the alignment which will be applied to the contents of the run in relation to the default appearance of the run text:
 	 * * <b>"baseline"</b> - the characters in the current text run will be aligned by the default text baseline.
@@ -12133,6 +12290,29 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the vertical alignment type from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?string}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetVertAlign = function()
+	{
+		let nType = this.TextPr.GetVertAlign();
+		let sType;
+
+		if (nType === AscCommon.vertalign_Baseline)
+			sType = "baseline";
+		else if (nType === AscCommon.vertalign_SubScript)
+			sType = "subscript";
+		else if (nType === AscCommon.vertalign_SuperScript)
+			sType = "superscript";
+
+		return sType;
+	};
+
 	/**
 	 * Specifies a highlighting color which is added to the text properties and applied as a background to the contents of the current run/range/paragraph.
 	 * @memberof ApiTextPr
@@ -12164,6 +12344,25 @@
 
 		return this;
 	};
+
+	/**
+	 * Gets the highlight property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CPE"]
+	 * @return {?string}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetHighlight = function()
+	{
+		let HighLight;
+		if (Asc.editor.editorId === AscCommon.c_oEditorId.Word)
+			HighLight = this.TextPr.HighLight;
+		else if (Asc.editor.editorId === AscCommon.c_oEditorId.Presentation)
+			HighLight = this.TextPr.HighlightColor;
+
+		return private_getHighlightNameByColor(HighLight);
+	};
+
 	/**
 	 * Sets the text spacing measured in twentieths of a point.
 	 * @memberof ApiTextPr
@@ -12177,6 +12376,24 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the text spacing from the current text properties measured in twentieths of a point.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?twips}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetSpacing = function()
+	{
+		let nSpacing = this.TextPr.GetSpacing();
+		if (nSpacing != undefined) {
+			return private_MM2Twips(nSpacing);
+		}
+		
+		return undefined;
+	};
+
 	/**
 	 * Specifies that the contents of the run are displayed with two horizontal lines through each character displayed on the line.
 	 * @memberof ApiTextPr
@@ -12190,6 +12407,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the double strikeout property from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetDoubleStrikeout = function()
+	{
+		return this.TextPr.GetDStrikeout();
+	};
+
 	/**
 	 * Specifies that any lowercase characters in the text run are formatted for display only as their capital letter character equivalents.
 	 * @memberof ApiTextPr
@@ -12203,6 +12433,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Specifies whether the text with the current text properties are capitalized.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetCaps = function()
+	{
+		return this.TextPr.GetCaps();
+	};
+
 	/**
 	 * Specifies that all the small letter characters in the text run are formatted for display only as their capital
 	 * letter character equivalents which are two points smaller than the actual font size specified for this text.
@@ -12217,6 +12460,19 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Specifies whether the text with the current text properties are displayed capitalized two points smaller than the actual font size.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @return {?boolean}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetSmallCaps = function()
+	{
+		return this.TextPr.GetSmallCaps();
+	};
+
 	/**
 	 * Specifies an amount by which text is raised or lowered for this run in relation to the default
 	 * baseline of the surrounding non-positioned text.
@@ -12232,6 +12488,25 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the text position from the current text properties measured in half-points (1/144 of an inch).
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?hps}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetPosition = function()
+	{
+		let nPosition = this.TextPr.GetPosition();
+		
+		if (nPosition != undefined) {
+			return private_MM2Pt(2 * nPosition);
+		}
+
+		return undefined;
+	};
+
 	/**
 	 * Specifies the languages which will be used to check spelling and grammar (if requested) when processing
 	 * the contents of the text run.
@@ -12251,6 +12526,26 @@
 			return this;
 		}
 	};
+
+	/**
+	 * Gets the language from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?string}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetLanguage = function()
+	{
+		let nLcid = this.TextPr.GetLang();
+		
+		if (nLcid !== undefined)
+		{
+			return Asc.g_oLcidIdToNameMap[nLcid];
+		}
+
+		return undefined;
+	};
+
 	/**
 	 * Specifies the shading applied to the contents of the current text run.
 	 * @memberof ApiTextPr
@@ -12267,6 +12562,24 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the text shading from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?ApiRGBColor}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetShd = function()
+	{
+		let oShd = this.TextPr.GetShd();
+		if (oShd) {
+			return new ApiRGBColor(oShd.Fill.r, oShd.Fill.g, oShd.Fill.b);
+		}
+
+		return null;
+	};
+
 	/**
 	 * Sets the text color to the current text run.
 	 * @memberof ApiTextPr
@@ -12280,6 +12593,24 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the text color from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CSE", "CPE"]
+	 * @return {ApiFill}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetFill = function()
+	{
+		let oUniFill = this.TextPr.Unifill;
+		if (oUniFill) {
+			return new ApiFill(oUniFill);
+		}
+
+		return null;
+	};
+
 	/**
 	 * Sets the text fill to the current text run.
 	 * @memberof ApiTextPr
@@ -12293,6 +12624,24 @@
 		this.private_OnChange();
 		return this;
 	};
+
+	/**
+	 * Gets the text fill from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CSE", "CPE"]
+	 * @return {ApiFill}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetTextFill = function()
+	{
+		let oUniFill = this.TextPr.TextFill;
+		if (oUniFill) {
+			return new ApiFill(oUniFill);
+		}
+
+		return null;
+	};
+
 	/**
 	 * Sets the text outline to the current text run.
 	 * @memberof ApiTextPr
@@ -12305,6 +12654,23 @@
 		this.TextPr.TextOutline = oStroke.Ln;
 		this.private_OnChange();
 		return this;
+	};
+
+	/**
+	 * Gets the text outline from the current text properties.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CSE", "CPE"]
+	 * @return {ApiStroke}
+	 * @since 8.1.0
+	 */
+	ApiTextPr.prototype.GetOutLine = function()
+	{
+		let oOutline = this.TextPr.TextOutline;
+		if (oOutline) {
+			return new ApiStroke(oOutline);
+		}
+
+		return null;
 	};
 
 	/**
@@ -12922,15 +13288,14 @@
 	{
 		if (!(oNumPr instanceof ApiNumbering))
 			return;
-
-		this.ParaPr.NumPr       = new CNumPr();
-		this.ParaPr.NumPr.NumId = oNumPr.Num.GetId();
-		this.ParaPr.NumPr.Lvl   = undefined;
-
+		
+		let numId  = oNumPr.Num.GetId();
+		let numLvl = undefined;
+		
 		if (this.Parent instanceof ApiParagraph)
-		{
-			this.ParaPr.NumPr.Lvl = Math.min(8, Math.max(0, (nLvl ? nLvl : 0)));
-		}
+			numLvl = Math.min(8, Math.max(0, (nLvl ? nLvl : 0)));
+		
+		this.ParaPr.NumPr = new AscWord.NumPr(numId, numLvl);
 		this.private_OnChange();
 	};
 	/**
@@ -13948,7 +14313,11 @@
 	// ApiDrawing
 	//
 	//------------------------------------------------------------------------------------------------------------------
-
+	ApiDrawing.prototype.getParaDrawing = function()
+	{
+		if(!this.Drawing) return null;
+		return this.Drawing.parent;
+	};
 	/**
 	 * Returns a type of the ApiDrawing class.
 	 * @memberof ApiDrawing
@@ -13968,13 +14337,13 @@
 	 */
 	ApiDrawing.prototype.SetSize = function(nWidth, nHeight)
 	{
-		var fWidth = private_EMU2MM(nWidth);
-		var fHeight = private_EMU2MM(nHeight);
-		this.Drawing.setExtent(fWidth, fHeight);
-		if(this.Drawing.GraphicObj && this.Drawing.GraphicObj.spPr && this.Drawing.GraphicObj.spPr.xfrm)
+		let fWidth = private_EMU2MM(nWidth);
+		let fHeight = private_EMU2MM(nHeight);
+		this.getParaDrawing().setExtent(fWidth, fHeight);
+		if(this.Drawing.spPr && this.Drawing.spPr.xfrm)
 		{
-			this.Drawing.GraphicObj.spPr.xfrm.setExtX(fWidth);
-			this.Drawing.GraphicObj.spPr.xfrm.setExtY(fHeight);
+			this.Drawing.spPr.xfrm.setExtX(fWidth);
+			this.Drawing.spPr.xfrm.setExtY(fHeight);
 		}
 	};
 	/**
@@ -13993,54 +14362,55 @@
 	 */
 	ApiDrawing.prototype.SetWrappingStyle = function(sType)
 	{
-		if(this.Drawing)
+		let oParaDrawing = this.getParaDrawing();
+		if(oParaDrawing)
 		{
 			if ("inline" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Inline);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_NONE);
-				this.Drawing.Set_BehindDoc(false);
+				oParaDrawing.Set_DrawingType(drawing_Inline);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_NONE);
+				oParaDrawing.Set_BehindDoc(false);
 			}
 			else if ("square" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_SQUARE);
-				this.Drawing.Set_BehindDoc(false);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_SQUARE);
+				oParaDrawing.Set_BehindDoc(false);
 			}
 			else if ("tight" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_TIGHT);
-				this.Drawing.Set_BehindDoc(true);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_TIGHT);
+				oParaDrawing.Set_BehindDoc(true);
 			}
 			else if ("through" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_THROUGH);
-				this.Drawing.Set_BehindDoc(true);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_THROUGH);
+				oParaDrawing.Set_BehindDoc(true);
 			}
 			else if ("topAndBottom" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_TOP_AND_BOTTOM);
-				this.Drawing.Set_BehindDoc(false);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_TOP_AND_BOTTOM);
+				oParaDrawing.Set_BehindDoc(false);
 			}
 			else if ("behind" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_NONE);
-				this.Drawing.Set_BehindDoc(true);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_NONE);
+				oParaDrawing.Set_BehindDoc(true);
 			}
 			else if ("inFront" === sType)
 			{
-				this.Drawing.Set_DrawingType(drawing_Anchor);
-				this.Drawing.Set_WrappingType(WRAPPING_TYPE_NONE);
-				this.Drawing.Set_BehindDoc(false);
+				oParaDrawing.Set_DrawingType(drawing_Anchor);
+				oParaDrawing.Set_WrappingType(WRAPPING_TYPE_NONE);
+				oParaDrawing.Set_BehindDoc(false);
 			}
-			this.Drawing.Check_WrapPolygon();
-			if(this.Drawing.GraphicObj && this.Drawing.GraphicObj.setRecalculateInfo)
+			oParaDrawing.Check_WrapPolygon();
+			if(this.Drawing.setRecalculateInfo)
 			{
-				this.Drawing.GraphicObj.setRecalculateInfo();
+				this.Drawing.setRecalculateInfo();
 			}
 		}
 	};
@@ -14053,9 +14423,9 @@
 	 */
 	ApiDrawing.prototype.SetHorAlign = function(sRelativeFrom, sAlign)
 	{
-		var nAlign        = private_GetAlignH(sAlign);
-		var nRelativeFrom = private_GetRelativeFromH(sRelativeFrom);
-		this.Drawing.Set_PositionH(nRelativeFrom, true, nAlign, false);
+		let nAlign        = private_GetAlignH(sAlign);
+		let nRelativeFrom = private_GetRelativeFromH(sRelativeFrom);
+		this.getParaDrawing().Set_PositionH(nRelativeFrom, true, nAlign, false);
 	};
 	/**
 	 * Specifies how the floating object will be vertically aligned.
@@ -14066,9 +14436,9 @@
 	 */
 	ApiDrawing.prototype.SetVerAlign = function(sRelativeFrom, sAlign)
 	{
-		var nAlign        = private_GetAlignV(sAlign);
-		var nRelativeFrom = private_GetRelativeFromV(sRelativeFrom);
-		this.Drawing.Set_PositionV(nRelativeFrom, true, nAlign, false);
+		let nAlign        = private_GetAlignV(sAlign);
+		let nRelativeFrom = private_GetRelativeFromV(sRelativeFrom);
+		this.getParaDrawing().Set_PositionV(nRelativeFrom, true, nAlign, false);
 	};
 	/**
 	 * Sets the absolute measurement for the horizontal positioning of the floating object.
@@ -14079,9 +14449,9 @@
 	 */
 	ApiDrawing.prototype.SetHorPosition = function(sRelativeFrom, nDistance)
 	{
-		var nValue        = private_EMU2MM(nDistance);
-		var nRelativeFrom = private_GetRelativeFromH(sRelativeFrom);
-		this.Drawing.Set_PositionH(nRelativeFrom, false, nValue, false);
+		let nValue        = private_EMU2MM(nDistance);
+		let nRelativeFrom = private_GetRelativeFromH(sRelativeFrom);
+		this.getParaDrawing().Set_PositionH(nRelativeFrom, false, nValue, false);
 	};
 	/**
 	 * Sets the absolute measurement for the vertical positioning of the floating object.
@@ -14092,9 +14462,9 @@
 	 */
 	ApiDrawing.prototype.SetVerPosition = function(sRelativeFrom, nDistance)
 	{
-		var nValue        = private_EMU2MM(nDistance);
-		var nRelativeFrom = private_GetRelativeFromV(sRelativeFrom);
-		this.Drawing.Set_PositionV(nRelativeFrom, false, nValue, false);
+		let nValue        = private_EMU2MM(nDistance);
+		let nRelativeFrom = private_GetRelativeFromV(sRelativeFrom);
+		this.getParaDrawing().Set_PositionV(nRelativeFrom, false, nValue, false);
 	};
 	/**
 	 * Specifies the minimum distance which will be maintained between the edges of the current drawing object and any
@@ -14108,7 +14478,7 @@
 	 */
 	ApiDrawing.prototype.SetDistances = function(nLeft, nTop, nRight, nBottom)
 	{
-		this.Drawing.Set_Distance(private_EMU2MM(nLeft), private_EMU2MM(nTop), private_EMU2MM(nRight), private_EMU2MM(nBottom));
+		this.getParaDrawing().Set_Distance(private_EMU2MM(nLeft), private_EMU2MM(nTop), private_EMU2MM(nRight), private_EMU2MM(nBottom));
 	};
 	/**
 	 * Returns a parent paragraph that contains the graphic object.
@@ -14118,10 +14488,9 @@
 	 */
 	ApiDrawing.prototype.GetParentParagraph = function()
 	{
-		var Paragraph = this.Drawing.GetParagraph();
-
+		let Paragraph = this.getParaDrawing().GetParagraph();
 		if (Paragraph)
-			return new ApiParagraph(this.Drawing.GetParagraph());
+			return new ApiParagraph(Paragraph);
 		else 
 			return null;
 	};
@@ -14173,13 +14542,14 @@
 	 */
 	ApiDrawing.prototype.Delete = function()
 	{
-		var ParaParent = this.GetParentParagraph();
+		let ParaParent = this.GetParentParagraph();
 
 		if (ParaParent)
 		{
-			this.Drawing.PreDelete();
-			var oParentRun = this.Drawing.GetRun();
-			oParentRun.RemoveElement(this.Drawing);
+			let oParaDrawing = this.getParaDrawing();
+			oParaDrawing.PreDelete();
+			let oParentRun = oParaDrawing.GetRun();
+			oParentRun.RemoveElement(oParaDrawing);
 
 			return true;
 		}
@@ -14194,14 +14564,10 @@
 	 */
 	ApiDrawing.prototype.Copy = function()
 	{
-		var oDrawing = this.Drawing.copy();
-
-		if (this instanceof ApiShape
-			|| this instanceof ApiChart
-			|| this instanceof ApiImage)
-			return new this.constructor(oDrawing.GraphicObj);
-
-		return new ApiDrawing(oDrawing);
+		let oParaDrawing = this.getParaDrawing();
+		if(!oParaDrawing) return null;
+		let oCopyParaDrawing = oParaDrawing.copy();
+		return new this.constructor(oCopyParaDrawing.GraphicObj);
 	};
 	/**
 	 * Wraps the graphic object with a rich text content control.
@@ -14212,11 +14578,12 @@
 	 */
 	ApiDrawing.prototype.InsertInContentControl = function(nType)
 	{
-		var Document			= editor.private_GetLogicDocument();
-		var ContentControl;
-		var paragraphInControl	= null;
-		var parentParagraph		= this.Drawing.GetParagraph();
-		var paraIndex 			= -1;
+		let Document			= editor.private_GetLogicDocument();
+		let ContentControl;
+		let paragraphInControl	= null;
+		let paraDrawing         = this.getParaDrawing();
+		let parentParagraph		= paraDrawing.GetParagraph();
+		let paraIndex 			= -1;
 		if (parentParagraph)
 			paraIndex = parentParagraph.Index;
 
@@ -14236,7 +14603,7 @@
 				paragraphInControl.RemoveFromContent(0, paragraphInControl.Content.length - 1);
 				paragraphInControl.CorrectContent();
 			}
-			paragraphInControl.Add(this.Drawing);
+			paragraphInControl.Add(paraDrawing);
 			ContentControl.Sdt.SetShowingPlcHdr(false);
 		}
 
@@ -14278,7 +14645,7 @@
 	{
 		var Api = editor;
 		var oDocument = Api.GetDocument();
-		this.Drawing.SelectAsText();
+		this.getParaDrawing().SelectAsText();
 		oDocument.Document.UpdateSelection();
 	};
 	/**
@@ -14291,7 +14658,8 @@
 	 */	
 	ApiDrawing.prototype.AddBreak = function(breakType, position)
 	{
-		var ParentRun	= (new ApiRun(this.Drawing.GetRun()));
+		let oParaDrawing = this.getParaDrawing();
+		var ParentRun	= (new ApiRun(oParaDrawing.GetRun()));
 
 		if (!ParentRun || position !== "before" && position !== "after" || breakType !== 1 && breakType !== 0)
 			return false;
@@ -14299,16 +14667,16 @@
 		if (breakType === 0)
 		{
 			if (position === "before")
-				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(this.Drawing), new AscWord.CRunBreak(AscWord.break_Page));
+				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(oParaDrawing), new AscWord.CRunBreak(AscWord.break_Page));
 			else if (position === "after")
-				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(this.Drawing) + 1, new AscWord.CRunBreak(AscWord.break_Page));
+				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(oParaDrawing) + 1, new AscWord.CRunBreak(AscWord.break_Page));
 		}
 		else if (breakType === 1)
 		{
 			if (position === "before")
-				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(this.Drawing), new AscWord.CRunBreak(AscWord.break_Line));
+				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(oParaDrawing), new AscWord.CRunBreak(AscWord.break_Line));
 			else if (position === "after")
-				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(this.Drawing) + 1, new AscWord.CRunBreak(AscWord.break_Line));
+				ParentRun.Run.Add_ToContent(ParentRun.Run.Content.indexOf(oParaDrawing) + 1, new AscWord.CRunBreak(AscWord.break_Line));
 		}
 
 		return true;
@@ -14321,8 +14689,8 @@
 	 */	
 	ApiDrawing.prototype.SetHorFlip = function(bFlip)
 	{
-		if (this.Drawing.GraphicObj && this.Drawing.GraphicObj.spPr && this.Drawing.GraphicObj.spPr.xfrm)
-			this.Drawing.GraphicObj.spPr.xfrm.setFlipH(bFlip);
+		if (this.Drawing.spPr && this.Drawing.spPr.xfrm)
+			this.Drawing.spPr.xfrm.setFlipH(bFlip);
 	};
 	/**
 	 * Flips the current drawing vertically.
@@ -14336,8 +14704,8 @@
 		if (typeof(bFlip) !== "boolean")
 			return false;
 
-		if (this.Drawing.GraphicObj && this.Drawing.GraphicObj.spPr && this.Drawing.GraphicObj.spPr.xfrm)
-			this.Drawing.GraphicObj.spPr.xfrm.setFlipV(bFlip);
+		if (this.Drawing && this.Drawing.spPr && this.Drawing.spPr.xfrm)
+			this.Drawing.spPr.xfrm.setFlipV(bFlip);
 		
 		return true;
 	};
@@ -14353,13 +14721,14 @@
 		if (typeof(coefficient) !== "number")
 			return false;
 
-		var currentHeight = this.Drawing.getXfrmExtY();
-		var currentWidth  = this.Drawing.getXfrmExtX();
+		let oParaDrawing = this.getParaDrawing();
+		var currentHeight = oParaDrawing.getXfrmExtY();
+		var currentWidth  = oParaDrawing.getXfrmExtX();
 
-		this.Drawing.setExtent(currentWidth, currentHeight * coefficient);
-		if(this.Drawing.GraphicObj && this.Drawing.GraphicObj.spPr && this.Drawing.GraphicObj.spPr.xfrm)
+		oParaDrawing.setExtent(currentWidth, currentHeight * coefficient);
+		if(this.Drawing.spPr && this.Drawing.spPr.xfrm)
 		{
-			this.Drawing.GraphicObj.spPr.xfrm.setExtY(currentHeight * coefficient);
+			this.Drawing.spPr.xfrm.setExtY(currentHeight * coefficient);
 		}
 
 		return true;
@@ -14375,14 +14744,14 @@
 	{
 		if (typeof(coefficient) !== "number")
 			return false;
+		let oParaDrawing  = this.getParaDrawing();
+		var currentHeight = oParaDrawing.getXfrmExtY();
+		var currentWidth  = oParaDrawing.getXfrmExtX();
 
-		var currentHeight = this.Drawing.getXfrmExtY();
-		var currentWidth  = this.Drawing.getXfrmExtX();
-
-		this.Drawing.setExtent(currentWidth * coefficient, currentHeight);
-		if(this.Drawing.GraphicObj && this.Drawing.GraphicObj.spPr && this.Drawing.GraphicObj.spPr.xfrm)
+		oParaDrawing.setExtent(currentWidth * coefficient, currentHeight);
+		if(this.Drawing.spPr && this.Drawing.spPr.xfrm)
 		{
-			this.Drawing.GraphicObj.spPr.xfrm.setExtX(currentWidth * coefficient);
+			this.Drawing.spPr.xfrm.setExtX(currentWidth * coefficient);
 		}
 
 		return true;
@@ -14399,7 +14768,7 @@
 		if (!oFill || !oFill.GetClassType || oFill.GetClassType() !== "fill")
 			return false;
 
-		this.Drawing.GraphicObj.spPr.setFill(oFill.UniFill);
+		this.Drawing.spPr.setFill(oFill.UniFill);
 		return true;
 	};
 	/**
@@ -14414,7 +14783,7 @@
 		if (!oStroke || !oStroke.GetClassType || oStroke.GetClassType() !== "stroke")
 			return false;
 
-		this.Drawing.GraphicObj.spPr.setLn(oStroke.Ln);
+		this.Drawing.spPr.setLn(oStroke.Ln);
 		return true;
 	};
 	/**
@@ -14425,13 +14794,14 @@
 	 */
 	ApiDrawing.prototype.GetNextDrawing = function()
 	{
-		var oDocument				= editor.GetDocument();
-		var GetAllDrawingObjects	= oDocument.GetAllDrawingObjects();
-		var drawingIndex			= null;
+		let oDocument				= editor.GetDocument();
+		let GetAllDrawingObjects	= oDocument.GetAllDrawingObjects();
+		let drawingIndex			= null;
+		let paraDrawingId           = this.getParaDrawing().Id;
 
-		for (var Index = 0; Index < GetAllDrawingObjects.length; Index++)
+		for (let Index = 0; Index < GetAllDrawingObjects.length; Index++)
 		{
-			if (GetAllDrawingObjects[Index].Drawing.Id === this.Drawing.Id)
+			if (GetAllDrawingObjects[Index].getParaDrawing().Id === paraDrawingId)
 			{
 				drawingIndex = Index;
 				break;
@@ -14451,13 +14821,14 @@
 	 */
 	ApiDrawing.prototype.GetPrevDrawing = function()
 	{
-		var oDocument				= editor.GetDocument();
-		var GetAllDrawingObjects	= oDocument.GetAllDrawingObjects();
-		var drawingIndex			= null;
+		let oDocument				= editor.GetDocument();
+		let GetAllDrawingObjects	= oDocument.GetAllDrawingObjects();
+		let drawingIndex			= null;
+		let paraDrawingId           = this.getParaDrawing().Id;
 
-		for (var Index = 0; Index < GetAllDrawingObjects.length; Index++)
+		for (let Index = 0; Index < GetAllDrawingObjects.length; Index++)
 		{
-			if (GetAllDrawingObjects[Index].Drawing.Id === this.Drawing.Id)
+			if (GetAllDrawingObjects[Index].getParaDrawing().Id === paraDrawingId)
 			{
 				drawingIndex = Index;
 				break;
@@ -14480,7 +14851,7 @@
 	ApiDrawing.prototype.ToJSON = function(bWriteNumberings, bWriteStyles)
 	{
 		var oWriter = new AscJsonConverter.WriterToJSON();
-		var oJSON = oWriter.SerParaDrawing(this.Drawing);
+		var oJSON = oWriter.SerParaDrawing(this.getParaDrawing());
 		if (bWriteNumberings)
 			oJSON["numbering"] = oWriter.jsonWordNumberings;
 		if (bWriteStyles)
@@ -14496,7 +14867,7 @@
 	 */
 	ApiDrawing.prototype.GetWidth = function()
 	{
-		return private_MM2EMU(this.Drawing.getXfrmExtX());
+		return private_MM2EMU(this.getParaDrawing().getXfrmExtX());
 	};
 	/**
 	 * Returns the height of the current drawing.
@@ -14506,13 +14877,12 @@
 	 */
 	ApiDrawing.prototype.GetHeight = function()
 	{
-		return private_MM2EMU(this.Drawing.getXfrmExtY());
+		return private_MM2EMU(this.getParaDrawing().getXfrmExtY());
 	};
 	/**
      * Returns the lock value for the specified lock type of the current drawing.
-     * @typeofeditors ["CPE"]
-	 * @param {"noGrp" | "noUngrp" | "noSelect" | "noRot" | "noChangeAspect" | "noMove" | "noResize" | "noEditPoints" | "noAdjustHandles"
-	 * 	| "noChangeArrowheads" | "noChangeShapeType" | "noDrilldown" | "noTextEdit" | "noCrop" | "txBox"} sType - Lock type in the string format.
+     * @typeofeditors ["CDE"]
+	 * @param {DrawingLockType} sType - Lock type in the string format.
      * @returns {bool}
      */
 	ApiDrawing.prototype.GetLockValue = function(sType)
@@ -14522,17 +14892,16 @@
 		if (nLockType === -1)
 			return false;
 
-		if (this.Drawing && this.Drawing.GraphicObj)
-			return this.Drawing.GraphicObj.getLockValue(nLockType);
+		if (this.Drawing)
+			return this.Drawing.getLockValue(nLockType);
 
 		return false;
 	};
 
 	/**
      * Sets the lock value to the specified lock type of the current drawing.
-     * @typeofeditors ["CPE"]
-	 * @param {"noGrp" | "noUngrp" | "noSelect" | "noRot" | "noChangeAspect" | "noMove" | "noResize" | "noEditPoints" | "noAdjustHandles"
-	 * 	| "noChangeArrowheads" | "noChangeShapeType" | "noDrilldown" | "noTextEdit" | "noCrop" | "txBox"} sType - Lock type in the string format.
+     * @typeofeditors ["CDE"]
+	 * @param {DrawingLockType} sType - Lock type in the string format.
      * @param {bool} bValue - Specifies if the specified lock is applied to the current drawing.
 	 * @returns {bool}
      */
@@ -14543,9 +14912,9 @@
 		if (nLockType === -1)
 			return false;
 
-		if (this.Drawing && this.Drawing.GraphicObj)
+		if (this.Drawing)
 		{
-			this.Drawing.GraphicObj.setLockValue(nLockType, bValue);
+			this.Drawing.setLockValue(nLockType, bValue);
 			return true;
 		}
 
@@ -14565,7 +14934,7 @@
 		if (!(oAnotherDrawing instanceof ApiDrawing))
 			return false;
 
-		this.Drawing.SetDrawingPrFromDrawing(oAnotherDrawing.Drawing);
+		this.getParaDrawing().SetDrawingPrFromDrawing(oAnotherDrawing.getParaDrawing());
 		return true;
 	};
 
@@ -14872,7 +15241,7 @@
 	/**
 	 * Returns a type of the ApiChart class.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @returns {"chart"}
 	 */
 	ApiChart.prototype.GetClassType = function()
@@ -14880,32 +15249,26 @@
 		return "chart";
 	};
 
-	ApiChart.prototype.CreateTitle = function(sTitle, nFontSize){
+	/**
+	 * Returns a type of the chart object.
+	 * @memberof ApiChart
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @returns {ChartType}
+	 */
+	ApiChart.prototype.GetChartType = function()
+	{
 		if(!this.Chart)
 		{
-			return null;
+			return "unknown";
 		}
-		if(typeof sTitle === "string" && sTitle.length > 0){
-			var oTitle = new AscFormat.CTitle();
-			oTitle.setOverlay(false);
-			oTitle.setTx(new AscFormat.CChartText());
-			var oTextBody = AscFormat.CreateTextBodyFromString(sTitle, this.Chart.getDrawingDocument(), oTitle.tx);
-			if(AscFormat.isRealNumber(nFontSize)){
-				oTextBody.content.SetApplyToAll(true);
-				oTextBody.content.AddToParagraph(new ParaTextPr({ FontSize : nFontSize}));
-				oTextBody.content.SetApplyToAll(false);
-			}
-			oTitle.tx.setRich(oTextBody);
-			return oTitle;
-		}
-		return null;
+		let nType = this.Chart.getChartType();
+		return private_ChartInternalTypeToBuilder(nType);
 	};
-
 
 	/**
 	 *  Specifies the chart title.
 	 *  @memberof ApiChart
-	 *  @typeofeditors ["CDE"]
+	 *  @typeofeditors ["CDE", "CSE", "CPE"]
 	 *  @param {string} sTitle - The title which will be displayed for the current chart.
 	 *  @param {pt} nFontSize - The text size value measured in points.
 	 *  @param {?bool} bIsBold - Specifies if the chart title is written in bold font or not.
@@ -14918,7 +15281,7 @@
 	/**
 	 *  Specifies the chart horizontal axis title.
 	 *  @memberof ApiChart
-	 *  @typeofeditors ["CDE"]
+	 *  @typeofeditors ["CDE", "CSE", "CPE"]
 	 *  @param {string} sTitle - The title which will be displayed for the horizontal axis of the current chart.
 	 *  @param {pt} nFontSize - The text size value measured in points.
 	 *  @param {?bool} bIsBold - Specifies if the horizontal axis title is written in bold font or not.
@@ -14931,7 +15294,7 @@
 	/**
 	 *  Specifies the chart vertical axis title.
 	 *  @memberof ApiChart
-	 *  @typeofeditors ["CDE"]
+	 *  @typeofeditors ["CDE", "CSE", "CPE"]
 	 *  @param {string} sTitle - The title which will be displayed for the vertical axis of the current chart.
 	 *  @param {pt} nFontSize - The text size value measured in points.
 	 *  @param {?bool} bIsBold - Specifies if the vertical axis title is written in bold font or not.
@@ -14944,7 +15307,7 @@
 	/**
 	 * Specifies the vertical axis orientation.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {boolean} bIsMinMax - The <code>true</code> value will set the normal data direction for the vertical axis (from minimum to maximum).
 	 * */
 	ApiChart.prototype.SetVerAxisOrientation = function(bIsMinMax){
@@ -14954,7 +15317,7 @@
 	/**
 	 * Specifies the horizontal axis orientation.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {boolean} bIsMinMax - The <code>true</code> value will set the normal data direction for the horizontal axis (from minimum to maximum).
 	 * */
 	ApiChart.prototype.SetHorAxisOrientation = function(bIsMinMax){
@@ -14964,7 +15327,7 @@
 	/**
 	 * Specifies the chart legend position.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {"left" | "top" | "right" | "bottom" | "none"} sLegendPos - The position of the chart legend inside the chart window.
 	 * */
 	ApiChart.prototype.SetLegendPos = function(sLegendPos)
@@ -15024,7 +15387,7 @@
 	/**
 	 * Specifies the legend font size.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {pt} nFontSize - The text size value measured in points.
 	 * */
 	ApiChart.prototype.SetLegendFontSize = function(nFontSize)
@@ -15035,7 +15398,7 @@
 	/**
 	 * Specifies which chart data labels are shown for the chart.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {boolean} bShowSerName - Whether to show or hide the source table column names used for the data which the chart will be build from.
 	 * @param {boolean} bShowCatName - Whether to show or hide the source table row names used for the data which the chart will be build from.
 	 * @param {boolean} bShowVal - Whether to show or hide the chart data values.
@@ -15050,7 +15413,7 @@
 	/**
 	 * Spicifies the show options for data labels.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {number} nSeriesIndex - The series index from the array of the data used to build the chart from.
 	 * @param {number} nPointIndex - The point index from this series.
 	 * @param {boolean} bShowSerName - Whether to show or hide the source table column names used for the data which the chart will be build from.
@@ -15066,7 +15429,7 @@
 	/**
 	 * Spicifies tick labels position for the vertical axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickLabelPosition} sTickLabelPosition - The type for the position of chart vertical tick labels.
 	 * */
 	ApiChart.prototype.SetVertAxisTickLabelPosition = function(sTickLabelPosition)
@@ -15077,7 +15440,7 @@
 	/**
 	 * Spicifies tick labels position for the horizontal axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickLabelPosition} sTickLabelPosition - The type for the position of chart horizontal tick labels.
 	 * */
 	ApiChart.prototype.SetHorAxisTickLabelPosition = function(sTickLabelPosition)
@@ -15088,7 +15451,7 @@
 	/**
 	 * Specifies major tick mark for the horizontal axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
 	 * */
 	ApiChart.prototype.SetHorAxisMajorTickMark = function(sTickMark){
@@ -15098,7 +15461,7 @@
 	/**
 	 * Specifies minor tick mark for the horizontal axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
 	 * */
 	ApiChart.prototype.SetHorAxisMinorTickMark = function(sTickMark){
@@ -15108,7 +15471,7 @@
 	/**
 	 * Specifies major tick mark for the vertical axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
 	 * */
 
@@ -15119,7 +15482,7 @@
 	/**
 	 * Specifies minor tick mark for the vertical axis.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {TickMark} sTickMark - The type of tick mark appearance.
 	 * */
 	ApiChart.prototype.SetVertAxisMinorTickMark = function(sTickMark){
@@ -15129,7 +15492,7 @@
 	/**
 	 * Specifies major vertical gridline visual properties.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
 	 * */
 	ApiChart.prototype.SetMajorVerticalGridlines = function(oStroke)
@@ -15140,7 +15503,7 @@
 	/**
 	 * Specifies minor vertical gridline visual properties.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
 	 * */
 	ApiChart.prototype.SetMinorVerticalGridlines = function(oStroke)
@@ -15152,7 +15515,7 @@
 	/**
 	 * Specifies major horizontal gridline visual properties.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
 	 * */
 	ApiChart.prototype.SetMajorHorizontalGridlines = function(oStroke)
@@ -15163,7 +15526,7 @@
 	/**
 	 * Specifies minor horizontal gridline visual properties.
 	 * @memberof ApiChart
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {?ApiStroke} oStroke - The stroke used to create the element shadow.
 	 * */
 	ApiChart.prototype.SetMinorHorizontalGridlines = function(oStroke)
@@ -15593,6 +15956,100 @@
 		return this.Chart.SetDataPointNumFormat(sFormat, nSeria, nDataPoint, bAllSeries);
 	};
 
+	/**
+	 * Returns all series from the chart space.
+	 * @memberof ApiChart
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @returns {ApiChartSeries[]}
+	 */
+	ApiChart.prototype.GetAllSeries = function()
+	{
+		if(!this.Chart) return [];
+		let aAllSeries = this.Chart.getAllSeries();
+		let aBuilderSeries = [];
+		for(let nSer = 0; nSer < aAllSeries.length; ++nSer)
+		{
+			let oSer = aAllSeries[nSer];
+			let oBuilderSer = new ApiChartSeries(this.Chart, oSer.idx);
+			aBuilderSeries.push(oBuilderSer);
+		}
+		return aBuilderSeries;
+	};
+	
+	/**
+	 * Returns the series with specific index.
+	 * @memberof ApiChart
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @param {number} nIdx - Series index.
+	 * @returns {?ApiChartSeries}
+	 */
+	ApiChart.prototype.GetSeries = function(nIdx)
+	{
+		if(!this.Chart) return null;
+		let oSeries = this.Chart.getSeriesByIdx(nIdx);
+		if(!oSeries) return null;
+		return new ApiChartSeries(this.Chart, nIdx);
+	};
+
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// ApiChartSeries
+	//
+	//------------------------------------------------------------------------------------------------------------------
+
+	ApiChartSeries.prototype.private_GetSeries = function()
+	{
+		if(!this.ChartSpace) return null;
+		return this.ChartSpace.getSeriesByIdx(this.Idx);
+	};
+
+	/**
+	 * Returns a type of the ApiChartSeries class.
+	 * @memberof ApiChartSeries
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @returns {"chartSeries"}
+	 */
+	ApiChartSeries.prototype.GetClassType = function()
+	{
+		return "chartSeries";
+	};
+
+	/**
+	 * Tries to change the type of the series. Returns true in case of success.
+	 * @memberof ApiChartSeries
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @param {ChartType} sType - Chart type.
+	 * @returns {boolean}
+	 */
+	ApiChartSeries.prototype.ChangeChartType = function(sType)
+	{
+		let oSeries = this.private_GetSeries();
+		if(!oSeries)
+		{
+			return false;
+		}
+		let nType = AscFormat.ChartBuilderTypeToInternal(sType);
+		let nResult = oSeries.tryChangeChartType(nType);
+		return nResult === Asc.c_oAscError.ID.No;
+	};
+
+	/**
+	 * Returns a chart type of the series.
+	 * @memberof ApiChartSeries
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @returns {ChartType}
+	 */
+	ApiChartSeries.prototype.GetChartType = function()
+	{
+		let oSeries = this.private_GetSeries();
+		if(!oSeries)
+		{
+			return "unknown";
+		}
+		let nType = oSeries.asc_getChartType();
+		return private_ChartInternalTypeToBuilder(nType);
+	};
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// ApiFill
@@ -15703,6 +16160,24 @@
 	{
 		var oWriter = new AscJsonConverter.WriterToJSON();
 		return JSON.stringify(oWriter.SerColor(this.Unicolor));
+	};
+	/**
+	 * Returns a color value in RGB format.
+	 * @memberof ApiUniColor
+	 * @typeofeditors ["CDE"]
+	 * @returns {number}
+	 */
+	ApiUniColor.prototype.GetRGB = function()
+	{
+		if (!this.Unicolor || !this.Unicolor.RGBA)
+			return 0;
+		
+		let logicDocument = private_GetLogicDocument();
+		if (this.Unicolor.check && logicDocument)
+			this.Unicolor.check(logicDocument.GetTheme(), logicDocument.GetColorMap());
+		
+		let c = this.Unicolor.RGBA;
+		return (c.R << 16) | (c.G << 8) | c.B;
 	};
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -16313,9 +16788,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {ApiComment?} - Returns null if the comment was not added.
 	 */
-	ApiInlineLvlSdt.prototype.AddComment = function(sText, sAuthor)
+	ApiInlineLvlSdt.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -16326,11 +16802,11 @@
 			return null;
 
 		var oDocument = private_GetLogicDocument();
-		var CommentData = new AscCommon.CCommentData();
-
-		CommentData.SetText(sText);
-		if (sAuthor !== "")
-			CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		var oDocumentState = oDocument.SaveDocumentState();
 		this.Sdt.SelectContentControl();
@@ -16339,6 +16815,18 @@
 		oDocument.LoadDocumentState(oDocumentState);
 		oDocument.UpdateSelection();
 		return new ApiComment(comment)
+	};
+	
+	/**
+	 * Places a cursor before/after the current content control.
+	 * @param {boolean?} [isAfter=true] - Specifies whether a cursor will be placed before (false) or after (true) the current content control.
+	 * @memberof ApiInlineLvlSdt
+	 * @typeofeditors ["CDE"]
+	 * @since 8.1.0
+	 */
+	ApiInlineLvlSdt.prototype.MoveCursorOutside = function(isAfter)
+	{
+		this.Sdt.MoveCursorOutsideForm(false === isAfter);
 	};
 
 	/**
@@ -16350,7 +16838,7 @@
 	ApiInlineLvlSdt.prototype.GetDropdownList = function()
 	{
 		if (!this.Sdt.IsComboBox() && !this.Sdt.IsDropDownList())
-			throw "Not a drop down content control";
+			throwException(new Error("Not a drop down content control"));
 		
 		return new ApiContentControlList(this);
 	};
@@ -16469,9 +16957,9 @@
 		
 		nIndex = AscBuilder.GetNumberParameter(nIndex, null);
 		if (null === nIndex)
-			throw "Index must be a number";
+			throwException(new Error("Index must be a number"));
 		else if (nIndex < 0 || nIndex >= listPr.GetItemsCount())
-			throw "Index out of list range";
+			throwException(new Error("Index out of list range"));
 		
 		return new ApiContentControlListEntry(this.Sdt, this, listPr.GetItemDisplayText(nIndex), listPr.GetItemValue(nIndex));
 	};
@@ -16968,7 +17456,7 @@
 		var arrApiDrawings  = [];
 
 		for (var Index = 0; Index < arrAllDrawing.length; Index++)
-			arrApiDrawings.push(new ApiDrawing(arrAllDrawing[Index]));
+			arrApiDrawings.push(new ApiDrawing(arrAllDrawing[Index].GraphicObj));
 
 		return arrApiDrawings;
 	};
@@ -17252,9 +17740,10 @@
 	 * @typeofeditors ["CDE"]
 	 * @param {string} sText - The comment text (required).
 	 * @param {string} sAuthor - The author's name (optional).
+	 * @param {string} sUserId - The user ID of the comment author (optional).
 	 * @returns {?ApiComment} - Returns null if the comment was not added.
 	 */
-	ApiBlockLvlSdt.prototype.AddComment = function(sText, sAuthor)
+	ApiBlockLvlSdt.prototype.AddComment = function(sText, sAuthor, sUserId)
 	{
 		if (!sText || typeof(sText) !== "string")
 			return null;
@@ -17265,11 +17754,11 @@
 			return null;
 
 		var oDocument = private_GetLogicDocument();
-		var CommentData = new AscCommon.CCommentData();
-
-		CommentData.SetText(sText);
-		if (sAuthor !== "")
-			CommentData.SetUserName(sAuthor);
+		let CommentData = private_CreateCommentData({
+			text: sText,
+			author: sAuthor,
+			userId: sUserId
+		});
 
 		var oDocumentState = oDocument.SaveDocumentState();
 		this.Sdt.SelectContentControl();
@@ -17279,52 +17768,6 @@
 		oDocument.UpdateSelection();
 		
 		return comment;
-	};
-
-	/**
-	 * Sets the background color to the current block content control.
-	 * @memberof ApiBlockLvlSdt
-	 * @param {byte} r - Red color component value.
-	 * @param {byte} g - Green color component value.
-	 * @param {byte} b - Blue color component value.
-	 * @param {boolean} bNone - Defines that background color will not be set.
-	 * @typeofeditors ["CDE"]
-	 * @returns {boolean}
-	 */
-	ApiBlockLvlSdt.prototype.SetBackgroundColor = function(r, g, b, bNone)
-	{
-		var oFormPr = this.Sdt.GetFormPr().Copy();
-		
-		let oUnifill = new AscFormat.CUniFill();
-		oUnifill.setFill(new AscFormat.CSolidFill());
-		oUnifill.fill.setColor(new AscFormat.CUniColor());
-		oUnifill.fill.color.setColor(new AscFormat.CRGBColor());
-
-		if (r >=0 && g >=0 && b >=0)
-			oUnifill.fill.color.color.setColor(r, g, b);
-		else
-			return false;
-
-		oFormPr.Shd = new CDocumentShd();
-		oFormPr.Shd.Set_FromObject({
-			Value: bNone ? Asc.c_oAscShd.Clear : Asc.c_oAscShd.Clear,
-			Color: {
-				r: r,
-				g: g,
-				b: b,
-				Auto: false
-			},
-			Fill: {
-				r: r,
-				g: g,
-				b: b,
-				Auto: false
-			},
-			Unifill: oUnifill
-		});
-
-		this.Sdt.SetFormPr(oFormPr);
-		return true;
 	};
 
 	/**
@@ -17430,9 +17873,21 @@
 	ApiBlockLvlSdt.prototype.GetDropdownList = function()
 	{
 		if (!this.Sdt.IsComboBox() && !this.Sdt.IsDropDownList())
-			throw "Not a drop down content control";
+			throwException(new Error("Not a drop down content control"));
 		
 		return new ApiContentControlList(this);
+	};
+	
+	/**
+	 * Places a cursor before/after the current content control.
+	 * @param {boolean?} [isAfter=true] - Specifies whether a cursor will be placed before (false) or after (true) the current content control.
+	 * @memberof ApiBlockLvlSdt
+	 * @typeofeditors ["CDE"]
+	 * @since 8.1.0
+	 */
+	ApiBlockLvlSdt.prototype.MoveCursorOutside = function(isAfter)
+	{
+		this.Sdt.MoveCursorOutsideForm(false === isAfter);
 	};
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -17470,6 +17925,8 @@
 			return "checkBoxForm";
 		if (this.Sdt.IsPictureForm())
 			return "pictureForm";
+		if (this.Sdt.IsDatePicker())
+			return "dateForm";
 	};
 	/**
 	 * Returns the current form key.
@@ -17498,23 +17955,25 @@
 	 */
 	ApiFormBase.prototype.SetFormKey = function(sKey)
 	{
-		if (typeof(sKey) !== "string")
-			return false;
-
-		if (this.GetFormType() === "radioButtonForm")
-		{
-			sKey = sKey === "" ? "Group 1" : sKey;
-			this.Sdt.GetCheckBoxPr().SetGroupKey(sKey);
-		}
-		else
-		{
-			sKey = sKey === "" ? undefined : sKey;
-			var oFormPr = this.Sdt.GetFormPr().Copy();
-			oFormPr && oFormPr.SetKey(sKey);
-			this.Sdt.SetFormPr(oFormPr);
-		}
-		
-		return true;
+		return executeNoFormLockCheck(function() {
+			if (typeof (sKey) !== "string")
+				return false;
+			
+			if (this.GetFormType() === "radioButtonForm")
+			{
+				sKey = sKey === "" ? "Group 1" : sKey;
+				this.Sdt.GetCheckBoxPr().SetGroupKey(sKey);
+			}
+			else
+			{
+				sKey = sKey === "" ? undefined : sKey;
+				var oFormPr = this.Sdt.GetFormPr().Copy();
+				oFormPr && oFormPr.SetKey(sKey);
+				this.Sdt.SetFormPr(oFormPr);
+			}
+			
+			return true;
+		}, this);
 	};
 	/**
 	 * Returns the tip text of the current form.
@@ -17540,14 +17999,16 @@
 	 */
 	ApiFormBase.prototype.SetTipText = function(sText)
 	{
-		if (typeof(sText) !== "string")
-			return false;
-
-		var oFormPr = this.Sdt.GetFormPr().Copy();
-		oFormPr && oFormPr.SetHelpText(sText);
-
-		this.Sdt.SetFormPr(oFormPr);
-		return true;
+		return executeNoFormLockCheck(function() {
+			if (typeof (sText) !== "string")
+				return false;
+			
+			var oFormPr = this.Sdt.GetFormPr().Copy();
+			oFormPr && oFormPr.SetHelpText(sText);
+			
+			this.Sdt.SetFormPr(oFormPr);
+			return true;
+		}, this);
 	};
 	/**
 	 * Checks if the current form is required.
@@ -17568,16 +18029,18 @@
 	 */
 	ApiFormBase.prototype.SetRequired = function(bRequired)
 	{
-		if (typeof(bRequired) !== "boolean")
-			return false;
-		if (bRequired === this.IsRequired())
+		return executeNoFormLockCheck(function() {
+			if (typeof (bRequired) !== "boolean")
+				return false;
+			if (bRequired === this.IsRequired())
+				return true;
+			
+			var oFormPr = this.Sdt.GetFormPr().Copy();
+			oFormPr && oFormPr.SetRequired(bRequired);
+			
+			this.Sdt.SetFormPr(oFormPr);
 			return true;
-
-		var oFormPr = this.Sdt.GetFormPr().Copy();
-		oFormPr && oFormPr.SetRequired(bRequired);
-
-		this.Sdt.SetFormPr(oFormPr);
-		return true;
+		}, this);
 	};
 	/**
 	 * Checks if the current form is fixed size.
@@ -17599,11 +18062,13 @@
 	 */
 	ApiFormBase.prototype.ToFixed = function(nWidth, nHeight)
 	{
-		if (this.IsFixed())
-			return false;
-		
-		this.Sdt.ConvertFormToFixed(private_Twips2MM(nWidth), private_Twips2MM(nHeight));
-		return true;
+		return executeNoFormLockCheck(function() {
+			if (this.IsFixed())
+				return false;
+			
+			this.Sdt.ConvertFormToFixed(private_Twips2MM(nWidth), private_Twips2MM(nHeight));
+			return true;
+		}, this);
 	};
 	/**
 	 * Converts the current form to an inline form.
@@ -17614,11 +18079,13 @@
 	 */
 	ApiFormBase.prototype.ToInline = function()
 	{
-		if (!this.IsFixed())
-			return false;
-
-		this.Sdt.ConvertFormToInline();
-		return true;
+		return executeNoFormLockCheck(function() {
+			if (!this.IsFixed())
+				return false;
+			
+			this.Sdt.ConvertFormToInline();
+			return true;
+		}, this);
 	};
 	/**
 	 * Sets the border color to the current form.
@@ -17632,22 +18099,24 @@
 	 */
 	ApiFormBase.prototype.SetBorderColor = function(r, g, b, bNone)
 	{
-		var oFormPr = this.Sdt.GetFormPr().Copy();
-		var oBorder;
-		if (typeof(r) == "number" && typeof(g) == "number" && typeof(b) == "number" && !bNone)
-		{
-			oBorder = new CDocumentBorder();
-			oBorder.Color = new CDocumentColor(r, g, b);
-		}
-		else if (bNone)
-			oBorder = undefined;
-		else
-			return false;
-
-		oFormPr.Border = oBorder;
-
-		this.Sdt.SetFormPr(oFormPr);
-		return true;
+		return executeNoFormLockCheck(function() {
+			var oFormPr = this.Sdt.GetFormPr().Copy();
+			var oBorder;
+			if (typeof (r) == "number" && typeof (g) == "number" && typeof (b) == "number" && !bNone)
+			{
+				oBorder       = new CDocumentBorder();
+				oBorder.Color = new CDocumentColor(r, g, b);
+			}
+			else if (bNone)
+				oBorder = undefined;
+			else
+				return false;
+			
+			oFormPr.Border = oBorder;
+			
+			this.Sdt.SetFormPr(oFormPr);
+			return true;
+		}, this);
 	};
 	/**
 	 * Sets the background color to the current form.
@@ -17696,7 +18165,7 @@
 	};
 	/**
 	 * Returns the text from the current form.
-	 * *This method is used only for text and combo box forms.*
+	 * *Returns the value as a string if possible for the given form type*
 	 * @memberof ApiFormBase
 	 * @typeofeditors ["CDE", "CFE"]
 	 * @returns {string}
@@ -17712,7 +18181,9 @@
 	 */
 	ApiFormBase.prototype.Clear = function()
 	{
-		this.Sdt.ClearContentControlExt();
+		return executeNoFormLockCheck(function() {
+			this.Sdt.ClearContentControlExt();
+		}, this);
 	};
 	/**
 	 * Returns a shape in which the form is placed to control the position and size of the fixed size form frame.
@@ -17740,17 +18211,19 @@
 	 */
 	ApiFormBase.prototype.SetPlaceholderText = function(sText)
 	{
-		if (typeof(sText) !== "string" || sText === "")
-			return false;
-		if (this.Sdt.IsCheckBox() || this.Sdt.IsRadioButton())
-			return false;
-		
-		this.Sdt.SetPlaceholderText(sText);
-		return true;
+		return executeNoFormLockCheck(function() {
+			if (typeof (sText) !== "string" || sText === "")
+				return false;
+			if (this.Sdt.IsCheckBox() || this.Sdt.IsRadioButton())
+				return false;
+			
+			this.Sdt.SetPlaceholderText(sText);
+			return true;
+		}, this);
 	};
 	/**
 	 * Sets the text properties to the current form.
-	 * *This method is used only for text and combo box forms.*
+	 * *Used if possible for this type of form*
 	 * @memberof ApiFormBase
 	 * @typeofeditors ["CDE", "CFE"]
 	 * @param {ApiTextPr} oTextPr - The text properties that will be set to the current form.
@@ -17768,7 +18241,7 @@
 	};
 	/**
 	 * Returns the text properties from the current form.
-	 * *This method is used only for text and combo box forms.*
+	 * *Used if possible for this type of form*
 	 * @memberof ApiFormBase
 	 * @typeofeditors ["CDE", "CFE"]
 	 * @return {ApiTextPr}  
@@ -17778,6 +18251,17 @@
 		return new ApiTextPr(this, this.Sdt.Pr.TextPr.Copy());
 	};
 	/**
+	 * Places a cursor before/after the current form.
+	 * @param {boolean?} [isAfter=true] - Specifies whether a cursor will be placed before (false) or after (true) the current form.
+	 * @memberof ApiFormBase
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @since 8.1.0
+	 */
+	ApiFormBase.prototype.MoveCursorOutside = function(isAfter)
+	{
+		this.Sdt.MoveCursorOutsideForm(false === isAfter);
+	};
+	/**
 	 * Copies the current form (copies with the shape if it exists).
 	 * @memberof ApiFormBase
 	 * @typeofeditors ["CDE", "CFE"]
@@ -17785,36 +18269,38 @@
 	 */
 	ApiFormBase.prototype.Copy = function()
 	{
-		let oSdt;
-		if (this.IsFixed())
-		{
-			var oParagraph = this.Sdt.GetParagraph();
-			var oShape     = oParagraph.Parent.Is_DrawingShape(true);
-			if (!oShape || !oShape.parent || !oShape.isForm())
+		return executeNoFormLockCheck(function(){
+			let oSdt;
+			if (this.IsFixed())
+			{
+				var oParagraph = this.Sdt.GetParagraph();
+				var oShape     = oParagraph.Parent.Is_DrawingShape(true);
+				if (!oShape || !oShape.parent || !oShape.isForm())
+					return null;
+	
+				var oDrawing = oShape.parent.Copy({
+					SkipComments          : true,
+					SkipAnchors           : true,
+					SkipFootnoteReference : true,
+					SkipComplexFields     : true
+				});
+				oSdt = oDrawing.GraphicObj.getInnerForm();
+			}
+			else
+			{
+				oSdt = this.Sdt.Copy(false, {
+					SkipComments          : true,
+					SkipAnchors           : true,
+					SkipFootnoteReference : true,
+					SkipComplexFields     : true
+				});
+			}
+	
+			if (!oSdt)
 				return null;
-
-			var oDrawing = oShape.parent.Copy({
-				SkipComments          : true,
-				SkipAnchors           : true,
-				SkipFootnoteReference : true,
-				SkipComplexFields     : true
-			});
-			oSdt = oDrawing.GraphicObj.getInnerForm();
-		}
-		else
-		{
-			oSdt = this.Sdt.Copy(false, {
-				SkipComments          : true,
-				SkipAnchors           : true,
-				SkipFootnoteReference : true,
-				SkipComplexFields     : true
-			});
-		}
-
-		if (!oSdt)
-			return null;
-
-		return new this.constructor(oSdt);
+	
+			return new this.constructor(oSdt);
+		}, this);
 	};
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -17842,16 +18328,18 @@
 	 */
 	ApiTextForm.prototype.SetAutoFit = function(bAutoFit)
 	{
-		if (typeof(bAutoFit) !== "boolean" || !this.IsFixed())
-			return false;
-		if (bAutoFit === this.IsAutoFit())
+		return executeNoFormLockCheck(function(){
+			if (typeof (bAutoFit) !== "boolean" || !this.IsFixed())
+				return false;
+			if (bAutoFit === this.IsAutoFit())
+				return true;
+			
+			var oPr = this.Sdt.GetTextFormPr().Copy();
+			oPr.SetAutoFit(bAutoFit);
+			
+			this.Sdt.SetTextFormPr(oPr);
 			return true;
-
-		var oPr = this.Sdt.GetTextFormPr().Copy();
-		oPr.SetAutoFit(bAutoFit);
-
-		this.Sdt.SetTextFormPr(oPr);
-		return true;
+		}, this);
 	};
 	/**
 	 * Checks if the current text field is multiline.
@@ -17872,18 +18360,20 @@
 	 */
 	ApiTextForm.prototype.SetMultiline = function(bMultiline)
 	{
-		if (typeof(bMultiline) !== "boolean" || !this.IsFixed())
-			return false;
-		if (!this.IsFixed())
-			return false;
-		if (bMultiline === this.IsMultiline())
+		return executeNoFormLockCheck(function(){
+			if (typeof (bMultiline) !== "boolean" || !this.IsFixed())
+				return false;
+			if (!this.IsFixed())
+				return false;
+			if (bMultiline === this.IsMultiline())
+				return true;
+			
+			var oPr = this.Sdt.GetTextFormPr().Copy();
+			oPr.SetMultiLine(bMultiline);
+			this.Sdt.SetTextFormPr(oPr);
+			
 			return true;
-
-		var oPr = this.Sdt.GetTextFormPr().Copy();
-		oPr.SetMultiLine(bMultiline);
-		this.Sdt.SetTextFormPr(oPr);
-
-		return true;
+		}, this);
 	};
 	/**
 	 * Returns a limit of the text field characters.
@@ -17910,24 +18400,26 @@
 	 */
 	ApiTextForm.prototype.SetCharactersLimit = function(nChars)
 	{
-		if (typeof(nChars) !== "number")
-			return false;
-
-		const nMax = 1000000;
-		nChars = nChars > nMax ? nMax : Math.floor(nChars);
-
-		if (nChars <= 0)
-			nChars = -1;
-
-		let oPr = this.Sdt.GetTextFormPr();
-		if (!oPr || (-1 === nChars && this.IsComb()))
-			return false;
-
-		oPr = oPr.Copy();
-		oPr.SetMaxCharacters(nChars);
-
-		this.Sdt.SetTextFormPr(oPr);
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (typeof (nChars) !== "number")
+				return false;
+			
+			const nMax = 1000000;
+			nChars     = nChars > nMax ? nMax : Math.floor(nChars);
+			
+			if (nChars <= 0)
+				nChars = -1;
+			
+			let oPr = this.Sdt.GetTextFormPr();
+			if (!oPr || (-1 === nChars && this.IsComb()))
+				return false;
+			
+			oPr = oPr.Copy();
+			oPr.SetMaxCharacters(nChars);
+			
+			this.Sdt.SetTextFormPr(oPr);
+			return true;
+		}, this);
 	};
 	/**
 	 * Checks if the text field is a comb of characters with the same cell width.
@@ -17950,24 +18442,26 @@
 	 */
 	ApiTextForm.prototype.SetComb = function(bComb)
 	{
-		if (typeof(bComb) !== "boolean")
-			return false;
-
-		let oPr = this.Sdt.GetTextFormPr();
-		if (!oPr)
-			return false;
-
-		if (oPr.IsComb() === bComb)
+		return executeNoFormLockCheck(function(){
+			if (typeof (bComb) !== "boolean")
+				return false;
+			
+			let oPr = this.Sdt.GetTextFormPr();
+			if (!oPr)
+				return false;
+			
+			if (oPr.IsComb() === bComb)
+				return true;
+			
+			oPr = oPr.Copy();
+			oPr.SetComb(bComb);
+			if (oPr.GetMaxCharacters() === -1)
+				oPr.SetMaxCharacters(10);
+			oPr.SetWidth(0);
+			
+			this.Sdt.SetTextFormPr(oPr);
 			return true;
-
-		oPr = oPr.Copy();
-		oPr.SetComb(bComb);
-		if (oPr.GetMaxCharacters() === -1)
-			oPr.SetMaxCharacters(10);
-		oPr.SetWidth(0);
-
-		this.Sdt.SetTextFormPr(oPr);
-		return true;
+		}, this);
 	};
 	/**
 	 * Sets the cell width to the applied comb of characters.
@@ -17979,18 +18473,20 @@
 	 */
 	ApiTextForm.prototype.SetCellWidth = function(nCellWidth)
 	{
-		if (typeof(nCellWidth) !== "number" || !this.IsComb())
-			return false;
-
-		var nWidthMax = 558.8;
-		nCellWidth = nCellWidth < 1 ? 1 : Math.floor(nCellWidth * 100) / 100;
-		nCellWidth = nCellWidth > nWidthMax ? nWidthMax : nCellWidth;
-
-		var oPr = this.Sdt.GetTextFormPr().Copy();
-		oPr.SetWidth(Math.floor(nCellWidth * 72 * 20 / 25.4 + 0.5));
-
-		this.Sdt.SetTextFormPr(oPr);
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (typeof (nCellWidth) !== "number" || !this.IsComb())
+				return false;
+			
+			var nWidthMax = 558.8;
+			nCellWidth    = nCellWidth < 1 ? 1 : Math.floor(nCellWidth * 100) / 100;
+			nCellWidth    = nCellWidth > nWidthMax ? nWidthMax : nCellWidth;
+			
+			var oPr = this.Sdt.GetTextFormPr().Copy();
+			oPr.SetWidth(Math.floor(nCellWidth * 72 * 20 / 25.4 + 0.5));
+			
+			this.Sdt.SetTextFormPr(oPr);
+			return true;
+		}, this);
 	};
 	/**
 	 * Sets the text to the current text field.
@@ -18001,13 +18497,15 @@
 	 */
 	ApiTextForm.prototype.SetText = function(sText)
 	{
-		let _sText = GetStringParameter(sText, null);
-		if (!_sText)
-			return false;
-
-		this.Sdt.SetInnerText(_sText);
-		this.OnChangeValue();
-		return true;
+		return executeNoFormLockCheck(function(){
+			let _sText = GetStringParameter(sText, null);
+			if (!_sText)
+				return false;
+	
+			this.Sdt.SetInnerText(_sText);
+			this.OnChangeValue();
+			return true;
+		}, this);
 	};
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -18053,30 +18551,32 @@
 	 */
 	ApiPictureForm.prototype.SetScaleFlag = function(sScaleFlag)
 	{
-		let nScaleFlag;
-		switch (sScaleFlag)
-		{
-			case "always":
-				nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Always;
-				break;
-			case "never":
-				nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Never;
-				break;
-			case "tooBig":
-				nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Bigger;
-				break;
-			case "tooSmall":
-				nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Small;
-				break;
-			default:
-				return false;
-		}
-
-		var oPr = this.Sdt.GetPictureFormPr().Copy();
-		oPr.SetScaleFlag(nScaleFlag);
-		this.Sdt.SetPictureFormPr(oPr);
-		this.Sdt.UpdatePictureFormLayout();
-		return true;
+		return executeNoFormLockCheck(function(){
+			let nScaleFlag;
+			switch (sScaleFlag)
+			{
+				case "always":
+					nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Always;
+					break;
+				case "never":
+					nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Never;
+					break;
+				case "tooBig":
+					nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Bigger;
+					break;
+				case "tooSmall":
+					nScaleFlag = Asc.c_oAscPictureFormScaleFlag.Small;
+					break;
+				default:
+					return false;
+			}
+	
+			var oPr = this.Sdt.GetPictureFormPr().Copy();
+			oPr.SetScaleFlag(nScaleFlag);
+			this.Sdt.SetPictureFormPr(oPr);
+			this.Sdt.UpdatePictureFormLayout();
+			return true;
+		}, this);
 	};
 	/**
 	 * Locks the aspect ratio of the current picture form.
@@ -18087,11 +18587,13 @@
 	 */
 	ApiPictureForm.prototype.SetLockAspectRatio = function(isLock)
 	{
-		let oPr = this.Sdt.GetPictureFormPr().Copy();
-		oPr.SetConstantProportions(GetBoolParameter(isLock, false));
-		this.Sdt.SetPictureFormPr(oPr);
-		this.Sdt.UpdatePictureFormLayout();
-		return true;
+		return executeNoFormLockCheck(function(){
+			let oPr = this.Sdt.GetPictureFormPr().Copy();
+			oPr.SetConstantProportions(GetBoolParameter(isLock, false));
+			this.Sdt.SetPictureFormPr(oPr);
+			this.Sdt.UpdatePictureFormLayout();
+			return true;
+		}, this);
 	};
 	/**
 	 * Checks if the aspect ratio of the current picture form is locked or not.
@@ -18116,12 +18618,14 @@
 	 */
 	ApiPictureForm.prototype.SetPicturePosition = function(nShiftX, nShiftY)
 	{
-		let oPr = this.Sdt.GetPictureFormPr().Copy();
-		oPr.SetShiftX(Math.max(0, Math.min(100, GetNumberParameter(nShiftX, 50))) / 100);
-		oPr.SetShiftY(Math.max(0, Math.min(100, GetNumberParameter(nShiftY, 50))) / 100);
-		this.Sdt.SetPictureFormPr(oPr);
-		this.Sdt.UpdatePictureFormLayout();
-		return true;
+		return executeNoFormLockCheck(function(){
+			let oPr = this.Sdt.GetPictureFormPr().Copy();
+			oPr.SetShiftX(Math.max(0, Math.min(100, GetNumberParameter(nShiftX, 50))) / 100);
+			oPr.SetShiftY(Math.max(0, Math.min(100, GetNumberParameter(nShiftY, 50))) / 100);
+			this.Sdt.SetPictureFormPr(oPr);
+			this.Sdt.UpdatePictureFormLayout();
+			return true;
+		}, this);
 	};
 	/**
 	 * Returns the picture position inside the current form.
@@ -18143,11 +18647,13 @@
 	 */
 	ApiPictureForm.prototype.SetRespectBorders = function(isRespect)
 	{
-		let oPr = this.Sdt.GetPictureFormPr().Copy();
-		oPr.SetRespectBorders(GetBoolParameter(isRespect, true));
-		this.Sdt.SetPictureFormPr(oPr);
-		this.Sdt.UpdatePictureFormLayout();
-		return true;
+		return executeNoFormLockCheck(function(){
+			let oPr = this.Sdt.GetPictureFormPr().Copy();
+			oPr.SetRespectBorders(GetBoolParameter(isRespect, true));
+			this.Sdt.SetPictureFormPr(oPr);
+			this.Sdt.UpdatePictureFormLayout();
+			return true;
+		}, this);
 	};
 	/**
 	 * Checks if the form border width is respected or not.
@@ -18186,33 +18692,74 @@
 	 * Sets an image to the current picture form.
 	 * @memberof ApiPictureForm
 	 * @param {string} sImageSrc - The image source where the image to be inserted should be taken from (currently, only internet URL or base64 encoded images are supported).
+	 * @param {EMU} nWidth - The image width in English measure units.
+	 * @param {EMU} nHeight - The image height in English measure units.
 	 * @typeofeditors ["CDE", "CFE"]
 	 * @returns {boolean}
 	 */
-	ApiPictureForm.prototype.SetImage = function(sImageSrc)
+	ApiPictureForm.prototype.SetImage = function(sImageSrc, nWidth, nHeight)
 	{
-		if (typeof(sImageSrc) !== "string" || sImageSrc === "")
-			return false;
-
-		var oImg;
-		var allDrawings = this.Sdt.GetAllDrawingObjects();
-		for (var nDrawing = 0; nDrawing < allDrawings.length; nDrawing++)
-		{
-			if (allDrawings[nDrawing].IsPicture())
+		return executeNoFormLockCheck(function(){
+			if (typeof(sImageSrc) !== "string" || sImageSrc === "")
+				return false;
+			
+			var oImg, paraDrawing;
+			var allDrawings = this.Sdt.GetAllDrawingObjects();
+			for (var nDrawing = 0; nDrawing < allDrawings.length; nDrawing++)
 			{
-				oImg = allDrawings[nDrawing].GraphicObj;
-				break;
+				if (allDrawings[nDrawing].IsPicture())
+				{
+					oImg = allDrawings[nDrawing].GraphicObj;
+					paraDrawing = allDrawings[nDrawing];
+					break;
+				}
 			}
-		}
-
-		if (oImg)
-		{
-			oImg.setBlipFill(AscFormat.CreateBlipFillRasterImageId(sImageSrc));
-			this.OnChangeValue();
-			return true;
-		}
-
-		return false;
+	
+			if (oImg)
+			{
+				let spPr = oImg.spPr;
+				if (!spPr)
+				{
+					spPr = new AscFormat.CSpPr();
+					oImg.setSpPr(spPr);
+					spPr.setParent(oImg);
+				}
+				
+				spPr.setGeometry(AscFormat.CreateGeometry("rect"));
+				
+				let xfrm = spPr.xfrm;
+				if (!xfrm)
+				{
+					xfrm = new AscFormat.CXfrm();
+					spPr.setXfrm(xfrm);
+					xfrm.setParent(spPr);
+				}
+				
+				if (undefined !== nWidth && undefined !== nHeight)
+				{
+					let w = private_EMU2MM(nWidth);
+					let h = private_EMU2MM(nHeight);
+					xfrm.setOffX(0);
+					xfrm.setOffY(0);
+					xfrm.setExtX(w);
+					xfrm.setExtY(h);
+				}
+				
+				oImg.setBlipFill(AscFormat.CreateBlipFillRasterImageId(sImageSrc));
+				
+				let paragraph   = this.Sdt.GetParagraph();
+				let parentShape = paragraph && paragraph.GetParent() ? paragraph.GetParent().Is_DrawingShape(true) : null;
+				if (parentShape && parentShape.recalculate)
+					parentShape.recalculate();
+				
+				this.OnChangeValue();
+				this.Sdt.SetShowingPlcHdr(false);
+				this.Sdt.UpdatePictureFormLayout(private_EMU2MM(nWidth), private_EMU2MM(nHeight));
+				return true;
+			}
+	
+			return false;
+		}, this);
 	};
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -18249,28 +18796,30 @@
 	 */
 	ApiComboBoxForm.prototype.SetListValues = function(aListString)
 	{
-		if (!Array.isArray(aListString))
-			return false;
-
-		let isComboBox = this.Sdt.IsComboBox();
-		let oSpecProps = isComboBox ? this.Sdt.GetComboBoxPr() : this.Sdt.GetDropDownListPr();
-		if (!oSpecProps)
-			return false;
-
-		oSpecProps = oSpecProps.Copy();
-		oSpecProps.Clear();
-		for (let nValue = 0; nValue < aListString.length; nValue++)
-		{
-			if (typeof(aListString[nValue]) === "string" && aListString[nValue] !== "")
-				oSpecProps.AddItem(aListString[nValue], aListString[nValue]);
-		}
-
-		if (isComboBox)
-			this.Sdt.SetComboBoxPr(oSpecProps);
-		else
-			this.Sdt.SetDropDownListPr(oSpecProps);
-
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (!Array.isArray(aListString))
+				return false;
+	
+			let isComboBox = this.Sdt.IsComboBox();
+			let oSpecProps = isComboBox ? this.Sdt.GetComboBoxPr() : this.Sdt.GetDropDownListPr();
+			if (!oSpecProps)
+				return false;
+	
+			oSpecProps = oSpecProps.Copy();
+			oSpecProps.Clear();
+			for (let nValue = 0; nValue < aListString.length; nValue++)
+			{
+				if (typeof(aListString[nValue]) === "string" && aListString[nValue] !== "")
+					oSpecProps.AddItem(aListString[nValue], aListString[nValue]);
+			}
+	
+			if (isComboBox)
+				this.Sdt.SetComboBoxPr(oSpecProps);
+			else
+				this.Sdt.SetDropDownListPr(oSpecProps);
+	
+			return true;
+		}, this);
 	};
 	/**
 	 * Selects the specified value from the combo box list values. 
@@ -18281,19 +18830,21 @@
 	 */
 	ApiComboBoxForm.prototype.SelectListValue = function(sValue)
 	{
-		if (typeof(sValue) !== "string" || sValue === "")
-			return false;
-
-		var oSpecProps = this.Sdt.IsComboBox() ? this.Sdt.GetComboBoxPr() : this.Sdt.GetDropDownListPr();
-		if (!oSpecProps)
-			return false;
-
-		if (null == oSpecProps.GetTextByValue(sValue))
-			return false;
-
-		this.Sdt.SelectListItem(sValue);
-		this.OnChangeValue();
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (typeof (sValue) !== "string" || sValue === "")
+				return false;
+			
+			var oSpecProps = this.Sdt.IsComboBox() ? this.Sdt.GetComboBoxPr() : this.Sdt.GetDropDownListPr();
+			if (!oSpecProps)
+				return false;
+			
+			if (null == oSpecProps.GetTextByValue(sValue))
+				return false;
+			
+			this.Sdt.SelectListItem(sValue);
+			this.OnChangeValue();
+			return true;
+		}, this);
 	};
 	/**
 	 * Sets the text to the current combo box.
@@ -18305,21 +18856,23 @@
 	 */
 	ApiComboBoxForm.prototype.SetText = function(sText)
 	{
-		if (typeof (sText) !== "string" || sText === "")
-			return false;
-
-		if (!this.Sdt.IsComboBox())
-			return false;
-
-		if (this.Sdt.IsPlaceHolder())
-			this.Sdt.ReplacePlaceHolderWithContent();
-
-		let oRun = this.Sdt.MakeSingleRunElement();
-		oRun.ClearContent();
-		oRun.AddText(sText);
-		
-		this.OnChangeValue();
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (typeof (sText) !== "string" || sText === "")
+				return false;
+	
+			if (!this.Sdt.IsComboBox())
+				return false;
+			
+			if (this.Sdt.IsPlaceHolder())
+				this.Sdt.ReplacePlaceHolderWithContent();
+	
+			let oRun = this.Sdt.MakeSingleRunElement();
+			oRun.ClearContent();
+			oRun.AddText(sText);
+			
+			this.OnChangeValue();
+			return true;
+		}, this);
 	};
 	/**
 	 * Checks if the combo box text can be edited. If it is not editable, then this form is a dropdown list.
@@ -18347,12 +18900,14 @@
 	 */
 	ApiCheckBoxForm.prototype.SetChecked = function(isChecked)
 	{
-		if (typeof(isChecked) !== "boolean")
-			return false;
-
-		this.Sdt.ToggleCheckBox(isChecked);
-		this.OnChangeValue();
-		return true;
+		return executeNoFormLockCheck(function(){
+			if (typeof (isChecked) !== "boolean")
+				return false;
+			
+			this.Sdt.ToggleCheckBox(isChecked);
+			this.OnChangeValue();
+			return true;
+		}, this);
 	};
 	/**
 	 * Returns the state of the current checkbox (checked or not).
@@ -18393,15 +18948,135 @@
 	 */
 	ApiCheckBoxForm.prototype.SetRadioGroup = function(sKey)
 	{
-		let oPr = this.Sdt.GetCheckBoxPr();
-		if (!oPr)
-			return;
-
-		oPr = oPr.Copy();
-		oPr.SetGroupKey(sKey);
-		this.Sdt.SetCheckBoxPr(oPr);
+		return executeNoFormLockCheck(function(){
+			let oPr = this.Sdt.GetCheckBoxPr();
+			if (!oPr)
+				return;
+			
+			oPr = oPr.Copy();
+			oPr.SetGroupKey(sKey);
+			this.Sdt.SetCheckBoxPr(oPr);
+		}, this);
 	};
 
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// ApiDateForm
+	//
+	//------------------------------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the date format of the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @returns {string}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.GetFormat = function() {
+		let oDatePr = this.Sdt.GetDatePickerPr();
+		return oDatePr.GetDateFormat();
+	};
+
+	/**
+	 * Sets the date format to the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @param {string} sFormat - The date format. For example, mm.dd.yyyy
+	 * @returns {boolean}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.SetFormat = function(sFormat)
+	{
+		return executeNoFormLockCheck(function(){
+			if (typeof(sFormat) !== "string" || sFormat === "")
+				return false;
+			
+			let oNewDatePr = this.Sdt.GetDatePickerPr().Copy();
+			oNewDatePr.SetDateFormat(sFormat);
+	
+			this.Sdt.ApplyDatePickerPr(oNewDatePr, true);
+			return true;
+		}, this);
+	};
+
+	/**
+	 * Gets the used date language of the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @returns {string}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.GetLanguage = function() {
+		let oDatePr = this.Sdt.GetDatePickerPr();
+		let nLcid	= oDatePr.GetLangId();
+
+		if (nLcid !== undefined)
+			return Asc.g_oLcidIdToNameMap[nLcid];
+
+		return undefined;
+	};
+
+	/**
+	 * Sets the date language to the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @param {string} sLangId - The date language. The possible value for this parameter is a language identifier as defined in
+	 * RFC 4646/BCP 47. Example: "en-CA".
+	 * @returns {boolean}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.SetLanguage = function(sLangId)
+	{
+		return executeNoFormLockCheck(function(){
+			var nLcid = Asc.g_oLcidNameToIdMap[sLangId];
+			if (undefined === nLcid)
+				return false;
+			
+			let oNewDatePr = this.Sdt.GetDatePickerPr().Copy();
+			oNewDatePr.SetLangId(nLcid);
+			
+			this.Sdt.ApplyDatePickerPr(oNewDatePr, true);
+			return true;
+		}, this);
+	};
+
+	/**
+	 * Returns the timestamp of the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @returns {number}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.GetTime = function()
+	{
+		let oDatePr	= this.Sdt.GetDatePickerPr();
+		let oDate	= new Date(oDatePr.GetFullDate());
+
+		return oDate.getTime();
+	};
+
+	/**
+	 * Sets the timestamp to the current form.
+	 * @memberof ApiDateForm
+	 * @typeofeditors ["CDE", "CFE"]
+	 * @param {number} nTimeStamp The timestamp that will be set to the current date form.
+	 * @returns {boolean}
+	 * @since 8.1.0
+	 */
+	ApiDateForm.prototype.SetTime = function(nTimeStamp)
+	{
+		return executeNoFormLockCheck(function(){
+			let nTime = parseInt(nTimeStamp);
+			if (isNaN(nTime))
+				return false;
+			
+			let oNewDatePr = this.Sdt.GetDatePickerPr().Copy();
+			oNewDatePr.SetFullDate(new Date(nTimeStamp));
+			
+			this.Sdt.ApplyDatePickerPr(oNewDatePr, true);
+			return true;
+		}, this);
+	};
 
 	/**
 	 * Converts the ApiBlockLvlSdt object into the JSON object.
@@ -18833,7 +19508,7 @@
 
 			for (var nPara = arrSelectedParas.length; nPara < arrString.length; nPara++)
 			{
-				var oPara = new AscCommonWord.Paragraph(private_GetDrawingDocument(), oParaParent, isPres);
+				var oPara = new AscWord.Paragraph(oParaParent, isPres);
 				var oRun = new ParaRun(oPara, false);
 				oRun.AddText(arrString[nPara]);
 				private_PushElementToParagraph(oPara, oRun);
@@ -18913,7 +19588,7 @@
 		oArt.setParent(oDrawing);
 		oDrawing.Set_GraphicObject(oArt);
 
-		return new ApiDrawing(oDrawing);
+		return new ApiDrawing(oArt);
 	};
 
 	/**
@@ -18940,7 +19615,7 @@
 	/**
 	 * Returns a type of the ApiComment class.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {"comment"}
 	 */
 	ApiComment.prototype.GetClassType = function ()
@@ -18966,7 +19641,7 @@
 	/**
 	 * Returns the comment text.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {string}
 	 */
 	ApiComment.prototype.GetText = function () {
@@ -18976,7 +19651,7 @@
 	/**
 	 * Sets the comment text.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sText - The comment text.
 	 * @returns {ApiComment} - this
 	 */
@@ -18989,7 +19664,7 @@
 	/**
 	 * Returns the comment author's name.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {string}
 	 */
 	ApiComment.prototype.GetAuthorName = function () {
@@ -18999,7 +19674,7 @@
 	/**
 	 * Sets the comment author's name.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sAuthorName - The comment author's name.
 	 * @returns {ApiComment} - this
 	 */
@@ -19022,7 +19697,7 @@
 	/**
 	 * Sets the user ID to the comment author.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sUserId - The user ID of the comment author.
 	 * @returns {ApiComment} - this
 	 */
@@ -19035,7 +19710,7 @@
 	/**
 	 * Checks if a comment is solved or not.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {boolean}
 	 */
 	ApiComment.prototype.IsSolved = function () {
@@ -19045,7 +19720,7 @@
 	/**
 	 * Marks a comment as solved.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {boolean} bSolved - Specifies if a comment is solved or not.
 	 * @returns {ApiComment} - this
 	 */
@@ -19058,7 +19733,7 @@
 	/**
 	 * Returns the timestamp of the comment creation in UTC format.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {Number}
 	 */
 	ApiComment.prototype.GetTimeUTC = function () {
@@ -19071,7 +19746,7 @@
 	/**
 	 * Sets the timestamp of the comment creation in UTC format.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {Number | String} nTimeStamp - The timestamp of the comment creation in UTC format.
 	 * @returns {ApiComment} - this
 	 */
@@ -19089,7 +19764,7 @@
 	/**
 	 * Returns the timestamp of the comment creation in the current time zone format.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {Number}
 	 */
 	 ApiComment.prototype.GetTime = function () {
@@ -19099,7 +19774,7 @@
 	/**
 	 * Sets the timestamp of the comment creation in the current time zone format.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {Number | String} nTimeStamp - The timestamp of the comment creation in the current time zone format.
 	 * @returns {ApiComment} - this
 	 */
@@ -19117,7 +19792,7 @@
 	/**
 	 * Returns the quote text of the current comment.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {Number?}
 	 */
 	ApiComment.prototype.GetQuoteText = function () {
@@ -19127,7 +19802,7 @@
 	/**
 	 * Returns a number of the comment replies.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {Number?}
 	 */
 	ApiComment.prototype.GetRepliesCount = function () {
@@ -19155,7 +19830,7 @@
 	/**
 	 * Adds a reply to a comment.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {String} sText - The comment reply text (required).
 	 * @param {String} sAuthorName - The name of the comment reply author (optional).
 	 * @param {String} sUserId - The user ID of the comment reply author (optional).
@@ -19169,13 +19844,11 @@
 		if (typeof(nPos) !== "number" || nPos < 0 || nPos > this.GetRepliesCount())
 			nPos = this.GetRepliesCount();
 
-		var oReply = new AscCommon.CCommentData();
-
-		oReply.SetText(sText);
-		if (typeof(sAuthorName) === "string" && sAuthorName !== "")
-			oReply.SetUserName(sAuthorName);
-		if (sUserId != undefined && typeof(sUserId) === "string" && sUserId !== "")
-			oReply.m_sUserId = sUserId;
+		let oReply = private_CreateCommentData({
+			text: sText,
+			author: sAuthorName,
+			userId: sUserId
+		});
 
 		this.Comment.Data.m_aReplies.splice(nPos, 0, oReply);
 		this.private_OnChange();
@@ -19185,7 +19858,7 @@
 	/**
 	 * Removes the specified comment replies.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {Number} [nPos = 0] - The position of the first comment reply to remove.
 	 * @param {Number} [nCount = 1] - A number of comment replies to remove.
 	 * @param {boolean} [bRemoveAll = false] - Specifies whether to remove all comment replies or not.
@@ -19210,7 +19883,7 @@
 	/**
 	 * Deletes the current comment from the document.
 	 * @memberof ApiComment
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {boolean}
 	 */
 	ApiComment.prototype.Delete = function ()
@@ -19225,7 +19898,7 @@
 	/**
 	 * Returns a type of the ApiCommentReply class.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {"commentReply"}
 	 */
 	ApiCommentReply.prototype.GetClassType = function () {
@@ -19235,7 +19908,7 @@
 	/**
 	 * Returns the comment reply text.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {string}
 	 */
 	ApiCommentReply.prototype.GetText = function () {
@@ -19245,7 +19918,7 @@
 	/**
 	 * Sets the comment reply text.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sText - The comment reply text.
 	 * @returns {ApiCommentReply} - this
 	 */
@@ -19258,7 +19931,7 @@
 	/**
 	 * Returns the comment reply author's name.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @returns {string}
 	 */
 	ApiCommentReply.prototype.GetAuthorName = function () {
@@ -19268,7 +19941,7 @@
 	/**
 	 * Sets the comment reply author's name.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sAuthorName - The comment reply author's name.
 	 * @returns {ApiCommentReply} - this
 	 */
@@ -19291,7 +19964,7 @@
 	/**
 	 * Sets the user ID to the comment reply author.
 	 * @memberof ApiCommentReply
-	 * @typeofeditors ["CDE"]
+	 * @typeofeditors ["CDE", "CPE"]
 	 * @param {string} sUserId - The user ID of the comment reply author.
 	 * @returns {ApiCommentReply} - this
 	 */
@@ -19588,6 +20261,8 @@
 	Api.prototype["ConvertDocument"]		         = Api.prototype.ConvertDocument;
 	Api.prototype["FromJSON"]		                 = Api.prototype.FromJSON;
 	Api.prototype["CreateRange"]		             = Api.prototype.CreateRange;
+	
+	Api.prototype["Px2Emu"]                          = Px2Emu;
 
 	ApiUnsupported.prototype["GetClassType"]         = ApiUnsupported.prototype.GetClassType;
 
@@ -19665,6 +20340,8 @@
 	ApiDocument.prototype["GetTagsOfAllForms"]           = ApiDocument.prototype.GetTagsOfAllForms;
 	ApiDocument.prototype["GetContentControlsByTag"]     = ApiDocument.prototype.GetContentControlsByTag;
 	ApiDocument.prototype["GetFormsByTag"]               = ApiDocument.prototype.GetFormsByTag;
+	ApiDocument.prototype["GetFormsData"]                = ApiDocument.prototype.GetFormsData;
+	ApiDocument.prototype["SetFormsData"]                = ApiDocument.prototype.SetFormsData;
 	ApiDocument.prototype["SetTrackRevisions"]           = ApiDocument.prototype.SetTrackRevisions;
 	ApiDocument.prototype["IsTrackRevisions"]            = ApiDocument.prototype.IsTrackRevisions;
 	ApiDocument.prototype["GetRange"]                    = ApiDocument.prototype.GetRange;
@@ -19676,6 +20353,7 @@
 	ApiDocument.prototype["GetBookmarkRange"]            = ApiDocument.prototype.GetBookmarkRange;
 	ApiDocument.prototype["GetSections"]                 = ApiDocument.prototype.GetSections;
 	ApiDocument.prototype["GetAllTablesOnPage"]          = ApiDocument.prototype.GetAllTablesOnPage;
+	ApiDocument.prototype["AddDrawingToPage"]            = ApiDocument.prototype.AddDrawingToPage;
 	ApiDocument.prototype["RemoveSelection"]             = ApiDocument.prototype.RemoveSelection;
 	ApiDocument.prototype["Search"]                      = ApiDocument.prototype.Search;
 	ApiDocument.prototype["ToMarkdown"]                  = ApiDocument.prototype.ToMarkdown;
@@ -19849,6 +20527,8 @@
 	ApiSection.prototype["SetEqualColumns"]          = ApiSection.prototype.SetEqualColumns;
 	ApiSection.prototype["SetNotEqualColumns"]       = ApiSection.prototype.SetNotEqualColumns;
 	ApiSection.prototype["SetPageSize"]              = ApiSection.prototype.SetPageSize;
+	ApiSection.prototype["GetPageHeight"]            = ApiSection.prototype.GetPageHeight;
+	ApiSection.prototype["GetPageWidth"]             = ApiSection.prototype.GetPageWidth;
 	ApiSection.prototype["SetPageMargins"]           = ApiSection.prototype.SetPageMargins;
 	ApiSection.prototype["SetHeaderDistance"]        = ApiSection.prototype.SetHeaderDistance;
 	ApiSection.prototype["SetFooterDistance"]        = ApiSection.prototype.SetFooterDistance;
@@ -19890,8 +20570,6 @@
 	ApiTable.prototype["InsertInContentControl"]     = ApiTable.prototype.InsertInContentControl;
 	ApiTable.prototype["GetParentTable"]    		 = ApiTable.prototype.GetParentTable;
 	ApiTable.prototype["GetTables"]     			 = ApiTable.prototype.GetTables;
-	ApiTable.prototype["GetNext"]    				 = ApiTable.prototype.GetNext;
-	ApiTable.prototype["GetPrevious"]    			 = ApiTable.prototype.GetPrevious;
 	ApiTable.prototype["GetParentTableCell"]   	 	 = ApiTable.prototype.GetParentTableCell;
 	ApiTable.prototype["Delete"]    				 = ApiTable.prototype.Delete;
 	ApiTable.prototype["Clear"]    					 = ApiTable.prototype.Clear;
@@ -19970,25 +20648,45 @@
 
 	ApiTextPr.prototype["GetClassType"]              = ApiTextPr.prototype.GetClassType;
 	ApiTextPr.prototype["SetStyle"]                  = ApiTextPr.prototype.SetStyle;
+	ApiTextPr.prototype["GetStyle"]                  = ApiTextPr.prototype.GetStyle;
 	ApiTextPr.prototype["SetBold"]                   = ApiTextPr.prototype.SetBold;
+	ApiTextPr.prototype["GetBold"]                   = ApiTextPr.prototype.GetBold;
 	ApiTextPr.prototype["SetItalic"]                 = ApiTextPr.prototype.SetItalic;
+	ApiTextPr.prototype["GetItalic"]                 = ApiTextPr.prototype.GetItalic;
 	ApiTextPr.prototype["SetStrikeout"]              = ApiTextPr.prototype.SetStrikeout;
+	ApiTextPr.prototype["GetStrikeout"]              = ApiTextPr.prototype.GetStrikeout;
 	ApiTextPr.prototype["SetUnderline"]              = ApiTextPr.prototype.SetUnderline;
+	ApiTextPr.prototype["GetUnderline"]              = ApiTextPr.prototype.GetUnderline;
 	ApiTextPr.prototype["SetFontFamily"]             = ApiTextPr.prototype.SetFontFamily;
+	ApiTextPr.prototype["GetFontFamily"]             = ApiTextPr.prototype.GetFontFamily;
 	ApiTextPr.prototype["SetFontSize"]               = ApiTextPr.prototype.SetFontSize;
+	ApiTextPr.prototype["GetFontSize"]               = ApiTextPr.prototype.GetFontSize;
 	ApiTextPr.prototype["SetColor"]                  = ApiTextPr.prototype.SetColor;
+	ApiTextPr.prototype["GetColor"]                  = ApiTextPr.prototype.GetColor;
 	ApiTextPr.prototype["SetVertAlign"]              = ApiTextPr.prototype.SetVertAlign;
+	ApiTextPr.prototype["GetVertAlign"]              = ApiTextPr.prototype.GetVertAlign;
 	ApiTextPr.prototype["SetHighlight"]              = ApiTextPr.prototype.SetHighlight;
+	ApiTextPr.prototype["GetHighlight"]              = ApiTextPr.prototype.GetHighlight;
 	ApiTextPr.prototype["SetSpacing"]                = ApiTextPr.prototype.SetSpacing;
+	ApiTextPr.prototype["GetSpacing"]                = ApiTextPr.prototype.GetSpacing;
 	ApiTextPr.prototype["SetDoubleStrikeout"]        = ApiTextPr.prototype.SetDoubleStrikeout;
+	ApiTextPr.prototype["GetDoubleStrikeout"]        = ApiTextPr.prototype.GetDoubleStrikeout;
 	ApiTextPr.prototype["SetCaps"]                   = ApiTextPr.prototype.SetCaps;
+	ApiTextPr.prototype["GetCaps"]                   = ApiTextPr.prototype.GetCaps;
 	ApiTextPr.prototype["SetSmallCaps"]              = ApiTextPr.prototype.SetSmallCaps;
+	ApiTextPr.prototype["GetSmallCaps"]              = ApiTextPr.prototype.GetSmallCaps;
 	ApiTextPr.prototype["SetPosition"]               = ApiTextPr.prototype.SetPosition;
+	ApiTextPr.prototype["GetPosition"]               = ApiTextPr.prototype.GetPosition;
 	ApiTextPr.prototype["SetLanguage"]               = ApiTextPr.prototype.SetLanguage;
+	ApiTextPr.prototype["GetLanguage"]               = ApiTextPr.prototype.GetLanguage;
 	ApiTextPr.prototype["SetShd"]                    = ApiTextPr.prototype.SetShd;
+	ApiTextPr.prototype["GetShd"]                    = ApiTextPr.prototype.GetShd;
 	ApiTextPr.prototype["SetFill"]                   = ApiTextPr.prototype.SetFill;
+	ApiTextPr.prototype["GetFill"]                   = ApiTextPr.prototype.GetFill;
 	ApiTextPr.prototype["SetTextFill"]               = ApiTextPr.prototype.SetTextFill;
+	ApiTextPr.prototype["GetTextFill"]               = ApiTextPr.prototype.GetTextFill;
 	ApiTextPr.prototype["SetOutLine"]                = ApiTextPr.prototype.SetOutLine;
+	ApiTextPr.prototype["GetOutLine"]                = ApiTextPr.prototype.GetOutLine;
 	ApiTextPr.prototype["ToJSON"]                    = ApiTextPr.prototype.ToJSON;
 
 	ApiParaPr.prototype["GetClassType"]              = ApiParaPr.prototype.GetClassType;
@@ -20129,6 +20827,7 @@
 	ApiShape.prototype["GetPrevShape"]               = ApiShape.prototype.GetPrevShape;
 
 	ApiChart.prototype["GetClassType"]                 = ApiChart.prototype.GetClassType;
+	ApiChart.prototype["GetChartType"]                 = ApiChart.prototype.GetChartType;
 	ApiChart.prototype["SetTitle"]                     = ApiChart.prototype.SetTitle;
 	ApiChart.prototype["SetHorAxisTitle"]              = ApiChart.prototype.SetHorAxisTitle;
 	ApiChart.prototype["SetVerAxisTitle"]              = ApiChart.prototype.SetVerAxisTitle;
@@ -20149,16 +20848,16 @@
 	ApiChart.prototype["SetMinorVerticalGridlines"]    =  ApiChart.prototype.SetMinorVerticalGridlines;
 	ApiChart.prototype["SetMajorHorizontalGridlines"]  =  ApiChart.prototype.SetMajorHorizontalGridlines;
 	ApiChart.prototype["SetMinorHorizontalGridlines"]  =  ApiChart.prototype.SetMinorHorizontalGridlines;
-	ApiChart.prototype["SetHorAxisLablesFontSize"]     =  ApiChart.prototype.SetHorAxisLablesFontSize;
-	ApiChart.prototype["SetVertAxisLablesFontSize"]    =  ApiChart.prototype.SetVertAxisLablesFontSize;
-	ApiChart.prototype["GetNextChart"]                 =  ApiChart.prototype.GetNextChart;
-    ApiChart.prototype["GetPrevChart"]                 =  ApiChart.prototype.GetPrevChart;
-    ApiChart.prototype["RemoveSeria"]                  =  ApiChart.prototype.RemoveSeria;
-    ApiChart.prototype["SetSeriaValues"]               =  ApiChart.prototype.SetSeriaValues;
-    ApiChart.prototype["SetXValues"]                   =  ApiChart.prototype.SetXValues;
-    ApiChart.prototype["SetSeriaName"]                 =  ApiChart.prototype.SetSeriaName;
-    ApiChart.prototype["SetCategoryName"]              =  ApiChart.prototype.SetCategoryName;
-	ApiChart.prototype["ApplyChartStyle"]              =  ApiChart.prototype.ApplyChartStyle;
+	ApiChart.prototype["SetHorAxisLablesFontSize"]     = ApiChart.prototype.SetHorAxisLablesFontSize;
+	ApiChart.prototype["SetVertAxisLablesFontSize"]    = ApiChart.prototype.SetVertAxisLablesFontSize;
+	ApiChart.prototype["GetNextChart"]                 = ApiChart.prototype.GetNextChart;
+	ApiChart.prototype["GetPrevChart"]                 = ApiChart.prototype.GetPrevChart;
+	ApiChart.prototype["RemoveSeria"]                  = ApiChart.prototype.RemoveSeria;
+	ApiChart.prototype["SetSeriaValues"]               = ApiChart.prototype.SetSeriaValues;
+	ApiChart.prototype["SetXValues"]                   = ApiChart.prototype.SetXValues;
+	ApiChart.prototype["SetSeriaName"]                 = ApiChart.prototype.SetSeriaName;
+	ApiChart.prototype["SetCategoryName"]              = ApiChart.prototype.SetCategoryName;
+	ApiChart.prototype["ApplyChartStyle"]              = ApiChart.prototype.ApplyChartStyle;
 	ApiChart.prototype["SetPlotAreaFill"]              =  ApiChart.prototype.SetPlotAreaFill;
 	ApiChart.prototype["SetPlotAreaOutLine"]           =  ApiChart.prototype.SetPlotAreaOutLine;
 	ApiChart.prototype["SetSeriesFill"]                =  ApiChart.prototype.SetSeriesFill;
@@ -20174,6 +20873,8 @@
 	ApiChart.prototype["SetAxieNumFormat"]             =  ApiChart.prototype.SetAxieNumFormat;
 	ApiChart.prototype["SetSeriaNumFormat"]            =  ApiChart.prototype.SetSeriaNumFormat;
 	ApiChart.prototype["SetDataPointNumFormat"]        =  ApiChart.prototype.SetDataPointNumFormat;
+	ApiChart.prototype["GetAllSeries"]                 =  ApiChart.prototype.GetAllSeries;
+	ApiChart.prototype["GetSeries"]                    =  ApiChart.prototype.GetSeries;
 
 	ApiOleObject.prototype["GetClassType"]             = ApiOleObject.prototype.GetClassType;
 	ApiOleObject.prototype["SetData"]               = ApiOleObject.prototype.SetData;
@@ -20192,6 +20893,7 @@
 
 	ApiUniColor.prototype["GetClassType"]            = ApiUniColor.prototype.GetClassType;
 	ApiUniColor.prototype["ToJSON"]                  = ApiUniColor.prototype.ToJSON;
+	ApiUniColor.prototype["GetRGB"]                  = ApiUniColor.prototype.GetRGB;
 
 	ApiRGBColor.prototype["GetClassType"]            = ApiRGBColor.prototype.GetClassType;
 	ApiRGBColor.prototype["ToJSON"]                  = ApiRGBColor.prototype.ToJSON;
@@ -20231,6 +20933,7 @@
 	ApiInlineLvlSdt.prototype["Copy"]                   = ApiInlineLvlSdt.prototype.Copy;
 	ApiInlineLvlSdt.prototype["ToJSON"]                 = ApiInlineLvlSdt.prototype.ToJSON;
 	ApiInlineLvlSdt.prototype["AddComment"]             = ApiInlineLvlSdt.prototype.AddComment;
+	ApiInlineLvlSdt.prototype["MoveCursorOutside"]      = ApiInlineLvlSdt.prototype.MoveCursorOutside;
 
 	ApiInlineLvlSdt.prototype["GetPlaceholderText"]     = ApiInlineLvlSdt.prototype.GetPlaceholderText;
 	ApiInlineLvlSdt.prototype["SetPlaceholderText"]     = ApiInlineLvlSdt.prototype.SetPlaceholderText;
@@ -20291,9 +20994,9 @@
 	ApiBlockLvlSdt.prototype["GetPosInParent"]          = ApiBlockLvlSdt.prototype.GetPosInParent;
 	ApiBlockLvlSdt.prototype["ReplaceByElement"]        = ApiBlockLvlSdt.prototype.ReplaceByElement;
 	ApiBlockLvlSdt.prototype["AddComment"]              = ApiBlockLvlSdt.prototype.AddComment;
-	ApiBlockLvlSdt.prototype["SetBackgroundColor"]      = ApiBlockLvlSdt.prototype.SetBackgroundColor;
 	ApiBlockLvlSdt.prototype["AddCaption"]              = ApiBlockLvlSdt.prototype.AddCaption;
 	ApiBlockLvlSdt.prototype["GetDropdownList"]         = ApiBlockLvlSdt.prototype.GetDropdownList;
+	ApiBlockLvlSdt.prototype["MoveCursorOutside"]       = ApiBlockLvlSdt.prototype.MoveCursorOutside;
 
 	ApiFormBase.prototype["GetClassType"]        = ApiFormBase.prototype.GetClassType;
 	ApiFormBase.prototype["GetFormType"]         = ApiFormBase.prototype.GetFormType;
@@ -20314,6 +21017,7 @@
 	ApiFormBase.prototype["SetPlaceholderText"]  = ApiFormBase.prototype.SetPlaceholderText;
 	ApiFormBase.prototype["SetTextPr"]           = ApiFormBase.prototype.SetTextPr;
 	ApiFormBase.prototype["GetTextPr"]           = ApiFormBase.prototype.GetTextPr;
+	ApiFormBase.prototype["MoveCursorOutside"]   = ApiFormBase.prototype.MoveCursorOutside;
 
 	ApiTextForm.prototype["IsAutoFit"]           = ApiTextForm.prototype.IsAutoFit;
 	ApiTextForm.prototype["SetAutoFit"]          = ApiTextForm.prototype.SetAutoFit;
@@ -20338,6 +21042,13 @@
 	ApiPictureForm.prototype["GetImage"]           = ApiPictureForm.prototype.GetImage;
 	ApiPictureForm.prototype["SetImage"]           = ApiPictureForm.prototype.SetImage;
 	ApiPictureForm.prototype["Copy"]               = ApiPictureForm.prototype.Copy;
+
+	ApiDateForm.prototype["GetFormat"]		= ApiDateForm.prototype.GetFormat;
+	ApiDateForm.prototype["SetFormat"]		= ApiDateForm.prototype.SetFormat;
+	ApiDateForm.prototype["GetLanguage"]	= ApiDateForm.prototype.GetLanguage;
+	ApiDateForm.prototype["SetLanguage"]	= ApiDateForm.prototype.SetLanguage;
+	ApiDateForm.prototype["GetTime"]		= ApiDateForm.prototype.GetTime;
+	ApiDateForm.prototype["SetTime"]		= ApiDateForm.prototype.SetTime;
 
 	ApiComboBoxForm.prototype["GetListValues"]       = ApiComboBoxForm.prototype.GetListValues;
 	ApiComboBoxForm.prototype["SetListValues"]       = ApiComboBoxForm.prototype.SetListValues;
@@ -20403,6 +21114,9 @@
 	ApiWatermarkSettings.prototype["GetImageHeight"] =  ApiWatermarkSettings.prototype.GetImageHeight;
 	ApiWatermarkSettings.prototype["SetImageSize"]   =  ApiWatermarkSettings.prototype.SetImageSize;
 
+	ApiChartSeries.prototype["GetClassType"]      =  ApiChartSeries.prototype.GetClassType;
+	ApiChartSeries.prototype["ChangeChartType"]   =  ApiChartSeries.prototype.ChangeChartType;
+	ApiChartSeries.prototype["GetChartType"]      =  ApiChartSeries.prototype.GetChartType;
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -20438,6 +21152,7 @@
 	window['AscBuilder'].ApiFormBase        = ApiFormBase;
 	window['AscBuilder'].ApiTextForm        = ApiTextForm;
 	window['AscBuilder'].ApiPictureForm     = ApiPictureForm;
+	window['AscBuilder'].ApiDateForm		= ApiDateForm;
 	window['AscBuilder'].ApiComboBoxForm    = ApiComboBoxForm;
 	window['AscBuilder'].ApiCheckBoxForm    = ApiCheckBoxForm;
 	window['AscBuilder'].ApiComplexForm     = ApiComplexForm;
@@ -20472,10 +21187,26 @@
 
 		return defaultValue;
 	}
-	window['AscBuilder'].GetStringParameter = GetStringParameter;
-	window['AscBuilder'].GetBoolParameter   = GetBoolParameter;
-	window['AscBuilder'].GetNumberParameter = GetNumberParameter;
-	window['AscBuilder'].GetArrayParameter  = GetArrayParameter;
+	/**
+	 * В проверке на лок, которую мы делаем после выполнения скрипта, нужно различать действия сделанные через
+	 * разрешенные методы, и действия, которые пользователь пытался сам сделать с формами
+	 * @param fn
+	 * @param t
+	 * @returns {*}
+	 */
+	function executeNoFormLockCheck(fn, t)
+	{
+		AscCommon.History.skipFormFillingLockCheck(true);
+		let result = fn.call(t);
+		AscCommon.History.skipFormFillingLockCheck(false);
+		return result;
+	}
+	
+	window['AscBuilder'].GetStringParameter     = GetStringParameter;
+	window['AscBuilder'].GetBoolParameter       = GetBoolParameter;
+	window['AscBuilder'].GetNumberParameter     = GetNumberParameter;
+	window['AscBuilder'].GetArrayParameter      = GetArrayParameter;
+	window['AscBuilder'].executeNoFormLockCheck = executeNoFormLockCheck;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Private area
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -20494,6 +21225,8 @@
 			return new ApiCheckBoxForm(oForm);
 		else if (oForm.IsPictureForm())
 			return new ApiPictureForm(oForm);
+		else if (oForm.IsDatePicker())
+			return new ApiDateForm(oForm);
 
 		return null;
 	}
@@ -20524,9 +21257,22 @@
 		return new ApiComment(comment);
 	}
 
+	function private_CreateCommentData(oProps) {
+		let CommentData = new AscCommon.CCommentData();
+
+		CommentData.SetText(oProps.text);
+		CommentData.SetQuoteText(oProps.quoteText);
+		CommentData.SetUserName(oProps.author || AscCommon.UserInfoParser.getCurrentName());
+		CommentData.m_sUserId	= oProps.userId || Asc.editor.documentUserId;
+		CommentData.m_sTime		= ((new Date()).getTime() - (new Date()).getTimezoneOffset() * 60000).toString();
+		CommentData.m_sOOTime	= ((new Date()).getTime()).toString();
+		
+		return CommentData;
+	};
+
 	function private_GetDrawingDocument()
 	{
-		return editor.WordControl.m_oLogicDocument.DrawingDocument;
+		return Asc.editor.getDrawingDocument();
 	}
 
 	function private_PushElementToParagraph(oPara, oElement)
@@ -20584,6 +21330,8 @@
 			return new ApiCheckBoxForm(oSdt);
 		else if (oSdt.IsPictureForm())
 			return new ApiPictureForm(oSdt)
+		else if (oSdt.IsDatePicker())
+			return new ApiDateForm(oSdt);
 
 		return new ApiInlineLvlSdt(oSdt);
 	}
@@ -20768,6 +21516,11 @@
 	{
 		return 25.4 / 72.0 / 8 * pt;
 	}
+	
+	function Px2Emu(px)
+	{
+		return private_MM2EMU(AscCommon.g_dKoef_pix_to_mm * px);
+	}
 
 	function private_StartSilentMode()
 	{
@@ -20928,7 +21681,7 @@
 
 	/**
 	 * Gets a document color object by color name.
-	 * @param {highlightColor} - available highlight color
+	 * @param {highlightColor} sColor - available highlight color
 	 * @returns {object}
 	 */
 	function private_getHighlightColorByName(sColor)
@@ -20987,6 +21740,179 @@
 		}
 
 		return oColor;
+	}
+
+	/**
+	 * Gets a document highlight name by color object.
+	 * @param {object} oColor - available highlight color
+	 * @returns {highlightColor}
+	 */
+	function private_getHighlightNameByColor(oColor)
+	{
+		if (oColor === -1 || oColor === null)
+			return "none";
+		
+		let colorMap = [
+			[0, 0, 0, "black"],
+			[0, 0, 255, "blue"],
+			[0, 255, 255, "cyan"],
+			[0, 255, 0, "green"],
+			[255, 0, 255, "magenta"],
+			[255, 0, 0, "red"],
+			[255, 255, 0, "yellow"],
+			[255, 255, 255, "white"],
+			[0, 0, 139, "darkBlue"],
+			[0, 139, 139, "darkCyan"],
+			[0, 100, 0, "darkGreen"],
+			[128, 0, 128, "darkMagenta"],
+			[139, 0, 0, "darkRed"],
+			[128, 128, 0, "darkYellow"],
+			[169, 169, 169, "darkGray"],
+			[211, 211, 211, "lightGray"]
+		];
+		
+		if (AscCommon.c_oEditorId.Word === Asc.editor.editorId)
+		{
+			for (let i = 0; i < colorMap.length; ++i)
+			{
+				let c = colorMap[i];
+				if (new CDocumentColor(c[0], c[1], c[2]).IsEqual(oColor))
+					return c[3];
+			}
+		}
+		else if (AscCommon.c_oEditorId.Presentation === Asc.editor.editorId)
+		{
+			for (let i = 0; i < colorMap.length; ++i)
+			{
+				let c = colorMap[i];
+				if (AscFormat.CreateUniColorRGB(c[0], c[1], c[2]).IsIdentical(oColor))
+					return c[3];
+			}
+		}
+		
+		return undefined;
+	}
+
+	function private_GetAllDrawingsWithType(aDrawings, nObjectType, fCreateBuilderWrapper) {
+		let aWrappers = [];
+		for(let nIdx = 0; nIdx < aDrawings.length; ++nIdx) {
+			let oDrawing = aDrawings[nIdx];
+			let oGrObj = oDrawing.GraphicObj;
+			if(oGrObj && oGrObj.getObjectType() === nObjectType) {
+				aWrappers.push(fCreateBuilderWrapper(oGrObj));
+			}
+		}
+		return aWrappers;
+	}
+
+
+	function private_ChartInternalTypeToBuilder(sType) {
+		switch (sType) {
+			case Asc.c_oAscChartTypeSettings.unknown: {
+				return "unknown";
+			}
+			case Asc.c_oAscChartTypeSettings.barNormal: {
+				return "bar";
+			}
+			case Asc.c_oAscChartTypeSettings.barStacked: {
+				return "barStacked";
+			}
+			case Asc.c_oAscChartTypeSettings.barStackedPer: {
+				return "barStackedPercent";
+			}
+			case Asc.c_oAscChartTypeSettings.barNormal3d: {
+				return "bar3D";
+			}
+			case Asc.c_oAscChartTypeSettings.barStacked3d: {
+				return "barStacked3D";
+			}
+			case Asc.c_oAscChartTypeSettings.barStackedPer3d: {
+				return "barStackedPercent3D";
+			}
+			case Asc.c_oAscChartTypeSettings.barNormal3dPerspective: {
+				return "barStackedPercent3DPerspective";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarNormal: {
+				return "horizontalBar";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarStacked: {
+				return "horizontalBarStacked";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarStackedPer: {
+				return "horizontalBarStackedPercent";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarNormal3d: {
+				return "horizontalBar3D";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarStacked3d: {
+				return "horizontalBarStacked3D";
+			}
+			case Asc.c_oAscChartTypeSettings.hBarStackedPer3d: {
+				return "horizontalBarStackedPercent3D";
+			}
+			case Asc.c_oAscChartTypeSettings.lineNormal: {
+				return "lineNormal";
+			}
+			case Asc.c_oAscChartTypeSettings.lineStacked: {
+				return "lineStacked";
+			}
+			case Asc.c_oAscChartTypeSettings.lineStackedPer: {
+				return "lineStackedPercent";
+			}
+			case Asc.c_oAscChartTypeSettings.line3d: {
+				return "line3D";
+			}
+			case Asc.c_oAscChartTypeSettings.pie: {
+				return "pie";
+			}
+			case Asc.c_oAscChartTypeSettings.pie3d: {
+				return "pie3D";
+			}
+			case Asc.c_oAscChartTypeSettings.doughnut: {
+				return "doughnut";
+			}
+			case Asc.c_oAscChartTypeSettings.scatter: {
+				return "scatter";
+			}
+			case Asc.c_oAscChartTypeSettings.stock: {
+				return "stock";
+			}
+			case Asc.c_oAscChartTypeSettings.areaNormal: {
+				return "area";
+			}
+			case Asc.c_oAscChartTypeSettings.areaStacked: {
+				return "areaStacked";
+			}
+			case Asc.c_oAscChartTypeSettings.areaStackedPer: {
+				return "areaStackedPercent";
+			}
+			case Asc.c_oAscChartTypeSettings.comboBarLine: {
+				return "comboBarLine";
+			}
+			case Asc.c_oAscChartTypeSettings.comboBarLineSecondary: {
+				return "comboBarLineSecondary";
+			}
+			case Asc.c_oAscChartTypeSettings.comboCustom: {
+				return "comboCustom";
+			}
+			case Asc.c_oAscChartTypeSettings.comboCustom: {
+				return "comboCustom";
+			}
+		}
+		return "unknown";
+	}
+
+	function logError(err) {
+		if (console.error)
+			console.error(err);
+		else
+			console.log(err);
+	}
+
+	function throwException(err) {
+		if (!console.error)
+			logError(err);
+		throw err;
 	}
 
 	ApiDocument.prototype.OnChangeParaPr = function(oApiParaPr)
@@ -21315,7 +22241,7 @@
 		if (this.IsFixed() && (oShape = this.GetWrapperShape()))
 		{
 			let oRun = new ParaRun(null, false);
-			oRun.AddToContent(0, oShape.Drawing);
+			oRun.AddToContent(0, oShape.getParaDrawing());
 			return oRun;
 		}
 
@@ -21370,6 +22296,9 @@
 	};
 	Api.prototype.private_CreatePictureForm = function(oCC){
 		return new ApiPictureForm(oCC);
+	};
+	Api.prototype.private_CreateDateForm = function(oCC){
+		return new ApiDateForm(oCC);
 	};
 	Api.prototype.private_CreateComplexForm = function(oCC)
 	{
@@ -21501,8 +22430,11 @@
 	Api.prototype.private_CreateApiUniColor = function(oUniColor){
 		return new ApiUniColor(oUniColor);
 	};
+	Api.prototype.private_CreateApiComment = function(oComment){
+		return new ApiComment(oComment);
+	};
+	Api.prototype.private_CreateApiChart = function(oChartSpace){
+		return new ApiChart(oChartSpace);
+	};
 
 }(window, null));
-
-
-
