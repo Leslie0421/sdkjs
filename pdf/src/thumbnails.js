@@ -1031,7 +1031,7 @@
             this.viewer.Api.sync_ContextMenuCallback({
                 X_abs   : AscCommon.global_mouseEvent.X - this.viewer.x,
                 Y_abs   : AscCommon.global_mouseEvent.Y - this.viewer.y,
-                Type    : Asc.c_oAscPdfContextMenuTypes.Thumbnails,
+                Type    : Asc.c_oAscPdfContextMenuTypes.Common,
                 PageNum : this.getHoverPage()
             });
 
