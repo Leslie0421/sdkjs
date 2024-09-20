@@ -1351,22 +1351,20 @@
 	 */
 	window["asc_docs_api"].prototype["pluginMethod_SelectTable"] = function(params)
 	{			
-		try {
-			const {type = 'table', tableIndex, index, cellIndex} = params;
-			
-			if (tableIndex === undefined || tableIndex < 0) {
+		try {			
+			if (params['tableIndex'] === undefined || params['tableIndex'] < 0) {
 					return {
 						code: 400,
 						data: false,
 						message: '请传入正确的 tableIndex！'
 					};
-			} else if (type !== 'table' && (index === undefined || index < 0)) {
+			} else if (params['type'] !== 'table' && (params['index'] === undefined || params['index'] < 0)) {
 					return {
 						code: 400,
 						data: false,
 						message: '请传入定位所需的索引！'
 					};
-			} else if (type === 'cell' && (cellIndex === undefined || cellIndex < 0)) {
+			} else if (params['type'] === 'cell' && (params['cellIndex'] === undefined || params['cellIndex'] < 0)) {
 					return {
 						code: 400,
 						data: false,
@@ -1385,7 +1383,7 @@
 						data: false,
 						message: '当前文档无表格！'
 					};
-			} else if (tableIndex >= tableLength) {			
+			} else if (params['tableIndex'] >= tableLength) {			
 					return {
 						code: 200,
 						data: false,
@@ -1393,10 +1391,10 @@
 					};
 			}
 
-			const table = tables[tableIndex];		
+			const table = tables[params['tableIndex']];		
 			let cell = null;
 
-			switch (type) {
+			switch (params['type']) {
 				case 'table':
 					table.Select();
 					return {
@@ -1406,7 +1404,7 @@
 				case 'row': 
 					const oTable = table.Table;
 
-					if (index >= oTable.Rows) {
+					if (params['index'] >= oTable.Rows) {
 						return {
 							code: 200,
 							data: false,
@@ -1414,14 +1412,14 @@
 						};
 					}
 					
-					const row = table.GetRow(index);
+					const row = table.GetRow(params['index']);
 					cell = row.Row.GetCell(0);
 					break;
 				case 'column': {
 					const row = table.GetRow(0);
 					const cellLength = row.Row.Content.length || 0;
 
-					if(index >= cellLength) {
+					if(params['index'] >= cellLength) {
 						return {
 							code: 200,
 							data: false,
@@ -1429,13 +1427,13 @@
 						};
 					}
 
-					cell = row.Row.GetCell(index);
+					cell = row.Row.GetCell(params['index']);
 					break;
 				}
 				case 'cell': {
 					const oTable = table.Table;
 
-					if (index >= oTable.Rows) {
+					if (params['index'] >= oTable.Rows) {
 						return {
 							code: 200,
 							data: false,
@@ -1443,10 +1441,10 @@
 						};
 					}
 
-					const row = table.GetRow(index);
+					const row = table.GetRow(params['index']);
 					const cellLength = row.Row.Content.length || 0;
 
-					if(cellIndex >= cellLength) {
+					if(params['cellIndex'] >= cellLength) {
 						return {
 							code: 200,
 							data: false,
@@ -1454,7 +1452,7 @@
 						};
 					}
 
-					cell = row.Row.GetCell(cellIndex);
+					cell = row.Row.GetCell(params['cellIndex']);
 					break;
 				}
 				default:
@@ -1467,7 +1465,7 @@
 			Doc.GoToPage(curPage);
 			Doc.MoveCursorToXY(curPos.X, curPos.Y);
 
-			switch (type) {
+			switch (params['type']) {
 				case 'row':
 					this.selectRow();
 					break;
