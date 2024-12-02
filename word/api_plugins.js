@@ -1370,6 +1370,158 @@
 		return bookmarkList
 	};
 
+	/**
+	 * 表格定位；支持定位行、列、单元格
+	 * @memberof Api
+	 * @alias SelectTable
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("SelectTable");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_SelectTable"] = function(params)
+	{			
+		try {			
+			if (params['tableIndex'] === undefined || params['tableIndex'] < 0) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入正确的 tableIndex！'
+					};
+			} else if (params['type'] !== 'table' && (params['index'] === undefined || params['index'] < 0)) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入定位所需的索引！'
+					};
+			} else if (params['type'] === 'cell' && (params['cellIndex'] === undefined || params['cellIndex'] < 0)) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入定位单元格所需的索引！'
+					};
+			}
+
+			const doc = this.GetDocument();
+			const Doc = doc.Document;
+			const tables = doc.GetAllTables() || [];
+			const tableLength = tables.length;
+			
+			if (!tableLength) {
+					return {
+						code: 200,
+						data: false,
+						message: '当前文档无表格！'
+					};
+			} else if (params['tableIndex'] >= tableLength) {			
+					return {
+						code: 200,
+						data: false,
+						message: '所选表格不存在！'
+					};
+			}
+
+			const table = tables[params['tableIndex']];		
+			let cell = null;
+
+			switch (params['type']) {
+				case 'table':
+					table.Select();
+					return {
+						code: 200,
+						data: true
+					};
+				case 'row': 
+					const oTable = table.Table;
+
+					if (params['index'] >= oTable.Rows) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选行不存在！'
+						};
+					}
+					
+					const row = table.GetRow(params['index']);
+					cell = row.Row.GetCell(0);
+					break;
+				case 'column': {
+					const row = table.GetRow(0);
+					const cellLength = row.Row.Content.length || 0;
+
+					if(params['index'] >= cellLength) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选列不存在！'
+						};
+					}
+
+					cell = row.Row.GetCell(params['index']);
+					break;
+				}
+				case 'cell': {
+					const oTable = table.Table;
+
+					if (params['index'] >= oTable.Rows) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选行不存在！'
+						};
+					}
+
+					const row = table.GetRow(params['index']);
+					const cellLength = row.Row.Content.length || 0;
+
+					if(params['cellIndex'] >= cellLength) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选单元格不存在！'
+						};
+					}
+
+					cell = row.Row.GetCell(params['cellIndex']);
+					break;
+				}
+				default:
+					break;
+			}
+			
+			const curPage = cell.Content.GetAbsolutePage();
+			const curPos = cell.Content_GetCurPosXY();
+
+			Doc.GoToPage(curPage);
+			Doc.MoveCursorToXY(curPos.X, curPos.Y);
+
+			switch (params['type']) {
+				case 'row':
+					this.selectRow();
+					break;
+				case 'column':
+					this.selectColumn();
+					break;
+				case 'cell':
+					this.selectCell();
+					break;
+				default:
+					break;
+			}
+
+			return {
+				code: 200,
+				data: true
+			}
+		} catch (error) {			
+			console.warn(error);
+		
+			return {
+				code: 500,
+				data: false,
+			}
+		}
+	};
+
 	function private_ReadContentControlCommonPr(commonPr)
 	{
 		var resultPr;
