@@ -1379,6 +1379,10 @@
 			};
 		});
 
+		if(needContent) {
+			logicDocument.RemoveSelection()
+		};
+
 		return bookmarkList
 	};
 
