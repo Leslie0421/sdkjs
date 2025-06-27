@@ -1340,12 +1340,13 @@
 	/**
 	 * 获取所有书签列表
 	 * @memberof Api
+	 * @param {boolean} [needContent=true] - 是否需要获取书签内容
 	 * @alias GetAllBookmarks
 	 * @since 7.5.1
 	 * @example
 	 * window.Asc.plugin.executeMethod("GetAllBookmarks");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_GetAllBookmarks"] = function()
+	window["asc_docs_api"].prototype["pluginMethod_GetAllBookmarks"] = function(needContent = true)
 	{
 		const manager = this.asc_GetBookmarksManager();
 		if (!manager) {
@@ -1355,15 +1356,26 @@
 
 		const bookmarks = manager?.Bookmarks || [];
 		let bookmarkList = [];
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument && needContent) {
+			console.warn("逻辑文档初始化失败！");
+			return [];
+		}
 
 		bookmarkList =  bookmarks?.map((item) => {
 			const currentBookmark = item?.[0];
 			const id = currentBookmark?.BookmarkId;
 			const name = currentBookmark?.BookmarkName;
+			let content = '';
+			if(needContent) {
+				manager.SelectBookmark(name);
+				content = logicDocument.GetSelectedText();
+			};
 
 			return {
 				'bookmarkId': id,
 				'bookmarkName': name,
+				'bookmarkContent': content
 			};
 		});
 
