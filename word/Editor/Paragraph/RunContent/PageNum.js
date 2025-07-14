@@ -86,6 +86,27 @@
 		
 		this._measure();
 	};
+	CRunPageNum.prototype.SetWidthVisible = function(WidthVisible)
+	{
+		this.WidthVisible = WidthVisible;
+	};
+	CRunPageNum.prototype.Set_Page = function(PageNum)
+	{
+		this.String = "" + (PageNum) ;
+		var Len     = this.String.length;
+
+		var RealWidth = 0;
+		for (var Index = 0; Index < Len; Index++)
+		{
+			var Char = parseInt(this.String.charAt(Index));
+
+			this.Widths[Index] = this.NumWidths[Char];
+			RealWidth += this.NumWidths[Char];
+		}
+
+		this.Width        = RealWidth;
+		this.WidthVisible = RealWidth;
+	};
 	CRunPageNum.prototype.IsNeedSaveRecalculateObject = function()
 	{
 		return true;

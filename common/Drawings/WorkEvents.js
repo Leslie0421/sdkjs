@@ -65,12 +65,14 @@
 	};
 
 	var isUsePointerEvents = true;
-	if (AscBrowser.isChrome && (AscBrowser.chromeVersion <= 70)) // xp
-		isUsePointerEvents = false;
-	else if (AscBrowser.isSafari && (AscBrowser.safariVersion < 17004001))
-		isUsePointerEvents = false;
+	// if (AscBrowser.isChrome && (AscBrowser.chromeVersion <= 70)) // xp
+	if (AscBrowser.isChrome && (AscBrowser.chromeVersion <= 68)) // xp
+	isUsePointerEvents = false;
+	// else if (AscBrowser.isSafari && (AscBrowser.safariVersion < 17004001))
+	else if (AscBrowser.isSafari && (AscBrowser.safariVersion < 11000000))
+	isUsePointerEvents = false;
 	else if (AscBrowser.isIE)
-		isUsePointerEvents = false;
+	isUsePointerEvents = false;
 
 	AscCommon.getPtrEvtName = function (sType)
 	{
