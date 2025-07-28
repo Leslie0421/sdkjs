@@ -702,6 +702,7 @@
 	};
 	baseEditorsApi.prototype.asc_addRestriction              = function(val)
 	{
+		return;
 		this.restrictions |= val;
 		this.onUpdateRestrictions();
 		this.checkInputMode();

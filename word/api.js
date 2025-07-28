@@ -13945,6 +13945,26 @@ background-repeat: no-repeat;\
 		oCtx.drawImage(oOverlayCanvas, 0, 0);
 		return oCtx.getImageData(0, 0, oCanvas.width, oCanvas.height);
 	};
+	// custom asc_docs_api
+	asc_docs_api.prototype.asc_MoveCursorToParagraphEnd = function()
+	{
+		// 移动光标到选中段落的末尾
+		const oLogicDocument =  this.private_GetLogicDocument();
+		if (oLogicDocument) {
+			const selectParagraph = oLogicDocument.GetSelectedParagraphs && oLogicDocument.GetSelectedParagraphs()[0];
+			const index = (selectParagraph && selectParagraph.Index) || 0;
+			const documentContent = oLogicDocument.Content && oLogicDocument.Content[index];
+			documentContent && documentContent.MoveCursorToEndPos && documentContent.MoveCursorToEndPos()
+		}
+	};
+	asc_docs_api.prototype.asc_FindRepeatText = function(selectIndex)
+	{
+		// 重句定位
+		const oLogicDocument = this.private_GetLogicDocument();
+		if (oLogicDocument) {
+      oLogicDocument.SelectSearchElement && oLogicDocument.SelectSearchElement(selectIndex)
+		}
+	};
 	
 	// auto-hyphenation
 	asc_docs_api.prototype.asc_setAutoHyphenation = function(isAuto)
@@ -14940,6 +14960,9 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_hideDeletedTextInVersionHistory"]     = asc_docs_api.prototype.asc_hideDeletedTextInVersionHistory;
 
 	asc_docs_api.prototype["asc_getCoHistory"] = asc_docs_api.prototype.asc_getCoHistory;
+	// custom asc_docs_api
+	asc_docs_api.prototype['asc_MoveCursorToParagraphEnd']                              = asc_docs_api.prototype.asc_MoveCursorToParagraphEnd;
+	asc_docs_api.prototype['asc_FindRepeatText']                              = asc_docs_api.prototype.asc_FindRepeatText;
 
 	CDocInfoProp.prototype['get_PageCount']             = CDocInfoProp.prototype.get_PageCount;
 	CDocInfoProp.prototype['put_PageCount']             = CDocInfoProp.prototype.put_PageCount;

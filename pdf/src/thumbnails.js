@@ -384,6 +384,23 @@
         AscCommon.addMouseEvent(this.canvas, "down", this.onMouseDown.bind(this));
         AscCommon.addMouseEvent(this.canvas, "move", this.onMouseMove.bind(this));
         AscCommon.addMouseEvent(this.canvas, "up", this.onMouseUp.bind(this));
+   
+        let touchTimer = 0
+        let timer = null
+        const formsCanvas = document.getElementById("id_forms");
+        formsCanvas.addEventListener('touchstart',(e) => {
+            this.onTouchStart(e)
+            timer = setTimeout(() => {
+                touchTimer = 1
+            }, 800);
+        })
+        formsCanvas.addEventListener('touchend',(e) => {
+            if(touchTimer === 1) {
+                this.onTouchEnd(e)
+                touchTimer = 0
+            }
+            clearTimeout(timer)
+        })
     };
 
     CDocument.prototype.sendEvent = function()
@@ -934,7 +951,7 @@
         AscCommon.stopEvent(e);
         return false;
     };
-    
+
     CDocument.prototype.onMouseUp = function(e)
     {
         AscCommon.check_MouseUpEvent(e);
@@ -986,6 +1003,41 @@
             e.preventDefault();
         return false;
     };
+
+        
+    CDocument.prototype.onTouchStart = function(e)
+    {
+        AscCommon.check_MouseDownEvent(e, true);
+        AscCommon.global_mouseEvent.LockMouse();
+        this.viewer.isFocusOnThumbnails = true;
+        
+        var drPage = this.getPageByCoords(AscCommon.global_mouseEvent.X, AscCommon.global_mouseEvent.Y);
+        if (drPage && drPage.num !== this.selectPage)
+        {
+            this.viewer.navigateToPage(drPage.num);
+        }
+
+        AscCommon.stopEvent(e);
+        return false;
+    };
+
+        
+    CDocument.prototype.onTouchEnd = function(e)
+    {
+        AscCommon.check_MouseUpEvent(e);
+        if (e && e.preventDefault)
+            e.preventDefault();
+
+            this.viewer.Api.sync_ContextMenuCallback({
+                X_abs   : AscCommon.global_mouseEvent.X - this.viewer.x,
+                Y_abs   : AscCommon.global_mouseEvent.Y - this.viewer.y,
+                Type    : Asc.c_oAscPdfContextMenuTypes.Common,
+                PageNum : this.getHoverPage()
+            });
+
+        return false;
+    };
+
     CDocument.prototype.getHoverPage = function()
     {
         return this.hoverPage;

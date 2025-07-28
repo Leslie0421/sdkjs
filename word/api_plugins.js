@@ -1277,6 +1277,266 @@
 		return this.asc_getCanRedo();
 	};
 
+	/**
+	 * 批量映射表格数据
+	 * @memberof Api
+	 * @alias TableWithBookmarkHandler
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("TableWithBookmarkHandler");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_TableWithBookmarkHandler"] = function(params)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument || !params?.length)
+			return;
+
+		const bookmarkManagement = this.asc_GetBookmarksManager();
+		const bookmarks = bookmarkManagement?.Bookmarks || [];
+		
+		params.forEach(item => {
+			let oTable = {};
+			
+			// 通过书签选中父级的 table 元素
+			bookmarks.forEach((bookmark) => {
+				const currentBookmark = bookmark?.[0];
+				const name = currentBookmark?.BookmarkName;
+				if (name === item['bookmark']) {
+					oTable = currentBookmark?.Parent?.Parent?.Parent?.GetTable();
+				}
+			});
+			
+			if (oTable?.Get_RowsCount) {
+				// 计算传入数据和表格行的差值，手动添加/删除行。
+				const rowCount = oTable.Get_RowsCount() - 1;
+				const rowCountDiff = item?.['tableProps']?.[0]?.['row'] - rowCount;
+				if (rowCountDiff > 0) {
+					// 因 AddTableRow 是在选中的行下方添加，所以需要手动选择最后一行
+					oTable.SelectRows(rowCount, rowCount);
+					oTable.AddTableRow(false, rowCountDiff);
+				} else if (rowCountDiff < 0 ) {
+					const list = new Array(Math.abs(rowCountDiff)).fill(false);
+					list.forEach(() => {
+						const length = oTable.Get_RowsCount();
+						oTable.RemoveTableRow(length - 1);
+					})
+				}
+
+				// 依次处理单元格的内容
+				item?.['tableProps']?.forEach(tableData => {
+					const currentRow = oTable.GetRow(tableData?.['row']);
+					const element = currentRow.GetCell(tableData?.['col']).GetContent().GetElement(0);
+					const paragraph = element.GetElement(0);
+					paragraph.ClearContent();
+					paragraph.AddText(tableData?.['content']);
+				})
+			} else {
+				console.warn(`未找到书签所在的表格！`);
+			}
+		})
+	};
+
+	/**
+	 * 获取所有书签列表
+	 * @memberof Api
+	 * @param {boolean} [needContent=true] - 是否需要获取书签内容
+	 * @alias GetAllBookmarks
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("GetAllBookmarks");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_GetAllBookmarks"] = function(needContent = true)
+	{
+		const manager = this.asc_GetBookmarksManager();
+		if (!manager) {
+			console.warn("书签初始化失败！");
+			return;
+		}
+
+		const bookmarks = manager?.Bookmarks || [];
+		let bookmarkList = [];
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument && needContent) {
+			console.warn("逻辑文档初始化失败！");
+			return [];
+		}
+
+		bookmarkList =  bookmarks?.map((item) => {
+			const currentBookmark = item?.[0];
+			const id = currentBookmark?.BookmarkId;
+			const name = currentBookmark?.BookmarkName;
+			let content = '';
+			if(needContent) {
+				manager.SelectBookmark(name);
+				content = logicDocument.GetSelectedText();
+			};
+
+			return {
+				'bookmarkId': id,
+				'bookmarkName': name,
+				'bookmarkContent': content
+			};
+		});
+
+		if(needContent) {
+			logicDocument.RemoveSelection()
+		};
+
+		return bookmarkList
+	};
+
+	/**
+	 * 表格定位；支持定位行、列、单元格
+	 * @memberof Api
+	 * @alias SelectTable
+	 * @since 7.5.1
+	 * @example
+	 * window.Asc.plugin.executeMethod("SelectTable");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_SelectTable"] = function(params)
+	{			
+		try {			
+			if (params['tableIndex'] === undefined || params['tableIndex'] < 0) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入正确的 tableIndex！'
+					};
+			} else if (params['type'] !== 'table' && (params['index'] === undefined || params['index'] < 0)) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入定位所需的索引！'
+					};
+			} else if (params['type'] === 'cell' && (params['cellIndex'] === undefined || params['cellIndex'] < 0)) {
+					return {
+						code: 400,
+						data: false,
+						message: '请传入定位单元格所需的索引！'
+					};
+			}
+
+			const doc = this.GetDocument();
+			const Doc = doc.Document;
+			const tables = doc.GetAllTables() || [];
+			const tableLength = tables.length;
+			
+			if (!tableLength) {
+					return {
+						code: 200,
+						data: false,
+						message: '当前文档无表格！'
+					};
+			} else if (params['tableIndex'] >= tableLength) {			
+					return {
+						code: 200,
+						data: false,
+						message: '所选表格不存在！'
+					};
+			}
+
+			const table = tables[params['tableIndex']];		
+			let cell = null;
+
+			switch (params['type']) {
+				case 'table':
+					table.Select();
+					return {
+						code: 200,
+						data: true
+					};
+				case 'row': 
+					const oTable = table.Table;
+
+					if (params['index'] >= oTable.Rows) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选行不存在！'
+						};
+					}
+					
+					const row = table.GetRow(params['index']);
+					cell = row.Row.GetCell(0);
+					break;
+				case 'column': {
+					const row = table.GetRow(0);
+					const cellLength = row.Row.Content.length || 0;
+
+					if(params['index'] >= cellLength) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选列不存在！'
+						};
+					}
+
+					cell = row.Row.GetCell(params['index']);
+					break;
+				}
+				case 'cell': {
+					const oTable = table.Table;
+
+					if (params['index'] >= oTable.Rows) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选行不存在！'
+						};
+					}
+
+					const row = table.GetRow(params['index']);
+					const cellLength = row.Row.Content.length || 0;
+
+					if(params['cellIndex'] >= cellLength) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选单元格不存在！'
+						};
+					}
+
+					cell = row.Row.GetCell(params['cellIndex']);
+					break;
+				}
+				default:
+					break;
+			}
+			
+			const curPage = cell.Content.GetAbsolutePage();
+			const curPos = cell.Content_GetCurPosXY();
+
+			Doc.GoToPage(curPage);
+			Doc.MoveCursorToXY(curPos.X, curPos.Y);
+
+			switch (params['type']) {
+				case 'row':
+					this.selectRow();
+					break;
+				case 'column':
+					this.selectColumn();
+					break;
+				case 'cell':
+					this.selectCell();
+					break;
+				default:
+					break;
+			}
+
+			return {
+				code: 200,
+				data: true
+			}
+		} catch (error) {			
+			console.warn(error);
+		
+			return {
+				code: 500,
+				data: false,
+			}
+		}
+	};
+
 	function private_ReadContentControlCommonPr(commonPr)
 	{
 		var resultPr;
