@@ -26764,12 +26764,71 @@ CDocument.prototype.GetSpellCheckManager = function()
 {
 	return this.Spelling;
 };
+CDocument.prototype.SearchMultiParagraph = function(oProps) {
+	// 1. 预处理查找字符串
+	let searchStr = oProps.GetText().replace(/\n/gi, ' ')// 假设 \r 是分隔符
+
+	// 2. 拼接全文本流
+	let allParas = this.Content; // 假设 Content 是段落数组
+	let allText = '';
+	let paraOffsets = [];
+	for (let i = 0; i < allParas.length; i++) {
+			paraOffsets.push(allText.length);
+			allText += allParas[i].GetText(); // 段落分隔符
+	}
+
+	// 3. 全局查找
+	let results = [];
+	let idx = 0;
+
+	while ((idx = allText.indexOf(searchStr, idx)) !== -1) {
+			// 4. 结果映射
+
+			let startParaIdx = paraOffsets.findIndex((offset, i) => 
+					i === paraOffsets.length - 1 || paraOffsets[i+1] > idx
+			);
+			let startOffset = idx - paraOffsets[startParaIdx];
+
+			let endIdx = idx + searchStr.length;
+			let endParaIdx = paraOffsets.findIndex((offset, i) => 
+					i === paraOffsets.length - 1 || paraOffsets[i+1] > endIdx
+			);
+			let endOffset = endIdx - paraOffsets[endParaIdx];
+
+			results.push({
+					startPara: startParaIdx,
+					startOffset: startOffset,
+					endPara: endParaIdx,
+					endOffset: endOffset
+			});
+
+			idx += 1;
+	}
+	// 5. 高亮与定位
+	// 你可以将 results 转换为 OnlyOffice 的 SearchResult/Range/Element 结构
+	// 并调用现有的高亮/跳转逻辑
+
+	const doc = this.Api.GetDocument().Document;
+
+	doc.SelectRange(results[0].startPara,results[0].endPara)
+	
+
+	// 返回自定义的 SearchEngine 结构
+	return {
+			Count: results.length,
+			Results: results
+	};
+};
 //----------------------------------------------------------------------------------------------------------------------
 // Search
 //----------------------------------------------------------------------------------------------------------------------
 CDocument.prototype.Search = function(oProps, bDraw)
 {
 	//let nStartTime = performance.now();
+
+	if (oProps.GetText().indexOf('^p') !== -1) {
+		return this.SearchMultiParagraph(oProps);
+	}
 
 	if (this.SearchEngine.Compare(oProps))
 		return this.SearchEngine;
