@@ -588,6 +588,12 @@ function Numbering_Number_To_Roman(Num, bLowerCase)
 			case Asc.c_oAscNumberingFormat.NumberInDash:
 			{
 				appendDecimal();
+				arrCodesOfSymbols = [0x2014];
+				break;
+			}
+			case Asc.c_oAscNumberingFormat.NumberInZh:
+			{
+				appendDecimal();
 				arrCodesOfSymbols = [0x002D];
 				break;
 			}

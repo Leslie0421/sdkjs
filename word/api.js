@@ -4022,7 +4022,7 @@ background-repeat: no-repeat;\
 				var Unifill        = new AscFormat.CUniFill();
 				Unifill.fill       = new AscFormat.CSolidFill();
 				Unifill.fill.color = AscFormat.CorrectUniColor(Props.Shd.Color, Unifill.fill.color, 1);
-				
+
 				let shd = {
 					Value   : Asc.c_oAscShd.Clear,
 					Color   : {

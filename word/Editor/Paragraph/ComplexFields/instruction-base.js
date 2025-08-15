@@ -137,6 +137,7 @@
 			case "ARABICABJAD": return Asc.c_oAscNumberingFormat.ArabicAbjad;
 			case "ARABICALPHA": return Asc.c_oAscNumberingFormat.ArabicAlpha;
 			case "ArabicDash": return Asc.c_oAscNumberingFormat.NumberInDash;
+			case "ArabicDashZh": return Asc.c_oAscNumberingFormat.NumberInZh;
 			case "BAHTTEXT": return Asc.c_oAscNumberingFormat.BahtText;
 			case "CardText": return Asc.c_oAscNumberingFormat.CardinalText;
 			case "CHINESENUM1": return lang === lcid_zhTW ? Asc.c_oAscNumberingFormat.TaiwaneseCounting : Asc.c_oAscNumberingFormat.ChineseCounting;
@@ -193,6 +194,7 @@
 			case Asc.c_oAscNumberingFormat.ArabicAbjad: return "ARABICABJAD";
 			case Asc.c_oAscNumberingFormat.ArabicAlpha: return "ARABICALPHA";
 			case Asc.c_oAscNumberingFormat.NumberInDash: return "ArabicDash";
+			case Asc.c_oAscNumberingFormat.NumberInZh: return "ArabicDashZh";
 			case Asc.c_oAscNumberingFormat.BahtText: return "BAHTTEXT";
 			case Asc.c_oAscNumberingFormat.CardinalText: return "CardText";
 			

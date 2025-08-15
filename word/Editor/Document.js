@@ -26882,7 +26882,7 @@ CDocument.prototype.GetSpellCheckManager = function()
 };
 CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 1. 预处理查找字符串
-	let searchStr = oProps.GetText().replace(/\^p/gi, ' ');
+	let searchStr = oProps.GetText().replace(/\^p/gi, '');
 	let allParas = this.Content;
 	let allText = '';
 	let paraOffsets = [];
@@ -26890,7 +26890,7 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 2. 拼接全文本流
 	for (let i = 0; i < allParas.length; i++) {
 			paraOffsets.push(allText.length);
-			allText += allParas[i]?.GetText?.() || '';
+			allText += allParas[i]?.GetText?.();
 	}
 
 	// 3. 全局查找
@@ -26926,10 +26926,23 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 		doc.SelectRange(results[0].startPara,results[0].endPara)
 	}
 	
+	const allSearchParaIdxs = [];
+	const CurIds = [];
+
+	for (let i = results[0].startPara; i <= results[0].endPara; i++) {
+		allSearchParaIdxs.push(i);
+	}
+
+	this.Content.forEach((content => {
+		if(allSearchParaIdxs.includes(content.Index)) {
+				CurIds.push(content.Id);
+		}
+	}))
 
 	// 返回自定义的 SearchEngine 结构
 	return {
-		CurId: -1,
+			CurId: -1,
+			CurIds: CurIds,
 			Count: results.length,
 			Results: results
 	};
@@ -26939,17 +26952,15 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 //----------------------------------------------------------------------------------------------------------------------
 CDocument.prototype.Search = function(oProps, bDraw)
 {
-	//let nStartTime = performance.now();
-	if (oProps.GetText().indexOf('^p') !== -1) {
-		this.SearchEngine.Set(oProps);
-		return this.SearchMultiParagraph(oProps);
-	}
-
 	if (this.SearchEngine.Compare(oProps))
 		return this.SearchEngine;
 
 	this.SearchEngine.Clear();
 	this.SearchEngine.Set(oProps);
+
+	if (oProps.GetText().indexOf('^p') !== -1) {
+		return this.SearchMultiParagraph(oProps);
+	}
 
 	for (var nIndex = 0, nCount = this.Content.length; nIndex < nCount; ++nIndex)
 	{
@@ -26975,7 +26986,6 @@ CDocument.prototype.Search = function(oProps, bDraw)
 	if (false !== bDraw)
 		this.Redraw(-1, -1);
 
-	//console.log("Search logic: " + ((performance.now() - nStartTime) / 1000) + " s");
 	return this.SearchEngine;
 };
 CDocument.prototype.ClearSearch = function()

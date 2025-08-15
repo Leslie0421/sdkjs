@@ -10073,6 +10073,7 @@
 			case Asc.c_oAscNumberingFormat.TaiwaneseDigital:
 			case Asc.c_oAscNumberingFormat.None:
 			case Asc.c_oAscNumberingFormat.NumberInDash:
+			case Asc.c_oAscNumberingFormat.NumberInZh:
 			case Asc.c_oAscNumberingFormat.TaiwaneseCounting:
 			case Asc.c_oAscNumberingFormat.CardinalText:
 			case Asc.c_oAscNumberingFormat.Custom:
@@ -10369,6 +10370,10 @@
 				break;
 			case Asc.c_oAscNumberingFormat.NumberInDash:
 				var dash = String.fromCharCode(0x002D);
+				sResult = dash + ' ' + nValue + ' ' + dash;
+				break;
+			case Asc.c_oAscNumberingFormat.NumberInZh:
+				var dash = String.fromCharCode(0x2014);
 				sResult = dash + ' ' + nValue + ' ' + dash;
 				break;
 			case Asc.c_oAscNumberingFormat.TaiwaneseCounting:

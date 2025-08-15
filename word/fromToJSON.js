@@ -21070,6 +21070,9 @@
 			case Asc.c_oAscNumberingFormat.NumberInDash:
 				sVal = "numberInDash";
 				break;
+			case Asc.c_oAscNumberingFormat.NumberInZh:
+				sVal = "numberInZh";
+				break;
 			case Asc.c_oAscNumberingFormat.Ordinal:
 				sVal = "ordinal";
 				break;
@@ -21285,6 +21288,9 @@
 				break;
 			case "numberInDash":
 				nVal = Asc.c_oAscNumberingFormat.NumberInDash;
+				break;
+			case "numberInZh":
+				nVal = Asc.c_oAscNumberingFormat.NumberInZh;
 				break;
 			case "ordinal":
 				nVal = Asc.c_oAscNumberingFormat.Ordinal;
