@@ -38,7 +38,7 @@
      * Base class.
      * @global
      * @class
-     * @name Api
+     * @name this
      */
 
     /**
@@ -1536,6 +1536,262 @@
 			}
 		}
 	};
+
+	/**
+	 * 处理中文和数字之间的间距
+	 * @memberof Api
+	 * @alias HandleChineseAndNumberSpacing
+	 * @since 8.2.0
+	 * @example
+	 * window.Asc.plugin.executeMethod("HandleChineseAndNumberSpacing");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_HandleChineseAndNumberSpacing"] = function()
+	{
+		// 提取中文后面跟数字或数字后面跟中文的边界位置
+		const extractChineseNumberBoundaries = (
+			text
+		) => {
+			const result = [];
+
+			for (let i = 0; i < text.length; i++) {
+				const char = text[i];
+				const nextChar = text[i + 1];
+
+				// 情况1：中文字符（排除标点符号）后面是数字
+				if (
+					/[\u4e00-\u9fa5]/.test(char) &&
+					!/[\u3000-\u303f\uff00-\uffef]/.test(char) && // 排除中文标点符号
+					nextChar &&
+					/\d/.test(nextChar)
+				) {
+					result.push({
+						type: "chinese",
+						position: i,
+						char: char,
+					});
+				}
+
+				// 情况2：数字后面是中文字符（排除标点符号）
+				if (
+					/\d/.test(char) &&
+					nextChar &&
+					/[\u4e00-\u9fa5]/.test(nextChar) &&
+					!/[\u3000-\u303f\uff00-\uffef]/.test(nextChar) // 排除中文标点符号
+				) {
+					result.push({
+						type: "number",
+						position: i,
+						char: char,
+					});
+				}
+			}
+
+			return result;
+		};
+		// @ts-ignore
+		const doc = this.GetDocument().Document;
+		const allPara = doc.GetAllParagraphs();
+
+		if (allPara.length) {
+			// 第一步：遍历所有段落，收集需要处理的文本和段落信息
+			const allTexts = [];
+			const targetTexts = [];
+
+			allPara.forEach((item, index) => {
+				const text = item.GetText().trim();
+				// if (text) {
+				allTexts.push(text);
+
+				// 提取当前段落中需要处理的边界位置
+				const boundaries = extractChineseNumberBoundaries(text);
+
+				boundaries.forEach((boundary) => {
+					// 计算当前字符在全文中的出现次数
+					let occurrenceCount = 0;
+					let foundCurrentBoundary = false;
+
+					// 遍历所有段落，计算该字符的出现次数
+					for (let i = 0; i < allTexts.length; i++) {
+						const currentText = allTexts[i];
+						const regex = new RegExp(
+							boundary.char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+							"g"
+						);
+						let match;
+
+						while ((match = regex.exec(currentText)) !== null) {
+							occurrenceCount++;
+							// 如果找到当前边界字符，立即停止计算
+							// 需要精确匹配：段落索引、字符位置、字符内容都匹配
+							if (
+								i === index && // 确保在正确的段落中
+								match[0] === boundary.char && // 确保字符内容匹配
+								(match.index === boundary.position || // 如果位置匹配，直接找到
+									// 或者如果当前段落中只有一个该字符，也认为找到
+									currentText.match(
+										new RegExp(
+											boundary.char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+											"g"
+										)
+									)?.length === 1)
+							) {
+								foundCurrentBoundary = true;
+								break;
+							}
+						}
+
+						// 如果已经找到当前边界字符，停止遍历后续段落
+						if (foundCurrentBoundary) {
+							break;
+						}
+					}
+
+					targetTexts.push({
+						text: boundary.char, // 只存储单个字符
+						paragraphIndex: index,
+						textIndex: occurrenceCount, // 这是该字符在全文中的出现次数
+						boundaryType: boundary.type, // 记录边界类型
+						position: boundary.position, // 记录在段落中的位置
+					});
+				});
+				// }
+			});
+
+			// 第三步：按顺序处理每个目标文本
+			const processTargetTexts = (targetIndex) => {
+				if (targetIndex >= targetTexts.length) {
+					//@ts-ignore
+					this.asc_RemoveSelection();
+					return;
+				}
+
+				const target = targetTexts[targetIndex];
+
+				// 根据边界类型处理不同的情况
+				if (target.boundaryType === "chinese") {
+					// 中文后面是数字：搜索中文字符并设置间距
+					//@ts-ignore
+					const searchSettings = new AscCommon.CSearchSettings();
+					searchSettings.put_Text(target.text);
+					searchSettings.put_MatchCase(false);
+					searchSettings.put_WholeWords(false);
+
+					// 先搜索到第一个匹配项
+					//@ts-ignore
+					const length = this.asc_findText(searchSettings, false);
+
+					if (length > 0) {
+						// 使用asc_FindRepeatText精确搜索到指定位置
+						//@ts-ignore
+						this.asc_FindRepeatText(target.textIndex - 1);
+
+						new Promise((resolve) => setTimeout(resolve, 10))
+							.then(() => {
+								// 执行字符间距设置
+								//@ts-ignore
+								const selectedElements = this.getSelectedElements();
+
+								if (selectedElements && selectedElements.length > 0) {
+									selectedElements.forEach((item) => {
+										const elType = item.get_ObjectType();
+										const elValue = item.get_ObjectValue();
+										//@ts-ignore
+										if (Asc.c_oAscTypeSelectElement.Paragraph === elType) {
+											elValue.put_TextSpacing(1);
+											elValue.Shd = undefined;
+											//@ts-ignore
+											this.paraApply(elValue);
+										}
+									});
+								}
+
+								return new Promise((resolve) => setTimeout(resolve, 10));
+							})
+							.then(() => {
+								processTargetTexts(targetIndex + 1);
+							})
+							.catch((error) => {
+								console.error("处理出错:", error);
+								setTimeout(() => {
+									processTargetTexts(targetIndex + 1);
+								}, 10);
+							});
+					} else {
+						console.log("中文搜索失败，跳过当前目标");
+						setTimeout(() => {
+							processTargetTexts(targetIndex + 1);
+						}, 10);
+					}
+				} else if (target.boundaryType === "number") {
+					// 数字后面是中文：搜索数字字符并设置间距
+					// console.log(
+					//   `处理数字边界: "${target.text}" 在全文第${target.textIndex}次出现`
+					// );
+
+					//@ts-ignore
+					const searchSettings = new AscCommon.CSearchSettings();
+					searchSettings.put_Text(target.text);
+					searchSettings.put_MatchCase(false);
+					searchSettings.put_WholeWords(false);
+
+					// 先搜索到第一个匹配项
+					//@ts-ignore
+					const length = this.asc_findText(searchSettings, false);
+
+					if (length > 0) {
+						// 使用asc_FindRepeatText精确搜索到指定位置
+						//@ts-ignore
+						this.asc_FindRepeatText(target.textIndex - 1);
+
+						new Promise((resolve) => setTimeout(resolve, 10))
+							.then(() => {
+								// 执行字符间距设置
+								//@ts-ignore
+								const selectedElements = this.getSelectedElements();
+
+								if (selectedElements && selectedElements.length > 0) {
+									selectedElements.forEach((item) => {
+										const elType = item.get_ObjectType();
+										const elValue = item.get_ObjectValue();
+										//@ts-ignore
+										if (Asc.c_oAscTypeSelectElement.Paragraph === elType) {
+											elValue.put_TextSpacing(1);
+											elValue.Shd = undefined;
+											//@ts-ignore
+											this.paraApply(elValue);
+										}
+									});
+								}
+
+								return new Promise((resolve) => setTimeout(resolve, 10));
+							})
+							.then(() => {
+								processTargetTexts(targetIndex + 1);
+							})
+							.catch((error) => {
+								console.error("处理出错:", error);
+								setTimeout(() => {
+									processTargetTexts(targetIndex + 1);
+								}, 10);
+							});
+					} else {
+						console.log("数字搜索失败，跳过当前目标");
+						setTimeout(() => {
+							processTargetTexts(targetIndex + 1);
+						}, 10);
+					}
+				} else {
+					console.log("未知边界类型，跳过当前目标");
+					setTimeout(() => {
+						processTargetTexts(targetIndex + 1);
+					}, 10);
+				}
+			};
+
+			// 开始处理第一个目标文本
+			processTargetTexts(0);
+		}
+	}
 
 	function private_ReadContentControlCommonPr(commonPr)
 	{
