@@ -26882,7 +26882,7 @@ CDocument.prototype.GetSpellCheckManager = function()
 };
 CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 1. 预处理查找字符串
-	let searchStr = oProps.GetText().replace(/\^p/gi, '');
+	let searchStr = oProps.GetText().replace(/\^p/gi, '').trim();
 	let allParas = this.Content;
 	let allText = '';
 	let paraOffsets = [];
@@ -26890,7 +26890,7 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 2. 拼接全文本流
 	for (let i = 0; i < allParas.length; i++) {
 			paraOffsets.push(allText.length);
-			allText += allParas[i]?.GetText?.();
+			allText += allParas[i]?.GetText?.().trim();
 	}
 
 	// 3. 全局查找

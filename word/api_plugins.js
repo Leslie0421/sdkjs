@@ -1599,6 +1599,7 @@
 
 			allPara.forEach((item, index) => {
 				const text = item.GetText().trim();
+
 				// if (text) {
 				allTexts.push(text);
 
@@ -1613,6 +1614,7 @@
 					// 遍历所有段落，计算该字符的出现次数
 					for (let i = 0; i < allTexts.length; i++) {
 						const currentText = allTexts[i];
+					
 						const regex = new RegExp(
 							boundary.char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
 							"g"
@@ -1620,7 +1622,11 @@
 						let match;
 
 						while ((match = regex.exec(currentText)) !== null) {
-							occurrenceCount++;
+								// 忽略 — 1 — 这种格式
+								if(!/^—\s+\d+\s+—$/.test(currentText)) {
+									occurrenceCount++;
+								}
+
 							// 如果找到当前边界字符，立即停止计算
 							// 需要精确匹配：段落索引、字符位置、字符内容都匹配
 							if (
@@ -1666,7 +1672,6 @@
 				}
 
 				const target = targetTexts[targetIndex];
-
 				// 根据边界类型处理不同的情况
 				if (target.boundaryType === "chinese") {
 					// 中文后面是数字：搜索中文字符并设置间距
@@ -1693,11 +1698,11 @@
 
 								if (selectedElements && selectedElements.length > 0) {
 									selectedElements.forEach((item) => {
-										const elType = item.get_ObjectType();
-										const elValue = item.get_ObjectValue();
+										const elType = item.asc_getObjectType();
+										const elValue = item.asc_getObjectValue();
 										//@ts-ignore
 										if (Asc.c_oAscTypeSelectElement.Paragraph === elType) {
-											elValue.put_TextSpacing(1);
+											elValue.asc_putTextSpacing(1);
 											elValue.Shd = undefined;
 											//@ts-ignore
 											this.paraApply(elValue);
@@ -1751,11 +1756,11 @@
 
 								if (selectedElements && selectedElements.length > 0) {
 									selectedElements.forEach((item) => {
-										const elType = item.get_ObjectType();
-										const elValue = item.get_ObjectValue();
+										const elType = item.asc_getObjectType();
+										const elValue = item.asc_getObjectValue();
 										//@ts-ignore
 										if (Asc.c_oAscTypeSelectElement.Paragraph === elType) {
-											elValue.put_TextSpacing(1);
+											elValue.asc_putTextSpacing(1);
 											elValue.Shd = undefined;
 											//@ts-ignore
 											this.paraApply(elValue);
