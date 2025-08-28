@@ -10369,10 +10369,12 @@
 				sResult = '';
 				break;
 			case Asc.c_oAscNumberingFormat.NumberInDash:
-				var dash = String.fromCharCode(0x002D);
+						var dash = String.fromCharCode(0x2014);
+				// var dash = String.fromCharCode(0x002D);
 				sResult = dash + ' ' + nValue + ' ' + dash;
 				break;
 			case Asc.c_oAscNumberingFormat.NumberInZh:
+				//TODO: 使用 NumberInZh 格式化页码。再次加载文档时会丢失，暂时使用 NumberInDash。
 				var dash = String.fromCharCode(0x2014);
 				sResult = dash + ' ' + nValue + ' ' + dash;
 				break;

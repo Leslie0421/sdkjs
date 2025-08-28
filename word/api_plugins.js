@@ -1389,45 +1389,48 @@
 	 * 表格定位；支持定位行、列、单元格
 	 * @memberof Api
 	 * @alias SelectTable
-	 * @since 7.5.1
+	 * @since 8.2.0.147
 	 * @example
 	 * window.Asc.plugin.executeMethod("SelectTable");
 	 */
 	window["asc_docs_api"].prototype["pluginMethod_SelectTable"] = function(params)
 	{			
 		try {			
-			if (params['tableIndex'] === undefined || params['tableIndex'] < 0) {
-					return {
-						code: 400,
-						data: false,
-						message: '请传入正确的 tableIndex！'
-					};
-			} else if (params['type'] !== 'table' && (params['index'] === undefined || params['index'] < 0)) {
-					return {
-						code: 400,
-						data: false,
-						message: '请传入定位所需的索引！'
-					};
-			} else if (params['type'] === 'cell' && (params['cellIndex'] === undefined || params['cellIndex'] < 0)) {
-					return {
-						code: 400,
-						data: false,
-						message: '请传入定位单元格所需的索引！'
-					};
-			}
+			if(!Array.isArray(params)) {
+				return {
+					code: 400,
+					data: false,
+					message: '请传入正确的参数！'
+				};
+			};
 
+			const tableIndex = params[0];
+			const rowIndex = params[1];
+			const columnIndex = params[2];
+			let type = 'table';
+
+			if(tableIndex >= 0 && rowIndex >= 0 && columnIndex >= 0) {
+				type = 'cell';
+			} else if(tableIndex >= 0 && rowIndex >= 0) {
+				type = 'row';
+			} else if(tableIndex >= 0 && columnIndex >= 0) {
+				type = 'column';
+			} else if(tableIndex >= 0) {
+				type = 'table';
+			}
+			
 			const doc = this.GetDocument();
 			const Doc = doc.Document;
 			const tables = doc.GetAllTables() || [];
 			const tableLength = tables.length;
-			
+
 			if (!tableLength) {
 					return {
 						code: 200,
 						data: false,
 						message: '当前文档无表格！'
 					};
-			} else if (params['tableIndex'] >= tableLength) {			
+			} else if (tableIndex >= tableLength) {			
 					return {
 						code: 200,
 						data: false,
@@ -1435,10 +1438,10 @@
 					};
 			}
 
-			const table = tables[params['tableIndex']];		
+			const table = tables[tableIndex];		
 			let cell = null;
 
-			switch (params['type']) {
+			switch (type) {
 				case 'table':
 					table.Select();
 					return {
@@ -1448,7 +1451,7 @@
 				case 'row': 
 					const oTable = table.Table;
 
-					if (params['index'] >= oTable.Rows) {
+					if (rowIndex >= oTable.Rows) {
 						return {
 							code: 200,
 							data: false,
@@ -1456,14 +1459,14 @@
 						};
 					}
 					
-					const row = table.GetRow(params['index']);
+					const row = table.GetRow(rowIndex);
 					cell = row.Row.GetCell(0);
 					break;
 				case 'column': {
 					const row = table.GetRow(0);
 					const cellLength = row.Row.Content.length || 0;
 
-					if(params['index'] >= cellLength) {
+					if(columnIndex >= cellLength) {
 						return {
 							code: 200,
 							data: false,
@@ -1471,13 +1474,13 @@
 						};
 					}
 
-					cell = row.Row.GetCell(params['index']);
+					cell = row.Row.GetCell(columnIndex);
 					break;
 				}
 				case 'cell': {
 					const oTable = table.Table;
 
-					if (params['index'] >= oTable.Rows) {
+					if (rowIndex >= oTable.Rows) {
 						return {
 							code: 200,
 							data: false,
@@ -1485,10 +1488,10 @@
 						};
 					}
 
-					const row = table.GetRow(params['index']);
+					const row = table.GetRow(rowIndex);
 					const cellLength = row.Row.Content.length || 0;
 
-					if(params['cellIndex'] >= cellLength) {
+					if(columnIndex >= cellLength) {
 						return {
 							code: 200,
 							data: false,
@@ -1496,7 +1499,7 @@
 						};
 					}
 
-					cell = row.Row.GetCell(params['cellIndex']);
+					cell = row.Row.GetCell(columnIndex);
 					break;
 				}
 				default:
@@ -1509,7 +1512,7 @@
 			Doc.GoToPage(curPage);
 			Doc.MoveCursorToXY(curPos.X, curPos.Y);
 
-			switch (params['type']) {
+			switch (type) {
 				case 'row':
 					this.selectRow();
 					break;
