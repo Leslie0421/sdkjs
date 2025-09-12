@@ -26939,6 +26939,7 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 		}
 	}))
 
+	this.SearchEngine.Clear();
 	// 返回自定义的 SearchEngine 结构
 	return {
 			CurId: -1,
