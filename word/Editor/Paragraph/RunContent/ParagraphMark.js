@@ -70,6 +70,10 @@
 		if (!this.Grapheme)
 			return;
 
+		// 设置段落标记符颜色为淡灰色
+		Context.b_color1(192, 192, 192, 255);
+		Context.p_color(192, 192, 192, 255);
+
 		let nFontSize = (((this.Flags >> 16) & 0xFFFF) / 64);
 		AscFonts.DrawGrapheme(this.Grapheme, Context, X, Y, nFontSize);
 	};
@@ -82,7 +86,8 @@
 		let oFontInfo = oTextPr.GetFontInfo(nFontSlot);
 		this.Grapheme = oMeasurer.GetGraphemeByUnicode(nUnicode, oFontInfo.Name, oFontInfo.Style);
 
-		let nFontSize = oFontInfo.Size;
+		// let nFontSize = oFontInfo.Size;
+		let nFontSize = 8;
 		if (oTextPr.VertAlign !== AscCommon.vertalign_Baseline)
 			nFontSize = AscWord.AlignFontSize(nFontSize, AscCommon.vaKSize);
 
@@ -219,8 +224,9 @@
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	CRunParagraphMark.prototype.private_DrawSectionEnd = function(X, Y, Context)
 	{
-		Context.b_color1(0, 0, 0, 255);
-		Context.p_color(0, 0, 0, 255);
+		// 设置节结束标记颜色为淡灰色
+		Context.b_color1(192, 192, 192, 255);
+		Context.p_color(192, 192, 192, 255);
 		Context.SetFont({
 			FontFamily : {Name : "Courier New", Index : -1},
 			FontSize   : 8,
