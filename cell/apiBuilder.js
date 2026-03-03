@@ -19831,7 +19831,7 @@
 
     function setSingleValidation(apiValidation) {
         if (!apiValidation) {
-            return;
+            return null;
         }
         if (!apiValidation.validations || !Array.isArray(apiValidation.validations) || !apiValidation.validations.length) {
             const validation = new window['AscCommonExcel'].CDataValidations().getNewValidation();
@@ -19844,7 +19844,7 @@
         }
         if (!apiValidation.range || !apiValidation.range.range) {
             throwException(new Error('Range is not provided'));
-            return
+            return null;
         }
         const targetRange = apiValidation.range.range;
         const thisValidation = apiValidation.validations[0];
@@ -19853,8 +19853,8 @@
             const type = apiValidation.GetType();
             const alert = apiValidation.GetAlertStyle();
             const operator = apiValidation.GetOperator();
-            const formula1 = apiValidation.GetFormula1();
-            const formula2 = apiValidation.GetFormula2();
+            const formula1 = apiValidation.GetFormula1() || null;
+            const formula2 = apiValidation.GetFormula2() || null;
             const newValidation = apiValidation.Modify(type, alert, operator, formula1, formula2);
             return newValidation ? newValidation.validations[0] : null;
         } else {
