@@ -1871,6 +1871,11 @@ var CPresentation = CPresentation || function(){};
         }
 
         if (oObject.IsForm && oObject.IsForm()) {
+			if (oObject.IsForm() && !this.Viewer.file.nativeFile['CheckPerm'](AscPDF.USER_PERMISSIONS.fillForms)) {
+				Asc.editor.sendEvent("asc_onAskEditPassword");
+				return;
+			}
+
             (bBlurActive !== false && this.GetActiveObject() !== oObject) && this.BlurActiveObject();
 
             this.mouseDownField         = oObject;
