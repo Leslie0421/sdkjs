@@ -1326,6 +1326,11 @@ var CPresentation = CPresentation || function(){};
         this.fieldsToCommit = [];
     };
     CPDFDoc.prototype.SelectNextForm = function() {
+		if (!this.Viewer.file.nativeFile['CheckPerm'](AscPDF.USER_PERMISSIONS.fillForms)) {
+			Asc.editor.sendEvent("asc_onAskEditPassword");
+			return;
+		}
+
         let oViewer         = editor.getDocumentRenderer();
         let oDrDoc          = this.GetDrawingDocument();
         let aWidgetForms    = this.widgets;
@@ -1409,6 +1414,11 @@ var CPresentation = CPresentation || function(){};
             callbackAfterFocus.bind(this)();
     };
     CPDFDoc.prototype.SelectPrevForm = function() {
+		if (!this.Viewer.file.nativeFile['CheckPerm'](AscPDF.USER_PERMISSIONS.fillForms)) {
+			Asc.editor.sendEvent("asc_onAskEditPassword");
+			return;
+		}
+		
         let oViewer         = editor.getDocumentRenderer();
         let oDrDoc          = this.GetDrawingDocument();
         let aWidgetForms    = this.widgets;
