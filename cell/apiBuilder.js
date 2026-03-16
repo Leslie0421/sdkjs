@@ -46,7 +46,7 @@
 	 * @global
 	 * @class
 	 * @name Api
-	 * @property {Array} Sheets - Returns the Sheets collection that represents all the sheets in the active workbook.
+	 * @property {ApiWorksheet[]} Sheets - Returns the Sheets collection that represents all the sheets in the active workbook.
 	 * @property {ApiWorksheet} ActiveSheet - Returns an object that represents the active sheet.
 	 * @property {ApiRange} Selection - Returns an object that represents the selected range.
 	 * @property {ApiComment[]} Comments - Returns all comments related to the whole workbook.
@@ -54,7 +54,7 @@
 	 * @property {ApiComment[]} AllComments - Returns all comments from the current workbook including comments from all worksheets.
 	 * @property {ReferenceStyle} ReferenceStyle - Returns or sets the reference style.
 	 * @property {ApiWorksheetFunction} WorksheetFunction - Returns an object that represents the function list.
-	 * @property {ApiPivotTable[]} PivotTables - Returns all PivotTables.
+	 * @property {ApiPivotTable[]} PivotTables - Returns all pivot tables.
 	 */
 	var Api = window["Asc"]["spreadsheet_api"];
 
@@ -85,11 +85,11 @@
 	 * @property {PageOrientation} PageOrientation - Returns or sets the page orientation.
 	 * @property {boolean} PrintHeadings - Returns or sets the page PrintHeadings property.
 	 * @property {boolean} PrintGridlines - Returns or sets the page PrintGridlines property.
-	 * @property {Array} Defnames - Returns an array of the ApiName objects.
-	 * @property {Array} Comments - Returns all comments from the current worksheet.
+	 * @property {ApiName[]} Defnames - Returns an array of the ApiName objects.
+	 * @property {ApiComment[]} Comments - Returns all comments from the current worksheet.
 	 * @property {ApiFreezePanes} FreezePanes - Returns the freeze panes for the current worksheet.
 	 * @property {ApiProtectedRange[]} AllProtectedRanges - Returns all protected ranges from the current worksheet.
-	 * @property {ApiPivotTable[]} PivotTables - Returns all PivotTables on worksheet.
+	 * @property {ApiPivotTable[]} PivotTables - Returns all pivot tables from the current worksheet.
 	 */
 	function ApiWorksheet(worksheet) {
 		this.worksheet = worksheet;
@@ -133,7 +133,7 @@
 	 * @property {'xlDownward' | 'xlHorizontal' | 'xlUpward' | 'xlVertical'} Orientation - Sets an angle to the current cell range.
 	 * @property {ApiAreas} Areas - Returns a collection of the areas.
 	 * @property {ApiCharacters} Characters - Returns the ApiCharacters object that represents a range of characters within the object text. Use the ApiCharacters object to format characters within a text string.
-	 * @property {ApiPivotTable | null} PivotTable - Returns a PivotTable object that represents the PivotTable report containing the upper-left corner of the specified range.
+	 * @property {ApiPivotTable | null} PivotTable - Returns the ApiPivotTable object that represents the pivot table report containing the upper-left corner of the specified range.
 	 */
 	function ApiRange(range, areas) {
 		this.range = range;
@@ -171,8 +171,6 @@
 
 	ApiImage.prototype = Object.create(ApiDrawing.prototype);
 	ApiImage.prototype.constructor = ApiImage;
-
-
 
 	/**
 	 * Class representing an OLE object.
@@ -260,8 +258,8 @@
 	 * Standard numeric format.
 	 * @typedef {("General" | "0" | "0.00" | "#,##0" | "#,##0.00" | "0%" | "0.00%" |
 	 * "0.00E+00" | "# ?/?" | "# ??/??" | "m/d/yyyy" | "d-mmm-yy" | "d-mmm" | "mmm-yy" | "h:mm AM/PM" |
-	 * "h:mm:ss AM/PM" | "h:mm" | "h:mm:ss" | "m/d/yyyy h:mm" | "#,##0_);(#,##0)" | "#,##0_);[Red](#,##0)" | 
-	 * "#,##0.00_);(#,##0.00)" | "#,##0.00_);[Red](#,##0.00)" | "mm:ss" | "[h]:mm:ss" | "mm:ss.0" | "##0.0E+0" | "@")} NumFormat
+	 * "h:mm:ss AM/PM" | "h:mm" | "h:mm:ss" | "m/d/yyyy h:mm" | "#,##0_\);(#,##0)" | "#,##0_\);\[Red\]\(#,##0)" | 
+	 * "#,##0.00_\);\(#,##0.00\)" | "#,##0.00_\);\[Red\]\(#,##0.00\)" | "mm:ss" | "[h]:mm:ss" | "mm:ss.0" | "##0.0E+0" | "@")} NumFormat
 	 * @see office-js-api/Examples/Enumerations/NumFormat.js
 	 */
 
@@ -294,6 +292,43 @@
 	* @see office-js-api/Examples/Enumerations/DeleteShiftDirection.js
 	*/
 
+	/**
+     * Any valid drawing element.
+     * @typedef {(ApiShape | ApiImage | ApiOleObject | ApiChart )} Drawing
+	 * @see office-js-api/Examples/Enumerations/Drawing.js
+	 */
+
+	/**
+	 * The report filter area settings.
+	 * @typedef {object} PivotTableFilterAreaInfo
+	 * @property {FieldsInReportFilterType} Type - Specifies how the report filter fields are located.
+	 * @property {number} ReportFilterFields - Defines the number of the report filter fields.
+	 * @see office-js-api/Examples/Enumerations/PivotTableFilterAreaInfo.js
+	 */
+
+	/**
+	 * The settings for adding row, column, and page fields to the pivot table report.
+	 * @typedef {object} PivotTableFieldOptions
+	 * @property {number | string | number[] | string[]} [rows] - An array of field names or IDs to be added as rows or added to the category axis.
+	 * @property {number | string | number[] | string[]} [columns] - An array of field names or IDs to be added as columns or added to the series axis.
+	 * @property {number | string | number[] | string[]} [pages] - An array of field names or IDs to be added as pages or added to the page area.
+	 * @property {boolean} [addToTable=false] - Specifies whether to apply fields only to the pivot table reports. If `true`, the specified fields will be added to the report 
+	 * without replacing existing fields. If `false`, existing fields will be replaced with the new fields.
+	 * @see office-js-api/Examples/Enumerations/PivotTableFieldOptions.js
+	 */
+
+	/**
+     * Any valid element which can be added to the document structure.
+	 * @typedef {(ApiParagraph)} DocumentElement
+	 * @see office-js-api/Examples/Enumerations/DocumentElement.js
+	 */
+
+	/**
+	 * The types of elements that can be added to the paragraph structure.
+	 * @typedef {(ApiUnsupported | ApiRun | ApiHyperlink)} ParagraphContent
+	 * @see office-js-api/Examples/Enumerations/ParagraphContent.js
+	 */
+	
 	/**
 	 * Class representing a base class for the color types.
 	 * @constructor
@@ -373,38 +408,39 @@
 	}
 
 	/**
-	 * Class representing a PivotTable.
+	 * Class representing a pivot table.
 	 * @constructor
-	 * @property {string} Name - Returns or sets name of the PivotTable.
-	 * @property {boolean} ColumnGrand - Returns or sets PivotTable Grand Totals settings for columns.
-	 * @property {boolean} RowGrand - Returns or sets PivotTable Grand Totals settings for rows.
-	 * @property {boolean} DisplayFieldCaptions  - Returns or set show field headers for rows and columns.
-	 * @property {string} Title - Returns or sets the title of the PivotTable.
-	 * @property {string} Description - Returns or sets the description of the PivotTable.
-	 * @property {string} StyleName - Returns or sets the style name of the PivotTable.
-	 * @property {boolean} ShowTableStyleRowHeaders - Returns or sets the row headers style for PivotTable.
-	 * @property {boolean} ShowTableStyleColumnHeaders - Returns or sets the column headers style for PivotTable.
-	 * @property {boolean} ShowTableStyleRowStripes - Returns or sets the banded rows style for PivotTable.
-	 * @property {boolean} ShowTableStyleColumnStripes - Returns or sets the banded columns style for PivotTable.
-	 * @property {ApiRange} Source - Returns or sets source for the PivotTable.
-	 * @property {ApiRange | null} ColumnRange - Returns a Range object that represents the range that contains the column area in the PivotTable report.
-	 * @property {ApiRange | null} RowRange - Returns a Range object that represents the range that contains the row area in the PivotTable report.
-	 * @property {ApiRange} DataBodyRange - Returns a Range object that represents the range of values in a PivotTable.
-	 * @property {ApiRange | null} TableRange1 - Returns a Range object that represents the range containing the entire PivotTable report, but doesn't include page fields.
-	 * @property {ApiRange | null} TableRange2 - Returns a Range object that represents the range containing the entire PivotTable report, including page fields
-	 * @property {string} GrandTotalName - Sets the text string label that is displayed in the grand total column or row heading in the specified PivotTable report.
-	 * @property {boolean} RepeatAllLabels - Specifies whether to repeat item labels for all PivotFields in the specified PivotTable.
-	 * @property {object} RowAxisLayout - Sets the way the specified PivotTable items appear—in table format or in outline format.
-	 * @property {boolean} LayoutBlankLine - Sets PivotTable setting insert blank rows after each item.
-	 * @property {boolean} LayoutSubtotals - Sets PivotTable setting show subtotals.
-	 * @property {number} SubtotalLocation - Sets PivotTable setting layout subtotal location.
-	 * @property {ApiPivotField[]} PivotFields - Returns all PivotFields in PivotTable.
-	 * @property {ApiPivotField[]} ColumnFields - Returns array that are currently showing as column fields in PivotTable.
-	 * @property {ApiPivotField[]} DataFields - Returns array that are currently showing values fields in PivotTable.
-	 * @property {ApiPivotField[]} HiddenFields - Returns array that represents all not added fields in PivotTable.
-	 * @property {ApiPivotField[]} VisibleFields - Returns array that represents all not added fields in PivotTable.
-	 * @property {ApiPivotField[]} PageFields - Returns array that are currently showing as page fields in PivotTable.
-	 * @property {ApiPivotField[]} RowFields - Returns array that are currently showing as row fields in PivotTable.
+	 * @property {string} Name - Returns or sets a name of the pivot table.
+	 * @property {boolean} ColumnGrand - Returns or sets the <b>Grand Totals</b> setting for the pivot table columns.
+	 * @property {boolean} RowGrand - Returns or sets the <b>Grand Totals</b> setting for the pivot table rows.
+	 * @property {boolean} DisplayFieldCaptions - Returns or sets the setting which specifies whether to display field headers for rows and columns.
+	 * @property {string} Title - Returns or sets the pivot table title.
+	 * @property {string} Description - Returns or sets the pivot table description.
+	 * @property {string} StyleName - Returns or sets the pivot table style name.
+	 * @property {ApiWorksheet} Parent - Returns the parent object for the current pivot table.
+	 * @property {boolean} ShowTableStyleRowHeaders - Returns or sets the setting which specifies whether the row headers of the pivot table will be highlighted with the special formatting.
+	 * @property {boolean} ShowTableStyleColumnHeaders - Returns or sets the setting which specifies whether the column headers of the pivot table will be highlighted with the special formatting.
+	 * @property {boolean} ShowTableStyleRowStripes - Returns or sets the setting which specifies whether the background color alternation for odd and even rows will be enabled for the pivot table.
+	 * @property {boolean} ShowTableStyleColumnStripes - Returns or sets the setting which specifies whether the background color alternation for odd and even columns will be enabled for the pivot table.
+	 * @property {ApiRange} Source - Returns or sets the source range for the pivot table.
+	 * @property {ApiRange | null} ColumnRange - Returns a Range object that represents the column area in the pivot table report.
+	 * @property {ApiRange | null} RowRange - Returns a Range object that represents the row area in the pivot table report.
+	 * @property {ApiRange} DataBodyRange - Returns a Range object that represents the range of values in the pivot table.
+	 * @property {ApiRange | null} TableRange1 - Returns a Range object that represents the entire pivot table report, but doesn't include page fields.
+	 * @property {ApiRange | null} TableRange2 - Returns a Range object that represents the entire pivot table report, including page fields.
+	 * @property {string} GrandTotalName - Returns or sets the text string label that is displayed in the grand total column or row heading in the specified pivot table report.
+	 * @property {boolean} RepeatAllLabels - Specifies whether to repeat item labels for all pivot fields in the specified pivot table.
+	 * @property {object} RowAxisLayout - Sets the way the specified pivot table items appear — in table format or in outline format.
+	 * @property {boolean} LayoutBlankLine - Sets the setting which specifies whether to insert blank rows after each item in the pivot table.
+	 * @property {boolean} LayoutSubtotals - Sets the setting which specifies whether to show subtotals in the pivot table.
+	 * @property {number} SubtotalLocation - Sets the layout subtotal location.
+	 * @property {ApiPivotField[]} PivotFields - Returns all pivot fields in the pivot table.
+	 * @property {ApiPivotField[]} ColumnFields - Returns an array that is currently displayed as column fields in the pivot table.
+	 * @property {ApiPivotField[]} DataFields - Returns an array that is currently displayed as data fields in the pivot table.
+	 * @property {ApiPivotField[]} HiddenFields - Returns an array that represents all hidden fields in the pivot table.
+	 * @property {ApiPivotField[]} VisibleFields - Returns an array that represents all visible fields in the pivot table.
+	 * @property {ApiPivotField[]} PageFields - Returns an array that is currently displayed as page fields in the pivot table.
+	 * @property {ApiPivotField[]} RowFields - Returns an array that is currently displayed as row fields in the pivot table.
 	 */
 	function ApiPivotTable(pivot, api) {
 		/** @type {CT_pivotTableDefinition} */
@@ -413,35 +449,37 @@
 	}
 
 	/**
-	 * Class representing a PivotTable field.
+	 * Class representing a pivot table field.
 	 * @constructor
 	 * @property {number} Position - Returns or sets a value that represents the position of the field (first, second, third, and so on) among all the fields in its orientation (Rows, Columns, Pages, Data).
-	 * @property {number} Orientation - A pivot field orientation value that represents the location of the field in the specified PivotTable report.
+	 * @property {number} Orientation - Returns or sets a pivot field orientation value that represents the location of the field in the specified pivot table report.
 	 * @property {string} Caption - Returns or sets a value that represents the label text for the pivot field.
-	 * @property {string} Name - Returns or sets a value representing the name of the object.
-	 * @property {string} Value - Returns or sets a value representing the name of the object.
-	 * @property {string} SourceName - Returns source name.
-	 * @property {number} Index - Returns index.
-	 * @property {ApiPivotTable} Table - Returns ApiPivotField.
-	 * @property {ApiPivotTable} Parent - Returns parent object to this field.
-	 * @property {boolean} LayoutCompactRow - Returns or sets whether or not a PivotField is compacted.
-	 * @property {number} LayoutForm - Returns or sets the way the specified PivotTable items appear—in table format or in outline format.
-	 * @property {boolean} LayoutPageBreak - Returns or set the flag that represents page break is inserted after each field.
-	 * @property {boolean} ShowingInAxis - Returns if the PivotField is currently visible in the PivotTable or not.
-	 * @property {boolean} RepeatLabels - setting repeat items labels at each row.
-	 * @property {boolean} LayoutBlankLine - Returns or sets setting insert blank rows after each item.
-	 * @property {boolean} ShowAllItems - Returns or sets setting show items with no data.
-	 * @property {boolean} LayoutSubtotals - Returns or sets setting show subtotals.
-	 * @property {number} LayoutSubtotalLocation - Returns or sets setting layout subtotal location.
-	 * @property {string} SubtotalName - Returns or sets text string label displayed in the subtotal column or row heading in the specified PivotTable report.
-	 * @property {object} Subtotals - Returns or sets subtotals.
+	 * @property {string} Name - Returns or sets a value representing the object name.
+	 * @property {string} Value - Returns or sets a value representing the name of the specified field in the pivot table report.
+	 * @property {string} SourceName - Returns a source name for the pivot table field.
+	 * @property {number} Index - Returns an index for the pivot table field.
+	 * @property {ApiPivotTable} Table - Returns the ApiPivotTable object which represents the pivot table for the current field.
+	 * @property {ApiPivotTable} Parent - Returns the parent object for the current field.
+	 * @property {boolean} LayoutCompactRow - Returns or sets the setting which specifies whether a pivot table field is compacted.
+	 * @property {number} LayoutForm - Returns or sets the way the specified pivot table items appear — in table format or in outline format.
+	 * @property {boolean} LayoutPageBreak - Returns or sets the setting which specifies whether to insert a page break after each field.
+	 * @property {boolean} ShowingInAxis - Returns the setting which specifies whether the pivot table field is currently visible in the pivot table.
+	 * @property {boolean} RepeatLabels - Returns or sets the setting which specifies whether to repeat items labels at each row.
+	 * @property {boolean} LayoutBlankLine - Returns and sets the setting which specifies whether to insert blank rows after each item.
+	 * @property {boolean} ShowAllItems - Returns or sets the setting which specifies whether to show items with no data.
+	 * @property {boolean} LayoutSubtotals - Returns or sets the setting which specifies whether to show subtotals.
+	 * @property {number} LayoutSubtotalLocation - Returns or sets the layout subtotal location.
+	 * @property {string} SubtotalName - Returns or sets the text label displayed in the subtotal column or row heading in the specified pivot table report.
+	 * @property {object} Subtotals - Returns or sets the subtotals.
 	 * @property {number} Formula - Returns or sets a value that represents the object's formula.
-	 * @property {boolean} DragToColumn - Returns or sets the specified field, can be dragged to the column position or not.
-	 * @property {boolean} DragToRow - Returns or sets the specified field, can be dragged to the row position or not.
-	 * @property {boolean} DragToData - Returns or sets the specified field, can be dragged to the data position or not.
-	 * @property {boolean} DragToPage - Returns or sets the specified field, can be dragged to the page position or not.
+	 * @property {boolean} DragToColumn - Returns or sets the setting which specifies whether the specified field can be dragged to the column position.
+	 * @property {boolean} DragToRow - Returns or sets the setting which specifies whether the specified field can be dragged to the row position.
+	 * @property {boolean} DragToData - Returns or sets the setting which specifies whether the specified field can be dragged to the data position.
+	 * @property {boolean} DragToPage - Returns or sets the setting which specifies whether the specified field can be dragged to the page position.
 	 * @property {string | null} NumberFormat - Returns or sets a value that represents the format code for the object.
-	 * @property {string | number} CurrentPage - Returns the current page showing for the page field (valid only for page fields).
+	 * @property {string | number} CurrentPage - Returns the current page which is displayed for the page field (valid only for page fields).
+	 * @property {ApiPivotItem | ApiPivotItem[]} PivotItems - Returns an object that represents either a single pivot table item (the ApiPivotItem object)
+	 * or a collection of all the visible and hidden items (an array of the ApiPivotItem objects) in the specified field.
 	 */
 	function ApiPivotField(table, index, pivotField) {
 		/** @type {ApiPivotTable} */
@@ -453,18 +491,19 @@
 	}
 
 	/**
-	 * Class representing a PivotTable data field.
+	 * Class representing a pivot table data field.
 	 * @constructor
 	 * @extends ApiPivotField
-	 * @property {DataConsolidateFunctionType} Function - Returns the function performed in the data field.
-	 * @property {number} Position - Returns a value that represents the position of the field in category.
-	 * @property {PivotFieldOrientationType} Orientation - Returns a data field orientation value that represents the location.
-	 * @property {string} Name - Returns a value representing the name of the object.
-	 * @property {string} Value - Returns a value representing the value of the object.
-	 * @property {string} Caption - Returns a value that represents the label text for the data field.
-	 * @property {string | null} NumberFormat - Returns a value that represents the format code for the object.
-	 * @property {number} Index - Returns index of the data field.
-	 * @property {ApiPivotField} PivotField - Returns the pivotField from which the data field was created.
+	 * @property {DataConsolidateFunctionType} Function - Returns or sets a function for the data field.
+	 * @property {number} Position - Returns or sets a value that represents the data field position within a category.
+	 * @property {PivotFieldOrientationType} Orientation - Returns a data field orientation value
+	 * that represents the data field location in the specified pivot table report.
+	 * @property {string} Name - Returns or sets a value representing the object name.
+	 * @property {string} Value - Returns or sets a value representing the name of the specified data field in the pivot table report.
+	 * @property {string} Caption - Returns or sets a value that represents the label text for the data field.
+	 * @property {string | null} NumberFormat - Returns or sets a value that represents the format code for the object.
+	 * @property {number} Index - Returns an index of the data field.
+	 * @property {ApiPivotField} PivotField - Returns the pivot field from which the data field was created.
 	 */
 	function ApiPivotDataField(table, dataIndex, dataField) {
 		const pivotIndex = dataField.asc_getIndex();
@@ -480,13 +519,13 @@
 	ApiPivotDataField.prototype.constructor = ApiPivotDataField;
 
 	/**
-	 * Class representing a PivotTable field item.
+	 * Class representing a pivot table field item.
 	 * @constructor
-	 * @property {string} Name - Returns the name of Pivot Item.
-	 * @property {string} Caption - Returns the caption of Pivot Item.
-	 * @property {string} Value - Returns the value of Pivot Item.
-	 * @property {string} Parent - Returns the parent of Pivot Item.
-	 * @property {string} Field - Returns the field of Pivot Item.
+	 * @property {string} Name - Returns a name of the pivot item.
+	 * @property {string} Caption - Returns a caption of the pivot item.
+	 * @property {string} Value - Returns a name of the specified item in the pivot table field.
+	 * @property {string} Parent - Returns a parent of the pivot item.
+	 * @property {string} Field - Returns a field of the pivot item.
 	 */
 	function ApiPivotItem(field, item) {
 		/** @type{ApiPivotField} */
@@ -554,12 +593,16 @@
 
 	/**
 	 * Creates a new custom function.
-	 * The description of the function parameters and result is specified using JSDoc. The <em>@customfunction</em> tag is required in JSDoc.
-	 * Parameters and results can be specified as the <em>number / string / bool / any / number[][] / string[][] / bool[][] / any[][]</em> types.
+	 * The description of the function parameters and result is specified using JSDoc. The *@customfunction* tag is required in JSDoc.
+	 * Parameters and results can be specified as the *number / string / boolean / any / number[][] / string[][] / boolean[][] / any[][]* types.
 	 * Parameters can be required or optional. A user can also set a default value.
+	 * The passed function can be asynchronous (async function or function returning a Promise).
+	 * Inside the passed function, you can access the current cell address where the calculation is performed using *this.address*.
+	 * You can also access the addresses of function arguments using *this.args[0].address*, *this.args[1].address*, etc.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {Function} fCustom - A new function for calculating.
+	 * @param {Function} fCustom - A new function for calculating. Can be synchronous or asynchronous.
+	 * @see office-js-api/Examples/{Editor}/Api/Methods/AddCustomFunction.js
 	 */
 	// Example with description:
 	// Calculates the sum of the specified numbers.
@@ -580,11 +623,12 @@
 		const isValidJsDoc = parsedJSDoc ? private_ValidateParamsForCustomFunction(parsedJSDoc) : false;
 		//const isValidOptions = options ? private_ValidateParamsForCustomFunction(options) : false;
 		if (!isValidJsDoc/* && !isValidOptions*/) {
-			throwException(new Error('Invalid parameters type in JSDOC or options.'));
+			logError(new Error('Invalid parameters type in JSDOC or options.'));
+			return null;
 		}
 		// remove it from this class and use it from the variable (only if it was the last)
 		// we don't remove it immediately, because we can have there data for another function
-		if (!this.parsedJSDoc.length) {
+		if (this.parsedJSDoc && !this.parsedJSDoc.length) {
 			delete this.parsedJSDoc;
 		}
 
@@ -628,7 +672,7 @@
 							 "name": "first",
 							 "optional": false,
 							 "parentName": "",
-							 "type": "number" // "string", "bool"
+							 "type": "number" // "string", "boolean"
 						 },
 						 {
 							 "defaultValue": "",
@@ -655,15 +699,16 @@
 	};
 
 	/**
-	 * Register a new custom functions library (see SetCustomFunctions plugin method).
-	 * The description of the function parameters and result is specified using JSDoc. The <em>@customfunction</em> tag is required in JSDoc.
-	 * Parameters and results can be specified as the <em>number / string / bool / any / number[][] / string[][] / bool[][] / any[][]</em> types.
+	 * Registers a new custom functions library (see the <b>SetCustomFunctions</b> plugin method).
+	 * The description of the function parameters and result is specified using JSDoc. The *@customfunction* tag is required in JSDoc.
+	 * Parameters and results can be specified as the *number / string / boolean / any / number[][] / string[][] / boolean[][] / any[][]* types.
 	 * Parameters can be required or optional. A user can also set a default value.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {string} sName - A name of library
-	 * @param {Function} Func - A custom functions library code.
-	 * @see office-js-api/Examples/{Editor}/Api/Methods/AddCustomFunction.js
+	 * @param {string} sName - The library name.
+	 * @param {Function} Func - The custom functions library code.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/Api/Methods/AddCustomFunctionLibrary.js
 	 */
 	Api.prototype.AddCustomFunctionLibrary = function(sName, Func) {
 		this.addCustomFunctionsLibrary(sName, Func);
@@ -1509,9 +1554,12 @@
 		if (!func) {
 			return;
 		}
+		let sendException = function () {
+			throwException(new Error('Arguments count error.'));
+		};
 		let argsCount = arg.length;
 		if (!func.checkArguments(argsCount)) {
-			throwException(new Error('Arguments count error.'));
+			sendException();
 			return null;
 		}
 
@@ -1524,16 +1572,57 @@
 				newArguments.push(new AscCommonExcel.cString(arg[i]));
 			} else if ('boolean' === typeof arg[i]) {
 				newArguments.push(new AscCommonExcel.cBool(arg[i]));
-			} else if (arg[i] instanceof ApiRange ) {
+			} else if (arg[i] instanceof ApiRange) {
 				//cArea/cRef/cArea3D/cRef3d
 				if (arg[i].range && arg[i].range.bbox && arg[i].range.worksheet) {
 					newArguments.push(new AscCommonExcel.cArea3D(arg[i].range.bbox.getName(), arg[i].range.worksheet, arg[i].range.worksheet));
 				} else {
-					throwException(new Error('Arguments type error.'));
+					sendException();
 					return null;
 				}
+			} else if (Array.isArray(arg[i])) {
+				//cArea/cRef/cArea3D/cRef3d
+				if (arg[i] && arg[i].length) {
+
+					let elem = arg[i];
+					let checkedArray = AscCommonExcel.cArray.prototype.checkValidArray.call(null, elem, true);
+					if (checkedArray) {
+						let newArray = new AscCommonExcel.cArray();
+						let bFillRes = newArray.fillFromArray(checkedArray, function (_elem) {
+							if ('number' === typeof _elem) {
+								return new AscCommonExcel.cNumber(_elem);
+							} else if ('string' === typeof _elem) {
+								return new AscCommonExcel.cString(_elem);
+							} else if ('boolean' === typeof _elem) {
+								return new AscCommonExcel.cBool(_elem);
+							}
+							return null;
+						});
+						if (bFillRes && newArray.isValidArray()) {
+							newArguments.push(newArray);
+						} else {
+							sendException();
+							return null;
+						}
+					} else {
+						sendException();
+						return null;
+					}
+				} else {
+					sendException();
+					return null;
+				}
+			} else if (arg[i] instanceof ApiName) {
+				let _name = arg[i].GetName && arg[i].GetName();
+				let _ws = arg[i].DefName && arg[i].DefName.parsedRef && arg[i].DefName.parsedRef.ws;
+				if (_name && _ws) {
+					let oName = new AscCommonExcel.cName(_name, _ws);
+					let nameRes = oName.getValue && oName.getValue();
+					newArguments.push(nameRes);
+				}
+
 			} else {
-				throwException(new Error('Arguments type error.'));
+				sendException();
 				return null;
 			}
 		}
@@ -1550,14 +1639,15 @@
 			return null;
 		}
 
-
+		let isArray = null;
 		if (AscCommonExcel.cElementType.cell === result.type || AscCommonExcel.cElementType.cell3D === result.type) {
 			result = result.getValue();
 			if (AscCommonExcel.cElementType.empty === result.type) {
 				result = new AscCommonExcel.cNumber(0);
 			}
 		} else if (AscCommonExcel.cElementType.array === result.type) {
-			result = result.getElement(0);
+			result = result.toArray(true, null, null, true);
+			isArray = true;
 		} else if (AscCommonExcel.cElementType.cellsRange === result.type || AscCommonExcel.cElementType.cellsRange3D === result.type) {
 			if (AscCommonExcel.cElementType.cellsRange === result.type) {
 				result = result.getValue2(0, 0);
@@ -1566,9 +1656,15 @@
 			}
 		}
 
-		if (result && result.getValue) {
-			result = result.getValue();
-		} else {
+		if (!isArray && result) {
+			if (result.type === AscCommonExcel.cElementType.bool) {
+				result = result.toBool();
+			} else if (result.getValue) {
+				result = result.getValue();
+			}
+		}
+
+		if (result == null) {
 			throwException(new Error('Result type error.'));
 			return null;
 		}
@@ -1645,7 +1741,7 @@
 	 * For double-byte character set (DBCS) languages, the function changes full-width (double-byte) characters to half-width (single-byte) characters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text or a reference to a cell containing the text to change.
+	 * @param {ApiRange | ApiName | string} arg1 - The text or a reference to a cell containing the text to change.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ASC.js
 	 */
@@ -1656,7 +1752,7 @@
 	 * Returns the character specified by the code number from your computer's character set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A number between 1 and 255 specifying a character from the computer character set.
+	 * @param {ApiRange | ApiName | number} arg1 - A number between 1 and 255 specifying a character from the computer character set.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHAR.js
 	 */
@@ -1667,7 +1763,7 @@
 	 * Removes all the nonprintable characters from the text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - A string from which nonprintable characters will be removed.
+	 * @param {ApiRange | ApiName | string} arg1 - A string from which nonprintable characters will be removed.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CLEAN.js
 	 */
@@ -1678,7 +1774,7 @@
 	 * Returns the code number from your computer's character set for the first character in the specified text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text for which to get the code of the first character.
+	 * @param {ApiRange | ApiName | string} arg1 - The text for which to get the code of the first character.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CODE.js
 	 */
@@ -1689,7 +1785,7 @@
 	 * Combines multiple text strings into one text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg_n - Up to 255 data values that will be combined.
+	 * @param {ApiRange | ApiName | string} arg_n - Up to 255 data values that will be combined.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CONCATENATE.js
 	 */
@@ -1700,8 +1796,8 @@
 	 * Converts a number to text, using a currency format $#.##.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string} arg1 - A number, a reference to a cell containing a number, or a formula that returns a number.
-	 * @param {?number} arg2 - A number of digits to the right of the decimal point. The number is rounded as necessary.
+	 * @param {ApiRange | ApiName | number | string} arg1 - A number, a reference to a cell containing a number, or a formula that returns a number.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number of digits to the right of the decimal point. The number is rounded as necessary.
 	 * If it is omitted, the function will assume it to be 2.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DOLLAR.js
@@ -1713,8 +1809,8 @@
 	 * Checks whether two text strings are exactly the same, and returns <b>true</b> or <b>false</b>. This function is case-sensitive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The first text string.
-	 * @param {string} arg2 - The second text string.
+	 * @param {ApiRange | ApiName | string} arg1 - The first text string.
+	 * @param {ApiRange | ApiName | string} arg2 - The second text string.
 	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EXACT.js
 	 */
@@ -1725,10 +1821,10 @@
 	 * Returns the starting position of one text string within another text string. This function is case-sensitive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text to find. Use double quotes (empty text) to match the first character in the search string.
+	 * @param {ApiRange | ApiName | string} arg1 - The text to find. Use double quotes (empty text) to match the first character in the search string.
 	 * Wildcard characters are not allowed.
-	 * @param {string} arg2 - The text containing the text to find.
-	 * @param {?number} arg3 - Specifies the character at which to start the search. The first character in the search string is character number 1.
+	 * @param {ApiRange | ApiName | string} arg2 - The text containing the text to find.
+	 * @param {ApiRange | ApiName | number} [arg3] - Specifies the character at which to start the search. The first character in the search string is character number 1.
 	 * If omitted, this parameter is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FIND.js
@@ -1740,10 +1836,10 @@
 	 * Finds the specified substring within another string and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text to find. Use double quotes (empty text) to match the first character in the search string.
+	 * @param {ApiRange | ApiName | string} arg1 - The text to find. Use double quotes (empty text) to match the first character in the search string.
 	 * Wildcard characters are not allowed.
-	 * @param {string} arg2 - The text containing the text to find.
-	 * @param {?number} arg3 - Specifies the character at which to start the search. The first character in the search string is character number 1.
+	 * @param {ApiRange | ApiName | string} arg2 - The text containing the text to find.
+	 * @param {ApiRange | ApiName | number} [arg3] - Specifies the character at which to start the search. The first character in the search string is character number 1.
 	 * If omitted, this parameter is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FINDB.js
@@ -1755,9 +1851,9 @@
 	 * Rounds a number to the specified number of decimals and returns the result as text with or without commas.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number to round and convert to text.
-	 * @param {?number} arg2 - The number of digits to the right of the decimal point. If omitted, the function will assume it to be 2.
-	 * @param {?boolean} arg3 - Specifies whether do display commas in the returned text (<b>false</b> or omitted) or not (<b>true</b>).
+	 * @param {ApiRange | ApiName | number} arg1 - The number to round and convert to text.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of digits to the right of the decimal point. If omitted, the function will assume it to be 2.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - Specifies whether do display commas in the returned text (<b>false</b> or omitted) or not (<b>true</b>).
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FIXED.js
 	 */
@@ -1768,8 +1864,8 @@
 	 * Returns the specified number of characters from the start of a text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string containing the characters to extract.
-	 * @param {?number} arg2 - A number of the substring characters. It must be greater than or equal to 0.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string containing the characters to extract.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number of the substring characters. It must be greater than or equal to 0.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LEFT.js
 	 */
@@ -1780,8 +1876,8 @@
 	 * Extracts the substring from the specified string starting from the left character and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string containing the characters to extract.
-	 * @param {?number} arg2 - A number of the substring characters, based on bytes.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string containing the characters to extract.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number of the substring characters, based on bytes.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LEFTB.js
 	 */
@@ -1792,7 +1888,7 @@
 	 * Returns the number of characters in a text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text whose length will be returned. Spaces are considered as characters.
+	 * @param {ApiRange | ApiName | string} arg1 - The text whose length will be returned. Spaces are considered as characters.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LEN.js
 	 */
@@ -1803,7 +1899,7 @@
 	 * Analyses the specified string and returns the number of characters it contains and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text whose length will be returned. Spaces are considered as characters.
+	 * @param {ApiRange | ApiName | string} arg1 - The text whose length will be returned. Spaces are considered as characters.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LENB.js
 	 */
@@ -1814,7 +1910,7 @@
 	 * Converts all letters in a text string to lowercase.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text to convert to lowercase. The text characters that are not letters are not changed.
+	 * @param {ApiRange | ApiName | string} arg1 - The text to convert to lowercase. The text characters that are not letters are not changed.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOWER.js
 	 */
@@ -1825,9 +1921,9 @@
 	 * Returns the characters from the middle of a text string, given a starting position and length.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string from which to extract the characters.
-	 * @param {number} arg2 - The position of the first character to extract. The first text character is 1.
-	 * @param {number} arg3 - A number of the characters to extract.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string from which to extract the characters.
+	 * @param {ApiRange | ApiName | number} arg2 - The position of the first character to extract. The first text character is 1.
+	 * @param {ApiRange | ApiName | number} arg3 - A number of the characters to extract.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MID.js
 	 */
@@ -1838,9 +1934,9 @@
 	 * Extracts the characters from the specified string starting from any position and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string from which to extract the characters.
-	 * @param {number} arg2 - The position of the first character to extract. The first text character is 1.
-	 * @param {number} arg3 - A number of the characters to extract, based on bytes.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string from which to extract the characters.
+	 * @param {ApiRange | ApiName | number} arg2 - The position of the first character to extract. The first text character is 1.
+	 * @param {ApiRange | ApiName | number} arg3 - A number of the characters to extract, based on bytes.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MIDB.js
 	 */
@@ -1851,9 +1947,9 @@
 	 * Converts text to a number, in a locale-independent way.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The string representing a number to convert.
-	 * @param {?string} arg2 - The character used as the decimal separator in the string.
-	 * @param {?string} arg3 - The character used as the group separator in the string.
+	 * @param {ApiRange | ApiName | string} arg1 - The string representing a number to convert.
+	 * @param {ApiRange | ApiName | string} [arg2] - The character used as the decimal separator in the string.
+	 * @param {ApiRange | ApiName | string} [arg3] - The character used as the group separator in the string.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NUMBERVALUE.js
 	 */
@@ -1864,7 +1960,7 @@
 	 * Converts a text string to proper case: the first letter in each word to uppercase, and all other letters to lowercase.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text enclosed in quotation marks, a formula that returns text, or a reference to a cell containing text to partially capitalize.
+	 * @param {ApiRange | ApiName | string} arg1 - The text enclosed in quotation marks, a formula that returns text, or a reference to a cell containing text to partially capitalize.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PROPER.js
 	 */
@@ -1875,10 +1971,10 @@
 	 * Replaces part of a text string with a different text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text where some characters will be replaced.
-	 * @param {number} arg2 - The position of the character in the original text that will be replaced with the new text.
-	 * @param {number} arg3 - The number of characters in the original text that will be replaced.
-	 * @param {string} arg4 - The text that will replace characters in the original text.
+	 * @param {ApiRange | ApiName | string} arg1 - The text where some characters will be replaced.
+	 * @param {ApiRange | ApiName | number} arg2 - The position of the character in the original text that will be replaced with the new text.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of characters in the original text that will be replaced.
+	 * @param {ApiRange | ApiName | string} arg4 - The text that will replace characters in the original text.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/REPLACE.js
 	 */
@@ -1889,10 +1985,10 @@
 	 * Replaces a set of characters, based on the number of characters and the start position specified, with a new set of characters and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text where some characters will be replaced.
-	 * @param {number} arg2 - The position of the character in the original text that will be replaced with the new text.
-	 * @param {number} arg3 - The number of characters in the original text that will be replaced, based on bytes.
-	 * @param {string} arg4 - The text that will replace characters in the original text.
+	 * @param {ApiRange | ApiName | string} arg1 - The text where some characters will be replaced.
+	 * @param {ApiRange | ApiName | number} arg2 - The position of the character in the original text that will be replaced with the new text.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of characters in the original text that will be replaced, based on bytes.
+	 * @param {ApiRange | ApiName | string} arg4 - The text that will replace characters in the original text.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/REPLACEB.js
 	 */
@@ -1903,8 +1999,8 @@
 	 * Repeats text a given number of times. Use this function to fill a cell with a number of instances of a text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text that will be repeated.
-	 * @param {number} arg2 - A positive number specifying the number of times to repeat text.
+	 * @param {ApiRange | ApiName | string} arg1 - The text that will be repeated.
+	 * @param {ApiRange | ApiName | number} arg2 - A positive number specifying the number of times to repeat text.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/REPT.js
 	 */
@@ -1915,8 +2011,8 @@
 	 * Returns the specified number of characters from the end of a text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string that contains the characters to extract.
-	 * @param {?number} arg2 - A number of the substring characters. If it is omitted, the function will assume it to be 1.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string that contains the characters to extract.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number of the substring characters. If it is omitted, the function will assume it to be 1.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RIGHT.js
 	 */
@@ -1927,8 +2023,8 @@
 	 * Extracts a substring from a string starting from the right-most character, based on the specified number of characters and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text string that contains the characters to extract.
-	 * @param {?number} arg2 - A number of the substring characters, based on bytes.
+	 * @param {ApiRange | ApiName | string} arg1 - The text string that contains the characters to extract.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number of the substring characters, based on bytes.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RIGHTB.js
 	 */
@@ -1939,9 +2035,9 @@
 	 * Returns the number of the character at which a specific character or text string is first found, reading left to right (not case-sensitive).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text to find. The ? and * wildcard characters can be used. Use ~? and ~* to find the ? and * characters.
-	 * @param {string} arg2 - The text where to search for the specified text.
-	 * @param {?number} arg3 - The character number in the search text, counting from the left, at which to start searching. If omitted, 1 is used.
+	 * @param {ApiRange | ApiName | string} arg1 - The text to find. The ? and * wildcard characters can be used. Use ~? and ~* to find the ? and * characters.
+	 * @param {ApiRange | ApiName | string} arg2 - The text where to search for the specified text.
+	 * @param {ApiRange | ApiName | number} [arg3] - The character number in the search text, counting from the left, at which to start searching. If omitted, 1 is used.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SEARCH.js
 	 */
@@ -1952,9 +2048,9 @@
 	 * Returns the location of the specified substring in a string and is intended for languages that use the double-byte character set (DBCS) like Japanese, Chinese, Korean etc.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text to find. The ? and * wildcard characters can be used. Use ~? and ~* to find the ? and * characters.
-	 * @param {string} arg2 - The text where to search for the specified text.
-	 * @param {?number} arg3 - The character number in the search text, counting from the left, at which to start searching. If omitted, 1 is used.
+	 * @param {ApiRange | ApiName | string} arg1 - The text to find. The ? and * wildcard characters can be used. Use ~? and ~* to find the ? and * characters.
+	 * @param {ApiRange | ApiName | string} arg2 - The text where to search for the specified text.
+	 * @param {ApiRange | ApiName | number} [arg3] - The character number in the search text, counting from the left, at which to start searching. If omitted, 1 is used.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SEARCHB.js
 	 */
@@ -1965,10 +2061,10 @@
 	 * Replaces existing text with new text in a text string.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text or the reference to a cell containing text in which the characters will be substituted.
-	 * @param {string} arg2 - The existing text to replace. If the case of the original text does not match the case of text, the function will not replace the text.
-	 * @param {string} arg3 - The text to replace the original text with.
-	 * @param {?string} arg4 - Specifies which occurrence of the original text to replace. If omitted, every instance of the original text will be replaced.
+	 * @param {ApiRange | ApiName | string} arg1 - The text or the reference to a cell containing text in which the characters will be substituted.
+	 * @param {ApiRange | ApiName | string} arg2 - The existing text to replace. If the case of the original text does not match the case of text, the function will not replace the text.
+	 * @param {ApiRange | ApiName | string} arg3 - The text to replace the original text with.
+	 * @param {ApiRange | ApiName | string} [arg4] - Specifies which occurrence of the original text to replace. If omitted, every instance of the original text will be replaced.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUBSTITUTE.js
 	 */
@@ -1979,8 +2075,8 @@
 	 * Checks whether a value is text, and returns the text if it is, or returns double quotes (empty text) if it is not.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 - The value to test.
-	 * @returns {string}
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - The value to test.
+	 * @returns {ApiRange | ApiName | string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/T.js
 	 */
 	ApiWorksheetFunction.prototype.T = function (arg1) {
@@ -1990,8 +2086,8 @@
 	 * Converts a value to text in a specific number format.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string} arg1 - A number, a formula that evaluates to a numeric value, or a reference to a cell containing a numeric value.
-	 * @param {string} arg2 - A number format in the text form from the <b>Number format</b> combo box on the <b>Home</b> tab.
+	 * @param {ApiRange | ApiName | number | string} arg1 - A number, a formula that evaluates to a numeric value, or a reference to a cell containing a numeric value.
+	 * @param {ApiRange | ApiName | string} arg2 - A number format in the text form from the <b>Number format</b> combo box on the <b>Home</b> tab.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TEXT.js
 	 */
@@ -2002,7 +2098,7 @@
 	 * Removes all spaces from a text string except for single spaces between words.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text from which the spaces will be removed.
+	 * @param {ApiRange | ApiName | string} arg1 - The text from which the spaces will be removed.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TRIM.js
 	 */
@@ -2013,7 +2109,7 @@
 	 * Returns the Unicode character referenced by the given numeric value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The Unicode number representing a character.
+	 * @param {ApiRange | ApiName | number} arg1 - The Unicode number representing a character.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/UNICHAR.js
 	 */
@@ -2024,7 +2120,7 @@
 	 * Returns the number (code point) corresponding to the first character of the text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The character for which the Unicode value will be returned.
+	 * @param {ApiRange | ApiName | string} arg1 - The character for which the Unicode value will be returned.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/UNICODE.js
 	 */
@@ -2035,7 +2131,7 @@
 	 * Converts a text string to all uppercase letters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text which will be converted to uppercase, a reference or a text string.
+	 * @param {ApiRange | ApiName | string} arg1 - The text which will be converted to uppercase, a reference or a text string.
 	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/UPPER.js
 	 */
@@ -2046,7 +2142,7 @@
 	 * Converts a text string that represents a number to a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text enclosed in quotation marks or a reference to a cell containing the text which will be converted to a number.
+	 * @param {ApiRange | ApiName | string} arg1 - The text enclosed in quotation marks or a reference to a cell containing the text which will be converted to a number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VALUE.js
 	 */
@@ -2057,8 +2153,8 @@
 	 * Returns the average of the absolute deviations of data points from their mean.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[]} args - Up to 255 numeric values for which the average of the absolute deviations will be returned. The first argument is required,
-	 * subsequent arguments are optional. Arguments can be numbers or names, arrays or references that contain numbers.
+	 * @param {ApiRange | ApiName | number | number[]} args - Up to 255 numeric values for which the average of the absolute deviations will be returned. The first argument is required,
+	 * subsequent arguments are optional. Arguments can be numbers, names, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AVEDEV.js
 	 */
@@ -2069,8 +2165,8 @@
 	 * Returns the average (arithmetic mean) of the specified arguments.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[]} args - Up to 255 numeric values for which the average value will be returned. The first argument is required,
-	 * subsequent arguments are optional. Arguments can be numbers or names, arrays or references that contain numbers.
+	 * @param {ApiRange | ApiName | number | number[]} args - Up to 255 numeric values for which the average value will be returned. The first argument is required,
+	 * subsequent arguments are optional. Arguments can be numbers, names, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AVERAGE.js
 	 */
@@ -2081,9 +2177,8 @@
 	 * Returns the average (arithmetic mean) of the specified arguments, evaluating text and <b>false</b> in arguments as 0; <b>true</b> evaluates as 1.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[]} args - Up to 255 numeric values for which the average value will be returned. The first argument is required,
-	 * subsequent arguments are optional. Arguments can be numbers or names, arrays or references that contain numbers, text representations of numbers,
-	 * or logical values, such as <b>true</b> and <b>false</b>.
+	 * @param {ApiRange | ApiName | number | string | number[]} args - Up to 255 numeric values for which the average value will be returned. The first argument is required,
+	 * subsequent arguments are optional. Arguments can be numbers, text, or logical values, such as <b>true</b> and <b>false</b>, names, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AVERAGEA.js
 	 */
@@ -2094,9 +2189,9 @@
 	 * Finds the average (arithmetic mean) for the cells specified by a given condition or criteria.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The range of cells which will be evaluated.
-	 * @param {number | string} arg2 - The condition or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
-	 * @param {?ApiRange} arg3 - The actual cells to be used to find the average. If omitted, the cells in the range are used.
+	 * @param {ApiRange | ApiName} arg1 - The range of cells which will be evaluated.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The condition or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
+	 * @param {ApiRange | ApiName} [arg3] - The actual cells to be used to find the average. If omitted, the cells in the range are used.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AVERAGEIF.js
 	 */
@@ -2107,12 +2202,12 @@
 	 * Finds the average (arithmetic mean) for the cells specified by a given set of conditions or criteria.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The range of cells which will be evaluated.
-	 * @param {number | string} arg2 - The first condition or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
-	 * @param {?ApiRange} arg3 - The actual cells to be used to find the average. If omitted, the cells in the range are used.
-	 * @param {number | string} arg4 - Up to 127 additional conditions or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
+	 * @param {ApiRange | ApiName} arg1 - The range of cells which will be evaluated.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The first condition or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
+	 * @param {ApiRange | ApiName} [arg3] - The actual cells to be used to find the average. If omitted, the cells in the range are used.
+	 * @param {ApiRange | ApiName | number | string} [arg4] - Up to 127 additional conditions or criteria in the form of a number, expression, or text that defines which cells will be used to find the average.
 	 * These arguments are optional.
-	 * @param {?ApiRange} arg5 - Up to 127 actual ranges to be used to find the average. If omitted, the cells in the range are used. These arguments are optional.
+	 * @param {ApiRange | ApiName} [arg5] - Up to 127 actual ranges to be used to find the average. If omitted, the cells in the range are used. These arguments are optional.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AVERAGEIFS.js
 	 */
@@ -2123,11 +2218,11 @@
 	 * Returns the cumulative beta probability density function.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value between A and B at which to evaluate the function.
-	 * @param {number} arg2 - The alpha parameter of the distribution which must be greater than 0.
-	 * @param {number} arg3 - The beta parameter of the distribution which must be greater than 0.
-	 * @param {?number} arg4 - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
-	 * @param {?number} arg5 - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
+	 * @param {ApiRange | ApiName | number} arg1 - The value between A and B at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BETADIST.js
 	 */
@@ -2138,12 +2233,12 @@
 	 * Returns the beta probability distribution function.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value between A and B at which to evaluate the function.
-	 * @param {number} arg2 - The alpha parameter of the distribution which must be greater than 0.
-	 * @param {number} arg3 - The beta parameter of the distribution which must be greater than 0.
-	 * @param {boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability density function (<b>false</b>).
-	 * @param {?number} arg5 - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
-	 * @param {?number} arg6 - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
+	 * @param {ApiRange | ApiName | number} arg1 - The value between A and B at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability density function (<b>false</b>).
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg6] - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BETA_DIST.js
 	 */
@@ -2154,11 +2249,11 @@
 	 * Returns the inverse of the cumulative beta probability density function (BETA_DIST).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the beta distribution.
-	 * @param {number} arg2 - The alpha parameter of the distribution which must be greater than 0.
-	 * @param {number} arg3 - The beta parameter of the distribution which must be greater than 0.
-	 * @param {?number} arg4 - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
-	 * @param {?number} arg5 - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the beta distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BETA_INV.js
 	 */
@@ -2169,11 +2264,11 @@
 	 * Returns the inverse of the cumulative beta probability density function for a specified beta distribution (BETADIST).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the beta distribution.
-	 * @param {number} arg2 - The alpha parameter of the distribution which must be greater than 0.
-	 * @param {number} arg3 - The beta parameter of the distribution which must be greater than 0.
-	 * @param {?number} arg4 - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
-	 * @param {?number} arg5 - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the beta distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution which must be greater than 0.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional lower bound to the interval of x (A). If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional upper bound to the interval of x (B). If omitted, it is equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BETAINV.js
 	 */
@@ -2184,10 +2279,10 @@
 	 * Returns the individual term binomial distribution probability.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of successes in trials.
-	 * @param {number} arg2 - The number of independent trials.
-	 * @param {number} arg3 - The probability of success on each trial.
-	 * @param {boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability mass function (<b>false</b>).
+	 * @param {ApiRange | ApiName | number} arg1 - The number of successes in trials.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of independent trials.
+	 * @param {ApiRange | ApiName | number} arg3 - The probability of success on each trial.
+	 * @param {ApiRange | ApiName | boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability mass function (<b>false</b>).
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BINOMDIST.js
 	 */
@@ -2198,10 +2293,10 @@
 	 * Returns the individual term binomial distribution probability.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of successes in trials.
-	 * @param {number} arg2 - The number of independent trials.
-	 * @param {number} arg3 - The probability of success on each trial.
-	 * @param {boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability mass function (<b>false</b>).
+	 * @param {ApiRange | ApiName | number} arg1 - The number of successes in trials.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of independent trials.
+	 * @param {ApiRange | ApiName | number} arg3 - The probability of success on each trial.
+	 * @param {ApiRange | ApiName | boolean} arg4 - Specifies if this is the cumulative distribution function (<b>true</b>) or the probability mass function (<b>false</b>).
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BINOM_DIST.js
 	 */
@@ -2212,10 +2307,10 @@
 	 * Returns the probability of a trial result using a binomial distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of independent trials.
-	 * @param {number} arg2 - The probability of success on each trial.
-	 * @param {number} arg3 - The minimum number of successes in the trials to calculate probability for, a numeric value greater than or equal to 0.
-	 * @param {?number} arg4 - The maximum number of successes in the trials to calculate probability for,
+	 * @param {ApiRange | ApiName | number} arg1 - The number of independent trials.
+	 * @param {ApiRange | ApiName | number} arg2 - The probability of success on each trial.
+	 * @param {ApiRange | ApiName | number} arg3 - The minimum number of successes in the trials to calculate probability for, a numeric value greater than or equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg4] - The maximum number of successes in the trials to calculate probability for,
 	 * a numeric value greater than the minimum number of successes and less than or equal to trials.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BINOM_DIST_RANGE.js
@@ -2227,9 +2322,9 @@
 	 * Returns the smallest value for which the cumulative binomial distribution is greater than or equal to a criterion value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of Bernoulli trials.
-	 * @param {number} arg2 - The probability of success on each trial, a number between 0 and 1 inclusive.
-	 * @param {number} arg3 - The criterion value, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of Bernoulli trials.
+	 * @param {ApiRange | ApiName | number} arg2 - The probability of success on each trial, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg3 - The criterion value, a number between 0 and 1 inclusive.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BINOM_INV.js
 	 */
@@ -2240,8 +2335,8 @@
 	 * Returns the right-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
-	 * @param {number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHIDIST.js
 	 */
@@ -2252,8 +2347,8 @@
 	 * Returns the inverse of the right-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
-	 * @param {number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHIINV.js
 	 */
@@ -2264,9 +2359,9 @@
 	 * Returns the left-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
-	 * @param {number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {boolean} arg3 - A logical value that determines the form of the function. If this argument is equal to <b>true</b>,
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value that determines the form of the function. If this argument is equal to <b>true</b>,
 	 * the cumulative distribution function is returned; if  it is equal to <b>false</b>, the probability density function is returned.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHISQ_DIST.js
@@ -2278,8 +2373,8 @@
 	 * Returns the right-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
-	 * @param {number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which the distribution will be evaluated, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHISQ_DIST_RT.js
 	 */
@@ -2290,8 +2385,8 @@
 	 * Returns the inverse of the left-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
-	 * @param {number} arg2- The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2- The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHISQ_INV.js
 	 */
@@ -2302,8 +2397,8 @@
 	 * Returns the inverse of the right-tailed probability of the chi-squared distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
-	 * @param {number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the chi-squared distribution, a value between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHISQ_INV_RT.js
 	 */
@@ -2329,8 +2424,8 @@
 	 * Returns the test for independence: the value from the chi-squared distribution for the statistic and the appropriate degrees of freedom.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 - The range of data that contains observations to test against expected values.
-	 * @param {any} arg2 - The range of data that contains the ratio of the product of row totals and column totals to the grand total.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - The range of data that contains observations to test against expected values.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg2 - The range of data that contains the ratio of the product of row totals and column totals to the grand total.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHITEST.js
 	 */
@@ -2353,9 +2448,9 @@
 	 * Returns the confidence interval for a population mean, using a normal distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
-	 * @param {number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
-	 * @param {number} arg3 - The sample size.
+	 * @param {ApiRange | ApiName | number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
+	 * @param {ApiRange | ApiName | number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The sample size.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CONFIDENCE.js
 	 */
@@ -2366,9 +2461,9 @@
 	 * Returns the confidence interval for a population mean, using a normal distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
-	 * @param {number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
-	 * @param {number} arg3 - The sample size.
+	 * @param {ApiRange | ApiName | number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
+	 * @param {ApiRange | ApiName | number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The sample size.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CONFIDENCE_NORM.js
 	 */
@@ -2379,9 +2474,9 @@
 	 * Returns the confidence interval for a population mean, using a Student's t distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
-	 * @param {number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
-	 * @param {number} arg3 - The sample size.
+	 * @param {ApiRange | ApiName | number} arg1 - The significance level used to compute the confidence level, a number greater than 0 and less than 1.
+	 * @param {ApiRange | ApiName | number} arg2 - The population standard deviation for the data range and is assumed to be known. This value must be greater than 0.
+	 * @param {ApiRange | ApiName | number} arg3 - The sample size.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CONFIDENCE_T.js
 	 */
@@ -2404,7 +2499,8 @@
 	 * Counts a number of cells in a range that contains numbers ignoring empty cells or those contaning text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string | array | ApiRange} args - Up to 255 items, cell references, or ranges to count numbers. The first argument is required, subsequent arguments are optional.
+	 * @param {string | number | boolean | Array<string | number | boolean> | ApiRange | ApiName} args - Up to 255 items, or ranges to count numbers.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values and text representations of numbers, ranges, names, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUNT.js
 	 */
@@ -2415,7 +2511,8 @@
 	 * Counts a number of cells in a range that are not empty.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string | array | ApiRange} args - Up to 255 items, cell references, or ranges to count values. The first argument is required, subsequent arguments are optional.
+	 * @param {string | number | boolean | Array<string | number | boolean> | ApiRange | ApiName} args - Up to 255 items, or ranges to count values.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values, text strings, ranges, names, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUNTA.js
 	 */
@@ -2426,7 +2523,7 @@
 	 * Counts a number of empty cells in a specified range of cells.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The range to count the empty cells.
+	 * @param {ApiRange | ApiName} arg1 - The range to count the empty cells.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUNTBLANK.js
 	 */
@@ -2437,8 +2534,8 @@
 	 * Counts a number of cells within a range that meet the given condition.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The range of cells to count nonblank cells.
-	 * @param {number | string} arg2 - The condition in the form of a number, expression, or text that defines which cells will be counted.
+	 * @param {ApiRange | ApiName} arg1 - The range of cells to count nonblank cells.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The condition in the form of a number, expression, or text that defines which cells will be counted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUNTIF.js
 	 */
@@ -2449,10 +2546,10 @@
 	 * Counts a number of cells specified by a given set of conditions or criteria.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The first range of cells to count nonblank cells.
-	 * @param {number | string} arg2 - The first condition in the form of a number, expression, or text that defines which cells will be counted.
-	 * @param {ApiRange} arg3 - Up to 127 additional ranges of cells to count nonblank cells. This argument is optional.
-	 * @param {number | string} arg4 - Up to 127 additional conditions in the form of a number, expression, or text that define which cells will be counted.
+	 * @param {ApiRange | ApiName} arg1 - The first range of cells to count nonblank cells.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The first condition in the form of a number, expression, or text that defines which cells will be counted.
+	 * @param {ApiRange | ApiName} arg3 - Up to 127 additional ranges of cells to count nonblank cells. This argument is optional.
+	 * @param {ApiRange | ApiName | number | string} arg4 - Up to 127 additional conditions in the form of a number, expression, or text that define which cells will be counted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUNTIFS.js
 	 */
@@ -2502,9 +2599,9 @@
 	 * Returns the smallest value for which the cumulative binomial distribution is greater than or equal to a criterion value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of Bernoulli trials.
-	 * @param {number} arg2 - The probability of success on each trial, a number between 0 and 1 inclusive.
-	 * @param {number} arg3 - The criterion value, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of Bernoulli trials.
+	 * @param {ApiRange | ApiName | number} arg2 - The probability of success on each trial, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg3 - The criterion value, a number between 0 and 1 inclusive.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CRITBINOM.js
 	 */
@@ -2515,7 +2612,8 @@
 	 * Returns the sum of squares of deviations of data points from their sample mean.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} args - Up to 255 numerical values for which to find the sum of squares of deviations. The first argument is required, subsequent arguments are optional. 
+	 * @param {ApiRange | ApiName | number | number[]} args - Up to 255 numerical values for which to find the sum of squares of deviations.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DEVSQ.js
 	 */
@@ -2526,9 +2624,9 @@
 	 * Returns the exponential distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value of the x function, a nonnegative number.
-	 * @param {number} arg2 - The lambda parameter value, a positive number.
-	 * @param {boolean} arg3 - A logical value that determines the function form. If this parameter is <b>true</b>,
+	 * @param {ApiRange | ApiName | number} arg1 - The value of the x function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The lambda parameter value, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value that determines the function form. If this parameter is <b>true</b>,
 	 * the function will return the cumulative distribution function, if it is <b>false</b>, it will return the probability density function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EXPON_DIST.js
@@ -2540,9 +2638,9 @@
 	 * Returns the exponential distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value of the x function, a nonnegative number.
-	 * @param {number} arg2 - The lambda parameter value, a positive number.
-	 * @param {boolean} arg3 - A logical value that determines the function form. If this parameter is <b>true</b>,
+	 * @param {ApiRange | ApiName | number} arg1 - The value of the x function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The lambda parameter value, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value that determines the function form. If this parameter is <b>true</b>,
 	 * the function will return the cumulative distribution function, if it is <b>false</b>, it will return the probability density function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EXPONDIST.js
@@ -2554,10 +2652,10 @@
 	 * Returns the (left-tailed) F probability distribution (degree of diversity) for two data sets.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a nonnegative number.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {boolean} arg4 - A logical value that determines the function form. If this parameter is <b>true</b>,
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value that determines the function form. If this parameter is <b>true</b>,
 	 * the function will return the cumulative distribution function, if it is <b>false</b>, it will return the probability density function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/F_DIST.js
@@ -2569,9 +2667,9 @@
 	 * Returns the (right-tailed) F probability distribution (degree of diversity) for two data sets.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a nonnegative number.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FDIST.js
 	 */
@@ -2582,9 +2680,9 @@
 	 * Returns the (right-tailed) F probability distribution (degree of diversity) for two data sets.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a nonnegative number.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/F_DIST_RT.js
 	 */
@@ -2595,9 +2693,9 @@
 	 * Returns the inverse of the (left-tailed) F probability distribution: if p = F.DIST(x,...), then F.INV(p,...) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/F_INV.js
 	 */
@@ -2608,9 +2706,9 @@
 	 * Returns the inverse of the (right-tailed) F probability distribution: if p = FDIST(x,...), then FINV(p,...) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FINV.js
 	 */
@@ -2621,9 +2719,9 @@
 	 * Returns the inverse of the (right-tailed) F probability distribution: if p = F.DIST.RT(x,...), then F.INV.RT(p,...) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
-	 * @param {number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the F cumulative distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The numerator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
+	 * @param {ApiRange | ApiName | number} arg3 - The denominator degrees of freedom, a number between 1 and 10^10, excluding 10^10.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/F_INV_RT.js
 	 */
@@ -2634,7 +2732,7 @@
 	 * Returns the Fisher transformation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for the transformation, a number between -1 and 1, excluding -1 and 1.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for the transformation, a number between -1 and 1, excluding -1 and 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FISHER.js
 	 */
@@ -2645,7 +2743,7 @@
 	 * Returns the inverse of the Fisher transformation: if y = FISHER(x), then FISHERINV(y) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value to perform the inverse of the transformation.
+	 * @param {ApiRange | ApiName | number} arg1 - The value to perform the inverse of the transformation.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FISHERINV.js
 	 */
@@ -2657,7 +2755,7 @@
 	//  * Calculates, or predicts, a future value along a linear trend by using existing values.
 	//  * @memberof ApiWorksheetFunction
 	//  * @typeofeditors ["CSE"]
-	//  * @param {number} arg1 Is the data point for which you want to predict a value and must be a numeric value.
+	//  * @param {ApiRange | ApiName | number} arg1 Is the data point for which you want to predict a value and must be a numeric value.
 	//  * @param {any} arg2 Is the dependent array or range of numeric data.
 	//  * @param {any} arg3 Is the independent array or range of numeric data. The variance of Known_x's must not be zero.
 	//  * @returns {number | string | boolean}
@@ -2682,14 +2780,14 @@
 	 * Сalculates or predicts a future value based on existing (historical) values by using the AAA version of the Exponential Smoothing (ETS) algorithm.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A date for which a new value will be predicted. Must be after the last date in the timeline.
-	 * @param {ApiRange | number[]} arg2 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
-	 * @param {ApiRange} arg3 - A range of date/time values that correspond to the historical values.
+	 * @param {ApiRange | ApiName | number} arg1 - A date for which a new value will be predicted. Must be after the last date in the timeline.
+	 * @param {ApiRange | ApiName | number[]} arg2 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
+	 * @param {ApiRange | ApiName} arg3 - A range of date/time values that correspond to the historical values.
 	 * The timeline range must be of the same size as the second argument. Date/time values must have a constant step between them and can't be zero.
-	 * @param {?number} arg4 - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
 	 * The 0 value means no seasonality.
-	 * @param {?number} arg5 - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
-	 * @param {Aggregation} arg6 - An optional numeric value to aggregate multiple values with the same time stamp.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
+	 * @param {ApiRange | ApiName | number} [arg6] - An optional numeric value to aggregate multiple values with the same time stamp.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FORECAST_ETS.js
 	 */
@@ -2700,15 +2798,15 @@
 	 * Returns a confidence interval for the forecast value at the specified target date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A date for which a new value will be predicted. Must be after the last date in the timeline.
-	 * @param {ApiRange | number[]} arg2 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
-	 * @param {ApiRange} arg3 - A range of date/time values that correspond to the historical values.
+	 * @param {ApiRange | ApiName | number} arg1 - A date for which a new value will be predicted. Must be after the last date in the timeline.
+	 * @param {ApiRange | ApiName | number[]} arg2 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
+	 * @param {ApiRange | ApiName} arg3 - A range of date/time values that correspond to the historical values.
 	 * The timeline range must be of the same size as the second argument. Date/time values must have a constant step between them and can't be zero.
-	 * @param {?number} arg4 - A number between 0 and 1 that shows the confidence level for the calculated confidence interval. The default value is .95.
-	 * @param {?number} arg5 - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
+	 * @param {ApiRange | ApiName | number} [arg4] - A number between 0 and 1 that shows the confidence level for the calculated confidence interval. The default value is .95.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
 	 * The 0 value means no seasonality.
-	 * @param {?number} arg6 - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
-	 * @param {Aggregation} arg7 - An optional numeric value to aggregate multiple values with the same time stamp.
+	 * @param {ApiRange | ApiName | number} [arg6] - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
+	 * @param {ApiRange | ApiName | number} [arg7] - An optional numeric value to aggregate multiple values with the same time stamp.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FORECAST_ETS_CONFINT.js
 	 */
@@ -2719,11 +2817,11 @@
 	 * Returns the length of the repetitive pattern an application detects for the specified time series.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
-	 * @param {ApiRange} arg2 - A range of date/time values that correspond to the historical values.
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
+	 * @param {ApiRange | ApiName} arg2 - A range of date/time values that correspond to the historical values.
 	 * The timeline range must be of the same size as the second argument. Date/time values must have a constant step between them and can't be zero.
-	 * @param {?number} arg3 - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
-	 * @param {Aggregation} arg4 - An optional numeric value to aggregate multiple values with the same time stamp.
+	 * @param {ApiRange | ApiName | number} [arg3] - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional numeric value to aggregate multiple values with the same time stamp.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FORECAST_ETS_SEASONALITY.js
 	 */
@@ -2749,14 +2847,14 @@
 	 * Returns the requested statistic for the forecast.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
-	 * @param {ApiRange} arg2 - A range of date/time values that correspond to the historical values.
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range or an array of numeric data that determines the historical values for which a new point will be predicted.
+	 * @param {ApiRange | ApiName} arg2 - A range of date/time values that correspond to the historical values.
 	 * The timeline range must be of the same size as the second argument. Date/time values must have a constant step between them and can't be zero.
-	 * @param {StatisticType} arg3 - A number between 1 and 8, indicating which statistic will be returned for the calculated forecast.
-	 * @param {?number} arg4 - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
+	 * @param {ApiRange | ApiName | number} arg3 - A number between 1 and 8, indicating which statistic will be returned for the calculated forecast.
+	 * @param {ApiRange | ApiName | number} [arg4] - An optional numeric value that specifies the length of the seasonal pattern. The default value of 1 indicates seasonality is detected automatically.
 	 * The 0 value means no seasonality.
-	 * @param {?number} arg5 - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
-	 * @param {Aggregation} arg6 - An optional numeric value to aggregate multiple values with the same time stamp.
+	 * @param {ApiRange | ApiName | number} [arg5] - An optional numeric value to handle missing values. The default value of 1 replaces missing values by interpolation, and 0 replaces them with zeros.
+	 * @param {ApiRange | ApiName | number} [arg6] - An optional numeric value to aggregate multiple values with the same time stamp.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FORECAST_ETS_STAT.js
 	 */
@@ -2768,7 +2866,7 @@
 	//  * Calculates, or predicts, a future value along a linear trend by using existing values.
 	//  * @memberof ApiWorksheetFunction
 	//  * @typeofeditors ["CSE"]
-	//  * @param {number} arg1 Is the data point for which you want to predict a value and must be a numeric value.
+	//  * @param {ApiRange | ApiName | number} arg1 Is the data point for which you want to predict a value and must be a numeric value.
 	//  * @param {any} arg2 Is the dependent array or range of numeric data.
 	//  * @param {any} arg3 Is the independent array or range of numeric data. The variance of Known_x's must not be zero.
 	//  * @returns {number | string | boolean}
@@ -2780,8 +2878,8 @@
 	 * Calculates how often values occur within a range of values and then returns the first value of the returned vertical array of numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - An array of values or the selected range for which the frequencies will be counted (blanks and text are ignored).
-	 * @param {ApiRange | number[]} arg2 - An array of intervals or the selected range into which the values in the first array will be grouped.
+	 * @param {ApiRange | ApiName | number[]} arg1 - An array of values or the selected range for which the frequencies will be counted (blanks and text are ignored).
+	 * @param {ApiRange | ApiName | number[]} arg2 - An array of intervals or the selected range into which the values in the first range will be grouped.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FREQUENCY.js
 	 */
@@ -2816,7 +2914,7 @@
 	 * Returns the gamma function value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the gamma function will be calculated.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the gamma function will be calculated.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMA.js
 	 */
@@ -2827,10 +2925,10 @@
 	 * Returns the gamma distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which the distribution will be calculated, a nonnegative number.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
-	 * @param {boolean} arg4 - A logical value (<b>true</b>> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which the distribution will be calculated, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b>> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function. If it is <b>false</b>, the function returns the probability density function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMA_DIST.js
@@ -2842,10 +2940,10 @@
 	 * Returns the gamma distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which the distribution will be calculated, a nonnegative number.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
-	 * @param {boolean} arg4 - A logical value (<b>true</b>> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which the distribution will be calculated, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b>> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function. If it is <b>false</b>, the function returns the probability density function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMADIST.js
@@ -2857,9 +2955,9 @@
 	 * Returns the inverse of the gamma cumulative distribution: if p = GAMMA.DIST(x,...), then GAMMA.INV(p,...) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The probability associated with the gamma distribution, a number between 0 and 1, inclusive.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The probability associated with the gamma distribution, a number between 0 and 1, inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMA_INV.js
 	 */
@@ -2870,9 +2968,9 @@
 	 * Returns the inverse of the gamma cumulative distribution: if p = GAMMADIST(x,...), then GAMMAINV(p,...) = x.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The probability associated with the gamma distribution, a number between 0 and 1, inclusive.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The probability associated with the gamma distribution, a number between 0 and 1, inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number. If this parameter is equal to 1, the function returns the standard gamma distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMAINV.js
 	 */
@@ -2883,7 +2981,7 @@
 	 * Returns the natural logarithm of the gamma function.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the natural logarithm of the gamma function will be calculated, a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the natural logarithm of the gamma function will be calculated, a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMALN.js
 	 */
@@ -2894,7 +2992,7 @@
 	 * Returns the natural logarithm of the gamma function.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the natural logarithm of the gamma function will be calculated, a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the natural logarithm of the gamma function will be calculated, a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAMMALN_PRECISE.js
 	 */
@@ -2905,7 +3003,7 @@
 	 * Calculates the probability that a member of a standard normal population will fall between the mean and arg1 standard deviations from the mean.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the distribution will be calculated.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the distribution will be calculated.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GAUSS.js
 	 */
@@ -2913,10 +3011,11 @@
 		return this.private_calculateFunction("GAUSS", arguments);
 	};
 	/**
-	 * Returns the geometric mean of an array or range of positive numeric data.
+	 * Returns the geometric mean of positive numeric data.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} args - Up to 255 numeric values for which the geometric mean will be calculated.
+	 * @param {ApiRange | number[] | ApiName} args - Up to 255 numeric values for which the geometric mean will be calculated.
+	 * Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GEOMEAN.js
 	 */
@@ -2927,11 +3026,11 @@
 	 * Calculates predicted exponential growth by using existing data.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - The set of y-values from the <em>y = b*m^x</em> equation, an array or range of positive numbers.
-	 * @param {?ApiRange | number[]} arg2 - An optional set of x-values from the <em>y = b*m^x</em> equation, an array or range of positive numbers that has the same size as the set of y-values.
-	 * @param {?ApiRange | number[]} arg3 - New x-values for which the function will return the corresponding y-values.
-	 * @param {?boolean} arg4 - A logical value: the constant <em>b</em> is calculated normally if this parameter is set to <b>true</b>,
-	 * and <em>b</em> is set equal to 1 if the parameter is <b>false</b> or omitted.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The set of y-values from the *y = b*m^x* equation, an array or range of positive numbers.
+	 * @param {ApiRange | ApiName | number[]} [arg2] - An optional set of x-values from the *y = b*m^x* equation, an array or range of positive numbers that has the same size as the set of y-values.
+	 * @param {ApiRange | ApiName | number[]} [arg3] - New x-values for which the function will return the corresponding y-values.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value: the constant *b* is calculated normally if this parameter is set to <b>true</b>,
+	 * and *b* is set equal to 1 if the parameter is <b>false</b> or omitted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GROWTH.js
 	 */
@@ -2942,7 +3041,8 @@
 	 * Returns the harmonic mean of a data set of positive numbers: the reciprocal of the arithmetic mean of reciprocals.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} args - Up to 255 numeric values for which the harmonic mean will be calculated.
+	 * @param {ApiRange | number[] | ApiName} args - Up to 255 numeric values for which the harmonic mean will be calculated.
+	 * Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HARMEAN.js
 	 */
@@ -2953,10 +3053,10 @@
 	 * Returns the hypergeometric distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of successes in the sample.
-	 * @param {number} arg2 - The size of the sample.
-	 * @param {number} arg3 - The number of successes in the population.
-	 * @param {number} arg4 - The population size.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of successes in the sample.
+	 * @param {ApiRange | ApiName | number} arg2 - The size of the sample.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of successes in the population.
+	 * @param {ApiRange | ApiName | number} arg4 - The population size.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HYPGEOMDIST.js
 	 */
@@ -2967,11 +3067,11 @@
 	 * Returns the hypergeometric distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of successes in the sample.
-	 * @param {number} arg2 - The size of the sample.
-	 * @param {number} arg3 - The number of successes in the population.
-	 * @param {number} arg4 - The population size.
-	 * @param {boolean} arg5 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of successes in the sample.
+	 * @param {ApiRange | ApiName | number} arg2 - The size of the sample.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of successes in the population.
+	 * @param {ApiRange | ApiName | number} arg4 - The population size.
+	 * @param {ApiRange | ApiName | boolean} arg5 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function. If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HYPGEOM_DIST.js
@@ -2995,7 +3095,8 @@
 	 * Returns the kurtosis of a data set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} args - Up to 255 numeric values for which the kurtosis will be calculated.
+	 * @param {ApiRange | number[] | ApiName} args - Up to 255 numeric values for which the kurtosis will be calculated.
+	 * Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/KURT.js
 	 */
@@ -3006,8 +3107,8 @@
 	 * Returns the k-th largest value in a data set. For example, the fifth largest number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - The array or range of data for which the k-th largest value will be determined.
-	 * @param {number} arg2 - The position (from the largest) in the array or cell range of data to return.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data for which the k-th largest value will be determined.
+	 * @param {ApiRange | ApiName | number} arg2 - The position (from the largest) in the array or cell range of data to return.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LARGE.js
 	 */
@@ -3018,12 +3119,12 @@
 	 * Returns statistics that describe a linear trend matching known data points, by fitting a straight line using the least squares method.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The set of y-values from the <em>y = mx + b</em> equation.
-	 * @param {?ApiRange} arg2 - An optional set of x-values from the <em>y = mx + b</em> equation.
-	 * @param {?boolean} arg3 - A logical value: the constant <em>b</em> is calculated normally if this parameter is set to <b>true</b> or omitted,
-	 * and <em>b</em> is set equal to 0 if the parameter is <b>false</b>.
-	 * @param {?boolean} arg4 - A logical value: return additional regression statistics if this parameter is set to <b>true</b>,
-	 * and return m-coefficients and the constant <em>b</em> if the parameter is <b>false</b> or omitted.
+	 * @param {ApiRange | ApiName} arg1 - The set of y-values from the *y = mx + b* equation.
+	 * @param {ApiRange | ApiName} [arg2] - An optional set of x-values from the *y = mx + b* equation.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - A logical value: the constant *b* is calculated normally if this parameter is set to <b>true</b> or omitted,
+	 * and *b* is set equal to 0 if the parameter is <b>false</b>.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value: return additional regression statistics if this parameter is set to <b>true</b>,
+	 * and return m-coefficients and the constant *b* if the parameter is <b>false</b> or omitted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LINEST.js
 	 */
@@ -3034,12 +3135,12 @@
 	 * Returns statistics that describe an exponential curve matching known data points.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 - The set of y-values from the <em>y = b*m^x</em> equation.
-	 * @param {?ApiRange} arg2 - An optional set of x-values from the <em>y = b*m^x</em> equation.
-	 * @param {?boolean} arg3 - A logical value: the constant <em>b</em> is calculated normally if this parameter is set to <b>true</b> or omitted,
-	 * and <em>b</em> is set equal to 1 if the parameter is <b>false</b>.
-	 * @param {?boolean} arg4 - A logical value: return additional regression statistics if this parameter is set to <b>true</b>,
-	 * and return m-coefficients and the constant <em>b</em> if the parameter is <b>false</b> or omitted.
+	 * @param {ApiRange | ApiName | ApiRange} arg1 - The set of y-values from the *y = b*m^x* equation.
+	 * @param {ApiRange | ApiName | ApiRange} [arg2] - An optional set of x-values from the *y = b*m^x* equation.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - A logical value: the constant *b* is calculated normally if this parameter is set to <b>true</b> or omitted,
+	 * and *b* is set equal to 1 if the parameter is <b>false</b>.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value: return additional regression statistics if this parameter is set to <b>true</b>,
+	 * and return m-coefficients and the constant *b* if the parameter is <b>false</b> or omitted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOGEST.js
 	 */
@@ -3050,9 +3151,9 @@
 	 * Returns the inverse of the lognormal cumulative distribution function of x, where ln(x) is normally distributed with the specified parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the lognormal distribution, a number between 0 and 1, inclusive.
-	 * @param {number} arg2 - The mean of ln(x).
-	 * @param {number} arg3 - The standard deviation of ln(x), a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the lognormal distribution, a number between 0 and 1, inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The mean of ln(x).
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of ln(x), a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOGINV.js
 	 */
@@ -3063,10 +3164,10 @@
 	 * Returns the lognormal distribution of x, where ln(x) is normally distributed with the specified parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a positive number.
-	 * @param {number} arg2 - The mean of ln(x).
-	 * @param {number} arg3 - The standard deviation of ln(x), a positive number.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a positive number.
+	 * @param {ApiRange | ApiName | number} arg2 - The mean of ln(x).
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of ln(x), a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability density function.
 	 * @returns {number}
@@ -3079,9 +3180,9 @@
 	 * Returns the inverse of the lognormal cumulative distribution function of x, where ln(x) is normally distributed with the specified parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability associated with the lognormal distribution, a number between 0 and 1, inclusive.
-	 * @param {number} arg2 - The mean of ln(x).
-	 * @param {number} arg3 - The standard deviation of ln(x), a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability associated with the lognormal distribution, a number between 0 and 1, inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The mean of ln(x).
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of ln(x), a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOGNORM_INV.js
 	 */
@@ -3092,9 +3193,9 @@
 	 * Returns the cumulative lognormal distribution of x, where ln(x) is normally distributed with the specified parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a positive number.
-	 * @param {number} arg2 - The mean of ln(x).
-	 * @param {number} arg3 - The standard deviation of ln(x), a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a positive number.
+	 * @param {ApiRange | ApiName | number} arg2 - The mean of ln(x).
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of ln(x), a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOGNORMDIST.js
 	 */
@@ -3105,8 +3206,8 @@
 	 * Returns the largest value in a set of values. Ignores logical values and text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | array | ApiRange} args - Up to 255 numeric values for which the largest number will be returned.
-	 * The first argument is required, subsequent arguments are optional.
+	 * @param {number | number[] | ApiRange | ApiName} args - Up to 255 numeric values for which the largest number will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MAX.js
 	 */
@@ -3117,8 +3218,8 @@
 	 * Returns the largest value in a set of values. Does not ignore logical values and text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | array | ApiRange} args - Up to 255 values (number, text, logical value) for which the largest value will be returned.
-	 * The first argument is required, subsequent arguments are optional.
+	 * @param {number | string | boolean | Array<number | string | boolean> | ApiRange | ApiName} args - Up to 255 values (number, text, logical value) for which the largest value will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values and text representations of numbers, names, ranges, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MAXA.js
 	 */
@@ -3129,8 +3230,8 @@
 	 * Returns the median, or the number in the middle of the set of given numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | array | ApiRange} args - Up to 255 numeric values for which the median will be calculated.
-	 * The first argument is required, subsequent arguments are optional.
+	 * @param {number | number[] | ApiRange | ApiName} args - Up to 255 numeric values for which the median will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MEDIAN.js
 	 */
@@ -3141,8 +3242,8 @@
 	 * Returns the smallest number in a set of values. Ignores logical values and text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | array | ApiRange} args - Up to 255 numeric values for which the smallest number will be returned.
-	 * The first argument is required, subsequent arguments are optional.
+	 * @param {number | number[] | ApiRange | ApiName} args - Up to 255 numeric values for which the smallest number will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MIN.js
 	 */
@@ -3153,8 +3254,8 @@
 	 * Returns the smallest value in a set of values. Does not ignore logical values and text.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | array | ApiRange} args - Up to 255 values (number, text, logical value) for which the smallest value will be returned.
-	 * The first argument is required, subsequent arguments are optional.
+	 * @param {number | string | boolean | Array<number | string | boolean> | ApiRange | ApiName} args - Up to 255 values (number, text, logical value) for which the smallest value will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values and text representations of numbers, names, ranges, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MINA.js
 	 */
@@ -3195,9 +3296,9 @@
 	 * Returns the negative binomial distribution, the probability that there will be the specified number of failures before the last success, with the specified probability of a success.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of failures.
-	 * @param {number} arg2 - The threshold number of successes.
-	 * @param {number} arg3 - The probability of a success; a number between 0 and 1.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of failures.
+	 * @param {ApiRange | ApiName | number} arg2 - The threshold number of successes.
+	 * @param {ApiRange | ApiName | number} arg3 - The probability of a success; a number between 0 and 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NEGBINOMDIST.js
 	 */
@@ -3208,10 +3309,10 @@
 	 * Returns the negative binomial distribution, the probability that there will be the specified number of failures before the last success, with the specified probability of a success.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of failures.
-	 * @param {number} arg2 - The threshold number of successes.
-	 * @param {number} arg3 - The probability of a success; a number between 0 and 1.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of failures.
+	 * @param {ApiRange | ApiName | number} arg2 - The threshold number of successes.
+	 * @param {ApiRange | ApiName | number} arg3 - The probability of a success; a number between 0 and 1.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability density function.
 	 * @returns {number}
@@ -3224,10 +3325,10 @@
 	 * Returns the normal cumulative distribution for the specified mean and standard deviation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the distribution will be returned.
-	 * @param {number} arg2 - The arithmetic mean of the distribution.
-	 * @param {number} arg3 - The standard deviation of the distribution, a positive number.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the distribution will be returned.
+	 * @param {ApiRange | ApiName | number} arg2 - The arithmetic mean of the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
@@ -3240,10 +3341,10 @@
 	 * Returns the normal distribution for the specified mean and standard deviation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the distribution will be returned.
-	 * @param {number} arg2 - The arithmetic mean of the distribution.
-	 * @param {number} arg3 - The standard deviation of the distribution, a positive number.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the distribution will be returned.
+	 * @param {ApiRange | ApiName | number} arg2 - The arithmetic mean of the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
@@ -3256,9 +3357,9 @@
 	 * Returns the inverse of the normal cumulative distribution for the specified mean and standard deviation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - The arithmetic mean of the distribution.
-	 * @param {number} arg3 - The standard deviation of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The arithmetic mean of the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of the distribution, a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NORMINV.js
 	 */
@@ -3269,9 +3370,9 @@
 	 * Returns the inverse of the normal cumulative distribution for the specified mean and standard deviation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - The arithmetic mean of the distribution.
-	 * @param {number} arg3 - The standard deviation of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - The arithmetic mean of the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of the distribution, a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NORM_INV.js
 	 */
@@ -3282,7 +3383,7 @@
 	 * Returns the standard normal cumulative distribution (has a mean of zero and a standard deviation of one).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the distribution will be returned.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the distribution will be returned.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NORMSDIST.js
 	 */
@@ -3293,8 +3394,8 @@
 	 * Returns the standard normal distribution (has a mean of zero and a standard deviation of one).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value for which the distribution will be returned.
-	 * @param {boolean} arg2 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which the distribution will be returned.
+	 * @param {ApiRange | ApiName | boolean} arg2 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
@@ -3307,7 +3408,7 @@
 	 * Returns the inverse of the standard normal cumulative distribution (has a mean of zero and a standard deviation of one).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NORMSINV.js
 	 */
@@ -3318,7 +3419,7 @@
 	 * Returns the inverse of the standard normal cumulative distribution (has a mean of zero and a standard deviation of one).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg1 - A probability corresponding to the normal distribution, a number between 0 and 1 inclusive.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NORM_S_INV.js
 	 */
@@ -3342,8 +3443,8 @@
 	 * Returns the k-th percentile of values in a range.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data that defines relative standing.
-	 * @param {number} arg2 - The percentile value that is equal to 0 but less than or equal to 1.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The percentile value that is equal to 0 but less than or equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTILE.js
 	 */
@@ -3354,8 +3455,8 @@
 	 * Returns the k-th percentile of values in a range, where k is in the range 0..1, exclusive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data that defines relative standing.
-	 * @param {number} arg2 - The percentile value that is greater than 0 but less than 1.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The percentile value that is greater than 0 but less than 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTILE_EXC.js
 	 */
@@ -3366,8 +3467,8 @@
 	 * Returns the k-th percentile of values in a range, where k is in the range 0..1, inclusive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data that defines relative standing.
-	 * @param {number} arg2 - The percentile value that is equal to 0 but less than or equal to 1.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The percentile value that is equal to 0 but less than or equal to 1.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTILE_INC.js
 	 */
@@ -3378,9 +3479,9 @@
 	 * Returns the rank of a value in a data set as a percentage of the data set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data with numeric values that defines relative standing.
-	 * @param {number} arg2 - The value for which the rank will be returned.
-	 * @param {?number} arg3 - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data with numeric values that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The value for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number} [arg3] - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTRANK.js
 	 */
@@ -3391,9 +3492,9 @@
 	 * Returns the rank of a value in a data set as a percentage (0..1, exclusive) of the data set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data with numeric values that defines relative standing.
-	 * @param {number} arg2 - The value for which the rank will be returned.
-	 * @param {?number} arg3 - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data with numeric values that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The value for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number} [arg3] - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTRANK_EXC.js
 	 */
@@ -3404,9 +3505,9 @@
 	 * Returns the rank of a value in a data set as a percentage (0..1, inclusive) of the data set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data with numeric values that defines relative standing.
-	 * @param {number} arg2 - The value for which the rank will be returned.
-	 * @param {?number} arg3 - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of data with numeric values that defines relative standing.
+	 * @param {ApiRange | ApiName | number} arg2 - The value for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number} [arg3] - An optional value that identifies the number of significant digits for the returned percentage, three digits if omitted (0.xxx%).
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERCENTRANK_INC.js
 	 */
@@ -3417,8 +3518,8 @@
 	 * Returns the number of permutations for a given number of objects that can be selected from the total objects.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The total number of objects.
-	 * @param {number} arg2 - The number of objects in each permutation.
+	 * @param {ApiRange | ApiName | number} arg1 - The total number of objects.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of objects in each permutation.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERMUT.js
 	 */
@@ -3429,8 +3530,8 @@
 	 * Returns the number of permutations for a given number of objects (with repetitions) that can be selected from the total objects.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The total number of objects.
-	 * @param {number} arg2 - The number of objects in each permutation.
+	 * @param {ApiRange | ApiName | number} arg1 - The total number of objects.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of objects in each permutation.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PERMUTATIONA.js
 	 */
@@ -3441,7 +3542,7 @@
 	 * Returns the value of the density function for a standard normal distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number for which the density of the standard normal distribution will be returned.
+	 * @param {ApiRange | ApiName | number} arg1 - The number for which the density of the standard normal distribution will be returned.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PHI.js
 	 */
@@ -3452,9 +3553,9 @@
 	 * Returns the Poisson distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of events.
-	 * @param {number} arg2 - The expected numeric value, a positive number.
-	 * @param {boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of events.
+	 * @param {ApiRange | ApiName | number} arg2 - The expected numeric value, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative Poisson probability.
 	 * If it is <b>false</b>, the function returns the Poisson probability mass function.
 	 * @returns {number}
@@ -3467,9 +3568,9 @@
 	 * Returns the Poisson distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number of events.
-	 * @param {number} arg2 - The expected numeric value, a positive number.
-	 * @param {boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The number of events.
+	 * @param {ApiRange | ApiName | number} arg2 - The expected numeric value, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative Poisson probability.
 	 * If it is <b>false</b>, the function returns the Poisson probability mass function.
 	 * @returns {number}
@@ -3485,8 +3586,8 @@
 	//  * @typeofeditors ["CSE"]
 	//  * @param {any} arg1 Is the range of numeric values of x with which there are associated probabilities.
 	//  * @param {any} arg2 Is the set of probabilities associated with values in X_range, values between 0 and 1 and excluding 0.
-	//  * @param {number} arg3 Is the lower bound on the value for which you want a probability.
-	//  * @param {?number} arg4 Is the optional upper bound on the value. If omitted, PROB returns the probability that X_range values are equal to Lower_limit.
+	//  * @param {ApiRange | ApiName | number} arg3 Is the lower bound on the value for which you want a probability.
+	//  * @param {ApiRange | ApiName | number} [arg4] Is the optional upper bound on the value. If omitted, PROB returns the probability that X_range values are equal to Lower_limit.
 	//  * @returns {number | string | boolean}
 	//  */
 	// ApiWorksheetFunction.prototype.PROB = function (arg1, arg2, arg3, arg4) {
@@ -3496,8 +3597,8 @@
 	 * Returns the quartile of a data set.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
-	 * @param {number} arg2 - The quartile value to return: minimum value = 0; 1st quartile = 1; median value = 2; 3rd quartile = 3; maximum value = 4.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
+	 * @param {ApiRange | ApiName | number} arg2 - The quartile value to return: minimum value = 0; 1st quartile = 1; median value = 2; 3rd quartile = 3; maximum value = 4.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/QUARTILE.js
 	 */
@@ -3508,8 +3609,8 @@
 	 * Returns the quartile of a data set, based on percentile values from 0..1, exclusive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
-	 * @param {number} arg2 - The quartile value to return: 1st quartile = 1; median value = 2; 3rd quartile = 3.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
+	 * @param {ApiRange | ApiName | number} arg2 - The quartile value to return: 1st quartile = 1; median value = 2; 3rd quartile = 3.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/QUARTILE_EXC.js
 	 */
@@ -3520,8 +3621,8 @@
 	 * Returns the quartile of a data set, based on percentile values from 0..1, inclusive.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
-	 * @param {number} arg2 - The quartile value to return: minimum value = 0; 1st quartile = 1; median value = 2; 3rd quartile = 3; maximum value = 4.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or cell range of numeric values for which the quartile value will be returned.
+	 * @param {ApiRange | ApiName | number} arg2 - The quartile value to return: minimum value = 0; 1st quartile = 1; median value = 2; 3rd quartile = 3; maximum value = 4.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/QUARTILE_INC.js
 	 */
@@ -3532,9 +3633,9 @@
 	 * Returns the rank of a number in a list of numbers: its size relative to other values in the list.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number for which the rank will be returned.
-	 * @param {number[] | ApiRange} arg2 - An array of numbers or a reference to a list of numbers. Nonnumeric values are ignored.
-	 * @param {?boolean} arg3 - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
+	 * @param {ApiRange | ApiName | number} arg1 - The number for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number[]} arg2 - An array or range of numbers. Nonnumeric values are ignored.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
 	 * Any other numeric value means that the rank in the list will be sorted in ascending order.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RANK.js
@@ -3546,9 +3647,9 @@
 	 * Returns the rank of a number in a list of numbers: its size relative to other values in the list. If more than one value has the same rank, the average rank is returned.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number for which the rank will be returned.
-	 * @param {number[] | ApiRange} arg2 - An array of numbers or a reference to a list of numbers. Nonnumeric values are ignored.
-	 * @param {?boolean} arg3 - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
+	 * @param {ApiRange | ApiName | number} arg1 - The number for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number[]} arg2 - An array or range of numbers. Nonnumeric values are ignored.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
 	 * Any other numeric value means that the rank in the list will be sorted in ascending order.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RANK_AVG.js
@@ -3560,9 +3661,9 @@
 	 * Returns the rank of a number in a list of numbers: its size relative to other values in the list. If more than one value has the same rank, the top rank of that set of values is returned.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The number for which the rank will be returned.
-	 * @param {number[] | ApiRange} arg2 - An array of numbers or a reference to a list of numbers. Nonnumeric values are ignored.
-	 * @param {?boolean} arg3 - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
+	 * @param {ApiRange | ApiName | number} arg1 - The number for which the rank will be returned.
+	 * @param {ApiRange | ApiName | number[]} arg2 - An array or range of numbers. Nonnumeric values are ignored.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - The numeric value that specifyes how to order the numbers. If it is 0 or omitted, the rank in the list will be sorted in descending order.
 	 * Any other numeric value means that the rank in the list will be sorted in ascending order.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RANK_EQ.js
@@ -3587,7 +3688,8 @@
 	 * Returns the skewness of a distribution: a characterization of the degree of asymmetry of a distribution around its mean.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the skewness of a distribution will be returned. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | number[] | ApiRange} args - Up to 255 numeric values for which the skewness of a distribution will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SKEW.js
 	 */
@@ -3598,7 +3700,8 @@
 	 * Returns the skewness of a distribution based on a population: a characterization of the degree of asymmetry of a distribution around its mean.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the skewness of a distribution will be returned. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | number[] | ApiRange} args - Up to 255 numeric values for which the skewness of a distribution will be returned.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SKEW_P.js
 	 */
@@ -3621,8 +3724,8 @@
 	 * Returns the k-th smallest value in a data set. For example, the fifth smallest number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - An array or range of numerical data for which the k-th smallest value will be determined.
-	 * @param {number} arg2 - The position (from the smallest) in the array or range of the value to return.
+	 * @param {ApiRange | ApiName | number[]} arg1 - An array or range of numerical data for which the k-th smallest value will be determined.
+	 * @param {ApiRange | ApiName | number} arg2 - The position (from the smallest) in the range of the value to return.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SMALL.js
 	 */
@@ -3633,9 +3736,9 @@
 	 * Returns a normalised value from a distribution characterised by a mean and standard deviation.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value to normalize.
-	 * @param {number} arg2 - The arithmetic mean of the distribution.
-	 * @param {number} arg3 - The standard deviation of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg1 - The value to normalize.
+	 * @param {ApiRange | ApiName | number} arg2 - The arithmetic mean of the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - The standard deviation of the distribution, a positive number.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STANDARDIZE.js
 	 */
@@ -3646,7 +3749,8 @@
 	 * Estimates standard deviation based on a sample (ignores logical values and text in the sample).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number[] | number | ApiName | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEV.js
 	 */
@@ -3657,7 +3761,8 @@
 	 * Estimates standard deviation based on a sample (ignores logical values and text in the sample).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number[] | number | ApiName | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEV_S.js
 	 */
@@ -3668,7 +3773,8 @@
 	 * Estimates standard deviation based on a sample, including logical values and text. Text and the <b>false</b> logical value have the value 0; the <b>true</b> logical value has the value 1.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | number[] | ApiRange} args - Up to 255 values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number[] | number | string | boolean | ApiRange | ApiName} args - Up to 255 values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values, text strings, names, ranges, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEVA.js
 	 */
@@ -3679,7 +3785,8 @@
 	 * Calculates standard deviation based on the entire population given as arguments (ignores logical values and text).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number[] | number | ApiName | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEVP.js
 	 */
@@ -3690,7 +3797,8 @@
 	 * Calculates standard deviation based on the entire population given as arguments (ignores logical values and text).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | number[] | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number[] | number | ApiName | ApiRange} args - Up to 255 numeric values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEV_P.js
 	 */
@@ -3698,11 +3806,13 @@
 		return this.private_calculateFunction("STDEV.P", arguments);
 	};
 	/**
-	 * Calculates standard deviation based on an entire population, including logical values and text. Text and the <b>false</b> logical value have the value 0; the <b>true</b> logical value has the value 1.
+	 * Calculates standard deviation based on the entire population, including logical values and text.
+	 * Text and the <b>false</b> logical value have the value 0; the <b>true</b> logical value has the value 1.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | number[] | ApiRange} args - Up to 255 values for which the standard deviation will be calculated. The first argument is required, subsequent arguments are optional.
-	 * @returns {number | string | boolean}
+	 * @param {number[] | number | string | boolean | ApiRange | ApiName} args - Up to 255 values for which the standard deviation will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values, text strings, names, ranges, or arrays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/STDEVPA.js
 	 */
 	ApiWorksheetFunction.prototype.STDEVPA = function () {
@@ -3724,9 +3834,9 @@
 	 * Returns the Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The numeric value at which to evaluate the distribution.
-	 * @param {number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
-	 * @param {number} arg3 - Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value at which to evaluate the distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg3 - Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TDIST.js
 	 */
@@ -3737,9 +3847,9 @@
 	 * Returns the left-tailed Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The numeric value at which to evaluate the distribution.
-	 * @param {number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
-	 * @param {boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value at which to evaluate the distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
+	 * @param {ApiRange | ApiName | boolean} arg3 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability density function.
 	 * @returns {number}
@@ -3752,8 +3862,8 @@
 	 * Returns the two-tailed Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The numeric value at which to evaluate the distribution.
-	 * @param {number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value at which to evaluate the distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/T_DIST_2T.js
 	 */
@@ -3764,8 +3874,8 @@
 	 * Returns the right-tailed Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The numeric value at which to evaluate the distribution.
-	 * @param {number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value at which to evaluate the distribution.
+	 * @param {ApiRange | ApiName | number} arg2 - An integer indicating the number of degrees of freedom that characterize the distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/T_DIST_RT.js
 	 */
@@ -3776,8 +3886,8 @@
 	 * Returns the left-tailed inverse of the Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/T_INV.js
 	 */
@@ -3788,8 +3898,8 @@
 	 * Returns the two-tailed inverse of the Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/T_INV_2T.js
 	 */
@@ -3800,8 +3910,8 @@
 	 * Returns the two-tailed inverse of the Student's t-distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
-	 * @param {number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
+	 * @param {ApiRange | ApiName | number} arg1 - The probability associated with the two-tailed Student's t-distribution, a number between 0 and 1 inclusive.
+	 * @param {ApiRange | ApiName | number} arg2 - A positive integer indicating the number of degrees of freedom to characterize the distribution.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TINV.js
 	 */
@@ -3812,11 +3922,11 @@
 	 * Returns numbers in a linear trend matching known data points, using the least squares method.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - A range or array of y-values from the <em>y = mx + b</em> equation.
-	 * @param {?ApiRange | number[]} arg2 - An optional range or array of x-values from the <em>y = mx + b</em> equation, an array of the same size as an array of y-values.
-	 * @param {?ApiRange | number[]} arg3 - A range or array of new x-values for which this function will return corresponding y-values.
-	 * @param {?boolean} arg4 - A logical value: the constant <em>b</em> is calculated normally if this parameter is set to <b>true</b> or omitted,
-	 * and <em>b</em> is set equal to 0 if the parameter is <b>false</b>.
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range or array of y-values from the *y = mx + b* equation.
+	 * @param {ApiRange | ApiName | number[]} [arg2] - An optional range or array of x-values from the *y = mx + b* equation, an array of the same size as an array of y-values.
+	 * @param {ApiRange | ApiName | number[]} [arg3] - A range or array of new x-values for which this function will return corresponding y-values.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value: the constant *b* is calculated normally if this parameter is set to <b>true</b> or omitted,
+	 * and *b* is set equal to 0 if the parameter is <b>false</b>.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TREND.js
 	 */
@@ -3827,8 +3937,8 @@
 	 * Returns the mean of the interior portion of a set of data values.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange | number[]} arg1 - The range or array of values to trim and average.
-	 * @param {number} arg2 - The fractional number of data points to exclude from the top and bottom of the data set.
+	 * @param {ApiRange | ApiName | number[]} arg1 - The array or range of values to trim and average.
+	 * @param {ApiRange | ApiName | number} arg2 - The fractional number of data points to exclude from the top and bottom of the data set.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TRIMMEAN.js
 	 */
@@ -3842,8 +3952,8 @@
 	//  * @typeofeditors ["CSE"]
 	//  * @param {any} arg1 Is the first data set.
 	//  * @param {any} arg2 Is the second data set.
-	//  * @param {number} arg3 Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
-	//  * @param {number} arg4 Is the kind of t-test: paired = 1, two-sample equal variance (homoscedastic) = 2, two-sample unequal variance = 3.
+	//  * @param {ApiRange | ApiName | number} arg3 Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
+	//  * @param {ApiRange | ApiName | number} arg4 Is the kind of t-test: paired = 1, two-sample equal variance (homoscedastic) = 2, two-sample unequal variance = 3.
 	//  * @returns {number | string | boolean}
 	//  */
 	// ApiWorksheetFunction.prototype.TTEST = function (arg1, arg2, arg3, arg4) {
@@ -3856,8 +3966,8 @@
 	//  * @typeofeditors ["CSE"]
 	//  * @param {any} arg1 Is the first data set.
 	//  * @param {any} arg2 Is the second data set.
-	//  * @param {number} arg3 Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
-	//  * @param {number} arg4 Is the kind of t-test: paired = 1, two-sample equal variance (homoscedastic) = 2, two-sample unequal variance = 3.
+	//  * @param {ApiRange | ApiName | number} arg3 Specifies the number of distribution tails to return: one-tailed distribution = 1; two-tailed distribution = 2.
+	//  * @param {ApiRange | ApiName | number} arg4 Is the kind of t-test: paired = 1, two-sample equal variance (homoscedastic) = 2, two-sample unequal variance = 3.
 	//  * @returns {number | string | boolean}
 	//  */
 	// ApiWorksheetFunction.prototype.T_TEST = function (arg1, arg2, arg3, arg4) {
@@ -3867,7 +3977,8 @@
 	 * Estimates variance based on a sample (ignores logical values and text in the sample).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VAR.js
 	 */
@@ -3878,7 +3989,8 @@
 	 * Estimates variance based on a sample, including logical values and text. Text and the <b>false</b> logical value have the value 0; the <b>true</b> logical value has the value 1.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | ApiRange | number[]} args - Up to 255 values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | string | boolean | Array<number | string | boolean> | ApiRange | ApiName} args - Up to 255 values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values or text representations of numbers, names, ranges, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VARA.js
 	 */
@@ -3889,7 +4001,8 @@
 	 * Calculates variance based on the entire population (ignores logical values and text in the population).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VARP.js
 	 */
@@ -3900,7 +4013,8 @@
 	 * Calculates variance based on the entire population (ignores logical values and text in the population).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VAR_P.js
 	 */
@@ -3911,7 +4025,8 @@
 	 * Estimates variance based on a sample (ignores logical values and text in the sample).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | ApiName | ApiRange | number[]} args - Up to 255 numeric values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, names, ranges, or arrays of numbers.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VAR_S.js
 	 */
@@ -3922,7 +4037,8 @@
 	 * Calculates variance based on the entire population, including logical values and text. Text and the <b>false</b> logical value have the value 0; the <b>true</b> logical value has the value 1.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string | boolean | ApiRange | number[]} args - Up to 255 values for which the variance will be calculated. The first argument is required, subsequent arguments are optional.
+	 * @param {number | string | boolean | Array<number | string | boolean> | ApiRange | ApiName} args - Up to 255 values for which the variance will be calculated.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, logical values or text representations of numbers, names, ranges, or arrays.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VARPA.js
 	 */
@@ -3933,10 +4049,10 @@
 	 * Returns the Weibull distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a nonnegative number.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
@@ -3949,10 +4065,10 @@
 	 * Returns the Weibull distribution.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - The value at which to evaluate the function, a nonnegative number.
-	 * @param {number} arg2 - The alpha parameter of the distribution, a positive number.
-	 * @param {number} arg3 - The beta parameter of the distribution, a positive number.
-	 * @param {boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function, a nonnegative number.
+	 * @param {ApiRange | ApiName | number} arg2 - The alpha parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | number} arg3 - The beta parameter of the distribution, a positive number.
+	 * @param {ApiRange | ApiName | boolean} arg4 - A logical value (<b>true</b> or <b>false</b>) that determines the function form.
 	 * If it is <b>true</b>, the function returns the cumulative distribution function.
 	 * If it is <b>false</b>, the function returns the probability mass function.
 	 * @returns {number}
@@ -3965,9 +4081,9 @@
 	 * Returns the one-tailed P-value of a z-test.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number[] | ApiRange} arg1 - The array or range of data against which to test X.
-	 * @param {number} arg2 - The value to test.
-	 * @param {?number} arg3 - The population (known) standard deviation. If omitted, the sample standard deviation is used.
+	 * @param {number[] | ApiRange | ApiName} arg1 - The array or range of data against which to test X.
+	 * @param {ApiRange | ApiName | number} arg2 - The value to test.
+	 * @param {ApiRange | ApiName | number} [arg3] - The population (known) standard deviation. If omitted, the sample standard deviation is used.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ZTEST.js
 	 */
@@ -3979,8 +4095,8 @@
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
 	 * @param {number[] | ApiRange} arg1 - The array or range of data against which to test X.
-	 * @param {number} arg2 - The value to test.
-	 * @param {?number} arg3 - The population (known) standard deviation. If omitted, the sample standard deviation is used.
+	 * @param {ApiRange | ApiName | number} arg2 - The value to test.
+	 * @param {ApiRange | ApiName | number} [arg3] - The population (known) standard deviation. If omitted, the sample standard deviation is used.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/Z_TEST.js
 	 */
@@ -3991,9 +4107,9 @@
 	 * Returns a number that represents the date in the date-time code.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A number from 1900 or 1904 (depending on the workbook's date system) to 9999.
-	 * @param {number} arg2 - A number from 1 to 12 representing the month of the year.
-	 * @param {number} arg3 - A number from 1 to 31 representing the day of the month.
+	 * @param {ApiRange | ApiName | number} arg1 - A number from 1900 or 1904 (depending on the workbook's date system) to 9999.
+	 * @param {ApiRange | ApiName | number} arg2 - A number from 1 to 12 representing the month of the year.
+	 * @param {ApiRange | ApiName | number} arg3 - A number from 1 to 31 representing the day of the month.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DATE.js
 	 */
@@ -4004,7 +4120,7 @@
 	 * Converts a date in the form of text to a number that represents the date in the date-time code.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 - The text that represents a date, between 1/1/1900 or 1/1/1904 (depending on the workbook's date system) and 12/31/9999.
+	 * @param {ApiRange | ApiName | string} arg1 - The text that represents a date, between 1/1/1900 or 1/1/1904 (depending on the workbook's date system) and 12/31/9999.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DATEVALUE.js
 	 */
@@ -4015,7 +4131,7 @@
 	 * Returns the day of the date given in the numerical format, a number from 1 to 31.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - A number in the date-time code.
+	 * @param {ApiRange | ApiName | number} arg1 - A number in the date-time code.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DAY.js
 	 */
@@ -4026,8 +4142,8 @@
 	 * Returns the number of days between the two dates.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - Start date from which days will be counted.
-	 * @param {number} arg2 - End date until which days will be counted.
+	 * @param {ApiRange | ApiName | number} arg1 - Start date from which days will be counted.
+	 * @param {ApiRange | ApiName | number} arg2 - End date until which days will be counted.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DAYS.js
 	 */
@@ -4038,9 +4154,9 @@
 	 * Returns the number of days between two dates based on a 360-day year (twelve 30-day months).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 - Start date from which days will be counted.
-	 * @param {number} arg2 - End date until which days will be counted.
-	 * @param {?boolean} arg3 - A logical value that specifies whether to use the U.S. (NASD) (false or omitted) or European (true) method in the calculation.
+	 * @param {ApiRange | ApiName | number} arg1 - Start date from which days will be counted.
+	 * @param {ApiRange | ApiName | number} arg2 - End date until which days will be counted.
+	 * @param {ApiRange | ApiName | boolean} [arg3] - A logical value that specifies whether to use the U.S. (NASD) (false or omitted) or European (true) method in the calculation.
 	 * According to the European method, the start and end dates that occur on the 31st of a month become equal to the 30th of the same month.
 	 * According to the U.S. method, the start date is the last day of a month, it becomes equal to the 30th of the same month.
 	 * If the end date is the last day of a month and the start date is earlier than the 30th of a month, the end date becomes equal to the 1st of the next month.
@@ -4055,8 +4171,8 @@
 	 * Returns the serial number of the date which comes the indicated number of months before or after the start date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 - A serial date number that represents the start date.
-	 * @param {any} arg2 - The number of months before or after the start date.
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of months before or after the start date.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EDATE.js
 	 */
@@ -4064,11 +4180,11 @@
 		return this.private_calculateFunction("EDATE", arguments);
 	};
 	/**
-	 * Returns the serial number of the last day of the month before or after a specified number of months.
+	 * Returns the serial number of the last day of the month before or after the specified number of months.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is the number of months before or after the start_date.
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of months before or after the start date.
 	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EOMONTH.js
 	 */
@@ -4076,11 +4192,11 @@
 		return this.private_calculateFunction("EOMONTH", arguments);
 	};
 	/**
-	 * Returns the hour as a number from 0 (12:00 A.M.) to 23 (11:00 P.M.)..
+	 * Returns the hour as a number from 0 (12:00 A.M.) to 23 (11:00 P.M.).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number in the date-time code used by Microsoft Excel, or text in time format, such as 16:48:00 or 4:48:00 PM.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string} arg1 - A number in the date-time code, or text in the time format, such as "16:48:00" or "4:48:00 PM", or a result of other formulas or functions.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HOUR.js
 	 */
 	ApiWorksheetFunction.prototype.HOUR = function (arg1) {
@@ -4090,30 +4206,30 @@
 	 * Returns the ISO week number in the year for a given date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the date-time code used by Microsoft Excel for date and time calculation.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The date-time code used for date and time calculation.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISOWEEKNUM.js
 	 */
 	ApiWorksheetFunction.prototype.ISOWEEKNUM = function (arg1) {
 		return this.private_calculateFunction("ISOWEEKNUM", arguments);
 	};
 	/**
-	 * Returns the minute, a number from 0 to 59..
+	 * Returns the minute, a number from 0 to 59.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number in the date-time code used by Microsoft Excel or text in time format, such as 16:48:00 or 4:48:00 PM.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string} arg1 - A number in the date-time code, or text in the time format, such as "16:48:00" or "4:48:00 PM", or a result of other formulas or functions.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MINUTE.js
 	 */
 	ApiWorksheetFunction.prototype.MINUTE = function (arg1) {
 		return this.private_calculateFunction("MINUTE", arguments);
 	};
 	/**
-	 * Returns the month, a number from 1 (January) to 12 (December)..
+	 * Returns the month, a number from 1 (January) to 12 (December).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number in the date-time code used by Microsoft Excel.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1- A number in the date-time code.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MONTH.js
 	 */
 	ApiWorksheetFunction.prototype.MONTH = function (arg1) {
@@ -4123,10 +4239,10 @@
 	 * Returns the number of whole workdays between two dates.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is a serial date number that represents the end date.
-	 * @param {?any} arg3 Is an optional set of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - A serial date number that represents the end date.
+	 * @param {ApiRange | number[]} [arg3] - An optional range or array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NETWORKDAYS.js
 	 */
 	ApiWorksheetFunction.prototype.NETWORKDAYS = function (arg1, arg2, arg3) {
@@ -4136,45 +4252,45 @@
 	 * Returns the number of whole workdays between two dates with custom weekend parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is a serial date number that represents the end date.
-	 * @param {?number} arg3 Is a number or string specifying when weekends occur.
-	 * @param {?any} arg4 Is an optional set of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - A serial date number that represents the end date.
+	 * @param {ApiRange | ApiName | number | string} [arg3] - A number or string specifying when weekends occur.
+	 * @param {ApiRange | number[]} [arg4] - An optional range or array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NETWORKDAYS_INTL.js
 	 */
 	ApiWorksheetFunction.prototype.NETWORKDAYS_INTL = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("NETWORKDAYS.INTL", arguments);
 	};
 	/**
-	 * Returns the current date and time formatted as a date and time..
+	 * Returns the current date and time in the *MM/dd/yy hh:mm* format.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NOW.js
 	 */
 	ApiWorksheetFunction.prototype.NOW = function () {
 		return this.private_calculateFunction("NOW", arguments);
 	};
 	/**
-	 * Returns the second, a number from 0 to 59..
+	 * Returns the second, a number from 0 to 59.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number in the date-time code used by Microsoft Excel or text in time format, such as 16:48:23 or 4:48:47 PM.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string} arg1 - A number in the date-time code, or text in the time format, such as "16:48:00" or "4:48:00 PM", or a result of other formulas or functions.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SECOND.js
 	 */
 	ApiWorksheetFunction.prototype.SECOND = function (arg1) {
 		return this.private_calculateFunction("SECOND", arguments);
 	};
 	/**
-	 * Converts hours, minutes and seconds given as numbers to a serial number, formatted with a time format.
+	 * Converts hours, minutes and seconds given as numbers to a serial number, formatted with the time format.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number from 0 to 23 representing the hour.
-	 * @param {number} arg2 Is a number from 0 to 59 representing the minute.
-	 * @param {number} arg3 Is a number from 0 to 59 representing the second.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A number from 0 to 23 representing the hour.
+	 * @param {ApiRange | ApiName | number} arg2 - A number from 0 to 59 representing the minute.
+	 * @param {ApiRange | ApiName | number} arg3 - A number from 0 to 59 representing the second.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TIME.js
 	 */
 	ApiWorksheetFunction.prototype.TIME = function (arg1, arg2, arg3) {
@@ -4184,30 +4300,31 @@
 	 * Converts a text time to a serial number for a time, a number from 0 (12:00:00 AM) to 0.999988426 (11:59:59 PM). Format the number with a time format after entering the formula.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a text string that gives a time in any one of the Microsoft Excel time formats (date information in the string is ignored).
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string} arg1 - A text string that represents a time in one of the time formats (date information in the string is ignored).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TIMEVALUE.js
 	 */
 	ApiWorksheetFunction.prototype.TIMEVALUE = function (arg1) {
 		return this.private_calculateFunction("TIMEVALUE", arguments);
 	};
 	/**
-	 * Returns the current date formatted as a date..
+	 * Returns the current date in the *MM/dd/yy* format.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TODAY.js
 	 */
 	ApiWorksheetFunction.prototype.TODAY = function () {
 		return this.private_calculateFunction("TODAY", arguments);
 	};
 	/**
-	 * Returns a number from 1 to 7 identifying the day of the week of a date..
+	 * Returns a number from 1 to 7 identifying the day of the week of the specified date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number that represents a date.
-	 * @param {?number} arg2 Is a number: for Sunday=1 through Saturday=7, use 1; for Monday=1 through Sunday=7, use 2; for Monday=0 through Sunday=6, use 3.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A number that represents a date, or a result of other formulas or functions.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number that determines the type of return value: <b>1</b> - returns a number from 1 (Sunday) to 7 (Saturday);
+	 * <b>2</b> - returns a number from 1 (Monday) to 7 (Sunday); <b>3</b> - returns a number from 0 (Monday) to 6 (Sunday).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/WEEKDAY.js
 	 */
 	ApiWorksheetFunction.prototype.WEEKDAY = function (arg1, arg2) {
@@ -4217,9 +4334,9 @@
 	 * Returns the week number in the year.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the date-time code used by Microsoft Excel for date and time calculation.
-	 * @param {?any} arg2 Is a number (1 or 2) that determines the type of the return value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The date-time code used for date and time calculation.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number (1 or 2) that determines the type of the return value: Sunday (1) or Monday (2).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/WEEKNUM.js
 	 */
 	ApiWorksheetFunction.prototype.WEEKNUM = function (arg1, arg2) {
@@ -4229,10 +4346,10 @@
 	 * Returns the serial number of the date before or after a specified number of workdays.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is the number of nonweekend and non-holiday days before or after start_date.
-	 * @param {?any} arg3 Is an optional array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of nonweekend and non-holiday days before or after the start date. A positive value for days yields a future date; a negative value yields a past date.
+	 * @param {ApiRange | ApiName | number[]} [arg3] - An optional range or array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/WORKDAY.js
 	 */
 	ApiWorksheetFunction.prototype.WORKDAY = function (arg1, arg2, arg3) {
@@ -4242,35 +4359,35 @@
 	 * Returns the serial number of the date before or after a specified number of workdays with custom weekend parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is the number of nonweekend and non-holiday days before or after start_date.
-	 * @param {?number} arg3 Is a number or string specifying when weekends occur.
-	 * @param {?any} arg4 Is an optional array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of nonweekend and non-holiday days before or after the start date. A positive value for days yields a future date; a negative value yields a past date.
+	 * @param {ApiRange | ApiName | number | string} [arg3] - A number or string specifying when weekends occur.
+	 * @param {ApiRange | ApiName | number[]} [arg4] - An optional range or array of one or more serial date numbers to exclude from the working calendar, such as state and federal holidays and floating holidays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/WORKDAY_INTL.js
 	 */
 	ApiWorksheetFunction.prototype.WORKDAY_INTL = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("WORKDAY.INTL", arguments);
 	};
 	/**
-	 * Returns the year of a date, an integer in the range 1900-9999..
+	 * Returns the year of a date, an integer in the range 1900-9999.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is a number in the date-time code used by Microsoft Excel.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A number in the date-time code, or a result of other formulas or functions.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/YEAR.js
 	 */
 	ApiWorksheetFunction.prototype.YEAR = function (arg1) {
 		return this.private_calculateFunction("YEAR", arguments);
 	};
 	/**
-	 * Returns the year fraction representing the number of whole days between start_date and end_date.
+	 * Returns the year fraction representing the number of whole days between the start date and end date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a serial date number that represents the start date.
-	 * @param {any} arg2 Is a serial date number that represents the end date.
-	 * @param {?any} arg3 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A serial date number that represents the start date.
+	 * @param {ApiRange | ApiName | number} arg2 - A serial date number that represents the end date.
+	 * @param {ApiRange | ApiName | number} [arg3] - The type of day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/YEARFRAC.js
 	 */
 	ApiWorksheetFunction.prototype.YEARFRAC = function (arg1, arg2, arg3) {
@@ -4280,9 +4397,9 @@
 	 * Returns the modified Bessel function In(x).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value at which to evaluate the function.
-	 * @param {any} arg2 Is the order of the Bessel function.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The order of the Bessel function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BESSELI.js
 	 */
 	ApiWorksheetFunction.prototype.BESSELI = function (arg1, arg2) {
@@ -4292,9 +4409,9 @@
 	 * Returns the Bessel function Jn(x).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value at which to evaluate the function.
-	 * @param {any} arg2 Is the order of the Bessel function.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The order of the Bessel function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BESSELJ.js
 	 */
 	ApiWorksheetFunction.prototype.BESSELJ = function (arg1, arg2) {
@@ -4304,9 +4421,9 @@
 	 * Returns the modified Bessel function Kn(x).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value at which to evaluate the function.
-	 * @param {any} arg2 Is the order of the function.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The order of the function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BESSELK.js
 	 */
 	ApiWorksheetFunction.prototype.BESSELK = function (arg1, arg2) {
@@ -4316,9 +4433,9 @@
 	 * Returns the Bessel function Yn(x).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value at which to evaluate the function.
-	 * @param {any} arg2 Is the order of the function.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value at which to evaluate the function.
+	 * @param {ApiRange | ApiName | number} arg2 - The order of the function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BESSELY.js
 	 */
 	ApiWorksheetFunction.prototype.BESSELY = function (arg1, arg2) {
@@ -4328,8 +4445,8 @@
 	 * Converts a binary number to decimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the binary number you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The binary number which will be convertrd.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BIN2DEC.js
 	 */
 	ApiWorksheetFunction.prototype.BIN2DEC = function (arg1) {
@@ -4339,9 +4456,9 @@
 	 * Converts a binary number to hexadecimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the binary number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The binary number which will be convertrd.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BIN2HEX.js
 	 */
 	ApiWorksheetFunction.prototype.BIN2HEX = function (arg1, arg2) {
@@ -4351,69 +4468,69 @@
 	 * Converts a binary number to octal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the binary number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The binary number which will be convertrd.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BIN2OCT.js
 	 */
 	ApiWorksheetFunction.prototype.BIN2OCT = function (arg1, arg2) {
 		return this.private_calculateFunction("BIN2OCT", arguments);
 	};
 	/**
-	 * Returns a bitwise 'And' of two numbers.
+	 * Returns a bitwise "AND" of two numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the decimal representation of the binary number you want to evaluate.
-	 * @param {number} arg2 Is the decimal representation of the binary number you want to evaluate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The first decimal representation of the binary number to evaluate.
+	 * @param {ApiRange | ApiName | number} arg2 - The second decimal representation of the binary number to evaluate.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BITAND.js
 	 */
 	ApiWorksheetFunction.prototype.BITAND = function (arg1, arg2) {
 		return this.private_calculateFunction("BITAND", arguments);
 	};
 	/**
-	 * Returns a number shifted left by shift_amount bits.
+	 * Returns a number shifted left by the specified number of bits.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the decimal representation of the binary number you want to evaluate.
-	 * @param {number} arg2 Is the number of bits that you want to shift Number left by.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The decimal representation of the binary number to evaluate.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of bits by which the number will be shifted left.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BITLSHIFT.js
 	 */
 	ApiWorksheetFunction.prototype.BITLSHIFT = function (arg1, arg2) {
 		return this.private_calculateFunction("BITLSHIFT", arguments);
 	};
 	/**
-	 * Returns a bitwise 'Or' of two numbers.
+	 * Returns a bitwise "OR" of two numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the decimal representation of the binary number you want to evaluate.
-	 * @param {number} arg2 Is the decimal representation of the binary number you want to evaluate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The first decimal representation of the binary number to evaluate.
+	 * @param {ApiRange | ApiName | number} arg2 - The second decimal representation of the binary number to evaluate.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BITOR.js
 	 */
 	ApiWorksheetFunction.prototype.BITOR = function (arg1, arg2) {
 		return this.private_calculateFunction("BITOR", arguments);
 	};
 	/**
-	 * Returns a number shifted right by shift_amount bits.
+	 * Returns a number shifted right by the specified number of bits.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the decimal representation of the binary number you want to evaluate.
-	 * @param {number} arg2 Is the number of bits that you want to shift Number right by.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The decimal representation of the binary number to evaluate.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of bits by which the number will be shifted right.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BITRSHIFT.js
 	 */
 	ApiWorksheetFunction.prototype.BITRSHIFT = function (arg1, arg2) {
 		return this.private_calculateFunction("BITRSHIFT", arguments);
 	};
 	/**
-	 * Returns a bitwise 'Exclusive Or' of two numbers.
+	 * Returns a bitwise "XOR" (Exclusive Or) of two numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the decimal representation of the binary number you want to evaluate.
-	 * @param {number} arg2 Is the decimal representation of the binary number you want to evaluate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The first decimal representation of the binary number to evaluate.
+	 * @param {ApiRange | ApiName | number} arg2 - The second decimal representation of the binary number to evaluate.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BITXOR.js
 	 */
 	ApiWorksheetFunction.prototype.BITXOR = function (arg1, arg2) {
@@ -4423,10 +4540,11 @@
 	 * Converts real and imaginary coefficients into a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the real coefficient of the complex number.
-	 * @param {any} arg2 Is the imaginary coefficient of the complex number.
-	 * @param {?any} arg3 Is the suffix for the imaginary component of the complex number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The real coefficient of the complex number.
+	 * @param {ApiRange | ApiName | number} arg2 - The imaginary coefficient of the complex number.
+	 * @param {ApiRange | ApiName | string} [arg3] - The suffix for the imaginary component of the complex number. It can be either "i" or "j" in lowercase.
+	 * If it is omitted, the function will assume suffix to be "i".
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COMPLEX.js
 	 */
 	ApiWorksheetFunction.prototype.COMPLEX = function (arg1, arg2, arg3) {
@@ -4436,10 +4554,10 @@
 	 * Converts a number from one measurement system to another.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value in from_units to convert.
-	 * @param {any} arg2 Is the units for number.
-	 * @param {any} arg3 Is the units for the result.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value in the specified units to be converted.
+	 * @param {ApiRange | ApiName | string} arg2 - The original measurement unit.
+	 * @param {ApiRange | ApiName | string} arg3 - The units for the result.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CONVERT.js
 	 */
 	ApiWorksheetFunction.prototype.CONVERT = function (arg1, arg2, arg3) {
@@ -4449,9 +4567,9 @@
 	 * Converts a decimal number to binary.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the decimal integer you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The decimal integer to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DEC2BIN.js
 	 */
 	ApiWorksheetFunction.prototype.DEC2BIN = function (arg1, arg2) {
@@ -4461,9 +4579,9 @@
 	 * Converts a decimal number to hexadecimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the decimal integer you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The decimal integer to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DEC2HEX.js
 	 */
 	ApiWorksheetFunction.prototype.DEC2HEX = function (arg1, arg2) {
@@ -4473,90 +4591,90 @@
 	 * Converts a decimal number to octal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the decimal integer you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Te decimal integer to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DEC2OCT.js
 	 */
 	ApiWorksheetFunction.prototype.DEC2OCT = function (arg1, arg2) {
 		return this.private_calculateFunction("DEC2OCT", arguments);
 	};
 	/**
-	 * Tests whether two numbers are equal.
+	 * Tests whether two numbers are equal. The function returns 1 if the numbers are equal and 0 otherwise.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the first number.
-	 * @param {?any} arg2 Is the second number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The first number.
+	 * @param {ApiRange | ApiName | number} [arg2] - The second number.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DELTA.js
 	 */
 	ApiWorksheetFunction.prototype.DELTA = function (arg1, arg2) {
 		return this.private_calculateFunction("DELTA", arguments);
 	};
 	/**
-	 * Returns the error function.
+	 * Returns the error function integrated between the specified lower and upper limits.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the lower bound for integrating ERF.
-	 * @param {?any} arg2 Is the upper bound for integrating ERF.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The lower bound for integrating the error function.
+	 * @param {ApiRange | ApiName | number} [arg2] - The upper bound for integrating the error function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ERF.js
 	 */
 	ApiWorksheetFunction.prototype.ERF = function (arg1, arg2) {
 		return this.private_calculateFunction("ERF", arguments);
 	};
 	/**
-	 * Returns the error function.
+	 * Returns the error function integrated between 0 and the specified lower limit.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the lower bound for integrating ERF.PRECISE.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The lower bound for integrating the error function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ERF_PRECISE.js
 	 */
 	ApiWorksheetFunction.prototype.ERF_PRECISE = function (arg1) {
 		return this.private_calculateFunction("ERF.PRECISE", arguments);
 	};
 	/**
-	 * Returns the complementary error function.
+	 * Returns the complementary error function integrated between the specified lower limit and infinity.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the lower bound for integrating ERF.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The lower bound for integrating the complementary error function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ERFC.js
 	 */
 	ApiWorksheetFunction.prototype.ERFC = function (arg1) {
 		return this.private_calculateFunction("ERFC", arguments);
 	};
 	/**
-	 * Returns the complementary error function.
+	 * Returns the complementary error function integrated between the specified lower limit and infinity.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the lower bound for integrating ERFC.PRECISE.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The lower bound for integrating the complementary error function.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ERFC_PRECISE.js
 	 */
 	ApiWorksheetFunction.prototype.ERFC_PRECISE = function (arg1) {
 		return this.private_calculateFunction("ERFC.PRECISE", arguments);
 	};
 	/**
-	 * Tests whether a number is greater than a threshold value.
+	 * Tests whether a number is greater than a threshold value. The function returns 1 if the number is greater than or equal to the threshold value and 0 otherwise.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to test against step.
-	 * @param {?any} arg2 Is the threshold value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to test against step.
+	 * @param {ApiRange | ApiName | number} [arg2] - The threshold value.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GESTEP.js
 	 */
 	ApiWorksheetFunction.prototype.GESTEP = function (arg1, arg2) {
 		return this.private_calculateFunction("GESTEP", arguments);
 	};
 	/**
-	 * Converts a Hexadecimal number to binary.
+	 * Converts a hexadecimal number to binary.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the hexadecimal number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The hexadecimal number to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HEX2BIN.js
 	 */
 	ApiWorksheetFunction.prototype.HEX2BIN = function (arg1, arg2) {
@@ -4566,8 +4684,8 @@
 	 * Converts a hexadecimal number to decimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the hexadecimal number you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The hexadecimal number to convert.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HEX2DEC.js
 	 */
 	ApiWorksheetFunction.prototype.HEX2DEC = function (arg1) {
@@ -4577,9 +4695,9 @@
 	 * Converts a hexadecimal number to octal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the hexadecimal number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The hexadecimal number to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HEX2OCT.js
 	 */
 	ApiWorksheetFunction.prototype.HEX2OCT = function (arg1, arg2) {
@@ -4589,8 +4707,8 @@
 	 * Returns the absolute value (modulus) of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the absolute value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMABS.js
 	 */
 	ApiWorksheetFunction.prototype.IMABS = function (arg1) {
@@ -4600,19 +4718,19 @@
 	 * Returns the imaginary coefficient of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the imaginary coefficient.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMAGINARY.js
 	 */
 	ApiWorksheetFunction.prototype.IMAGINARY = function (arg1) {
 		return this.private_calculateFunction("IMAGINARY", arguments);
 	};
 	/**
-	 * Returns the argument q, an angle expressed in radians.
+	 * Returns the argument Theta, an angle expressed in radians.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the argument.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMARGUMENT.js
 	 */
 	ApiWorksheetFunction.prototype.IMARGUMENT = function (arg1) {
@@ -4622,8 +4740,8 @@
 	 * Returns the complex conjugate of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the conjugate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCONJUGATE.js
 	 */
 	ApiWorksheetFunction.prototype.IMCONJUGATE = function (arg1) {
@@ -4633,8 +4751,8 @@
 	 * Returns the cosine of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the cosine.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCOS.js
 	 */
 	ApiWorksheetFunction.prototype.IMCOS = function (arg1) {
@@ -4644,8 +4762,8 @@
 	 * Returns the hyperbolic cosine of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the hyperbolic cosine.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCOSH.js
 	 */
 	ApiWorksheetFunction.prototype.IMCOSH = function (arg1) {
@@ -4655,8 +4773,8 @@
 	 * Returns the cotangent of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the cotangent.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCOT.js
 	 */
 	ApiWorksheetFunction.prototype.IMCOT = function (arg1) {
@@ -4666,8 +4784,8 @@
 	 * Returns the cosecant of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the cosecant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCSC.js
 	 */
 	ApiWorksheetFunction.prototype.IMCSC = function (arg1) {
@@ -4677,8 +4795,8 @@
 	 * Returns the hyperbolic cosecant of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the hyperbolic cosecant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMCSCH.js
 	 */
 	ApiWorksheetFunction.prototype.IMCSCH = function (arg1) {
@@ -4688,9 +4806,9 @@
 	 * Returns the quotient of two complex numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the complex numerator or dividend.
-	 * @param {any} arg2 Is the complex denominator or divisor.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The complex numerator or dividend in the *x + yi* or *x + yj* form.
+	 * @param {ApiRange | ApiName | number} arg2 - The complex denominator or divisor in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMDIV.js
 	 */
 	ApiWorksheetFunction.prototype.IMDIV = function (arg1, arg2) {
@@ -4700,8 +4818,8 @@
 	 * Returns the exponential of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the exponential.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMEXP.js
 	 */
 	ApiWorksheetFunction.prototype.IMEXP = function (arg1) {
@@ -4711,8 +4829,8 @@
 	 * Returns the natural logarithm of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the natural logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMLN.js
 	 */
 	ApiWorksheetFunction.prototype.IMLN = function (arg1) {
@@ -4722,8 +4840,8 @@
 	 * Returns the base-10 logarithm of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the common logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMLOG10.js
 	 */
 	ApiWorksheetFunction.prototype.IMLOG10 = function (arg1) {
@@ -4733,8 +4851,8 @@
 	 * Returns the base-2 logarithm of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the base-2 logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMLOG2.js
 	 */
 	ApiWorksheetFunction.prototype.IMLOG2 = function (arg1) {
@@ -4744,19 +4862,20 @@
 	 * Returns a complex number raised to an integer power.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number you want to raise to a power.
-	 * @param {any} arg2 Is the power to which you want to raise the complex number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @param {ApiRange | ApiName | number} arg2 - The power to which the complex number will be raised.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMPOWER.js
 	 */
 	ApiWorksheetFunction.prototype.IMPOWER = function (arg1, arg2) {
 		return this.private_calculateFunction("IMPOWER", arguments);
 	};
 	/**
-	 * Returns the product of 1 to 255 complex numbers.
+	 * Returns the product of the specified complex numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string} args - Up to 255 complex numbers expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMPRODUCT.js
 	 */
 	ApiWorksheetFunction.prototype.IMPRODUCT = function () {
@@ -4766,8 +4885,8 @@
 	 * Returns the real coefficient of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the real coefficient.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMREAL.js
 	 */
 	ApiWorksheetFunction.prototype.IMREAL = function (arg1) {
@@ -4777,8 +4896,8 @@
 	 * Returns the secant of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the secant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSEC.js
 	 */
 	ApiWorksheetFunction.prototype.IMSEC = function (arg1) {
@@ -4788,8 +4907,8 @@
 	 * Returns the hyperbolic secant of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the hyperbolic secant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSECH.js
 	 */
 	ApiWorksheetFunction.prototype.IMSECH = function (arg1) {
@@ -4799,8 +4918,8 @@
 	 * Returns the sine of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the sine.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSIN.js
 	 */
 	ApiWorksheetFunction.prototype.IMSIN = function (arg1) {
@@ -4810,8 +4929,8 @@
 	 * Returns the hyperbolic sine of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the hyperbolic sine.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSINH.js
 	 */
 	ApiWorksheetFunction.prototype.IMSINH = function (arg1) {
@@ -4821,30 +4940,31 @@
 	 * Returns the square root of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the square root.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSQRT.js
 	 */
 	ApiWorksheetFunction.prototype.IMSQRT = function (arg1) {
 		return this.private_calculateFunction("IMSQRT", arguments);
 	};
 	/**
-	 * Returns the difference of two complex numbers.
+	 * Returns the difference of two complex numbers expressed in the *x + yi* or *x + yj* form.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the complex number from which to subtract inumber2.
-	 * @param {any} arg2 Is the complex number to subtract from inumber1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The complex number from which to subtract the second number.
+	 * @param {ApiRange | ApiName | number} arg2 - The complex number to subtract from the first number.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSUB.js
 	 */
 	ApiWorksheetFunction.prototype.IMSUB = function (arg1, arg2) {
 		return this.private_calculateFunction("IMSUB", arguments);
 	};
 	/**
-	 * Returns the sum of complex numbers.
+	 * Returns the sum of the specified complex numbers.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string} args - Up to 255 complex numbers expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMSUM.js
 	 */
 	ApiWorksheetFunction.prototype.IMSUM = function () {
@@ -4854,8 +4974,8 @@
 	 * Returns the tangent of a complex number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a complex number for which you want the tangent.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A complex number expressed in the *x + yi* or *x + yj* form.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IMTAN.js
 	 */
 	ApiWorksheetFunction.prototype.IMTAN = function (arg1) {
@@ -4865,9 +4985,9 @@
 	 * Converts an octal number to binary.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the octal number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The octal number to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] - The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/OCT2BIN.js
 	 */
 	ApiWorksheetFunction.prototype.OCT2BIN = function (arg1, arg2) {
@@ -4877,8 +4997,8 @@
 	 * Converts an octal number to decimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the octal number you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The octal number to convert.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/OCT2DEC.js
 	 */
 	ApiWorksheetFunction.prototype.OCT2DEC = function (arg1) {
@@ -4888,22 +5008,22 @@
 	 * Converts an octal number to hexadecimal.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the octal number you want to convert.
-	 * @param {?any} arg2 Is the number of characters to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The octal number to convert.
+	 * @param {ApiRange | ApiName | number} [arg2] -The number of characters to use.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/OCT2HEX.js
 	 */
 	ApiWorksheetFunction.prototype.OCT2HEX = function (arg1, arg2) {
 		return this.private_calculateFunction("OCT2HEX", arguments);
 	};
 	/**
-	 * Averages the values in a column in a list or database that match conditions you specify.
+	 * Averages the values in a field (column) of records in a list or database that match conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DAVERAGE.js
 	 */
 	ApiWorksheetFunction.prototype.DAVERAGE = function (arg1, arg2, arg3) {
@@ -4913,10 +5033,10 @@
 	 * Counts the cells containing numbers in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DCOUNT.js
 	 */
 	ApiWorksheetFunction.prototype.DCOUNT = function (arg1, arg2, arg3) {
@@ -4926,10 +5046,10 @@
 	 * Counts nonblank cells in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1- The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DCOUNTA.js
 	 */
 	ApiWorksheetFunction.prototype.DCOUNTA = function (arg1, arg2, arg3) {
@@ -4939,10 +5059,10 @@
 	 * Extracts from a database a single record that matches the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DGET.js
 	 */
 	ApiWorksheetFunction.prototype.DGET = function (arg1, arg2, arg3) {
@@ -4952,10 +5072,10 @@
 	 * Returns the largest number in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DMAX.js
 	 */
 	ApiWorksheetFunction.prototype.DMAX = function (arg1, arg2, arg3) {
@@ -4965,10 +5085,10 @@
 	 * Returns the smallest number in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DMIN.js
 	 */
 	ApiWorksheetFunction.prototype.DMIN = function (arg1, arg2, arg3) {
@@ -4978,36 +5098,36 @@
 	 * Multiplies the values in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DPRODUCT.js
 	 */
 	ApiWorksheetFunction.prototype.DPRODUCT = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("DPRODUCT", arguments);
 	};
 	/**
-	 * Estimates the standard deviation based on a sample from selected database entries.
+	 * Estimates the standard deviation based on a sample from the selected database entries.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DSTDEV.js
 	 */
 	ApiWorksheetFunction.prototype.DSTDEV = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("DSTDEV", arguments);
 	};
 	/**
-	 * Calculates the standard deviation based on the entire population of selected database entries.
+	 * Calculates the standard deviation based on the entire population of the selected database entries.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DSTDEVP.js
 	 */
 	ApiWorksheetFunction.prototype.DSTDEVP = function (arg1, arg2, arg3) {
@@ -5017,54 +5137,55 @@
 	 * Adds the numbers in the field (column) of records in the database that match the conditions you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DSUM.js
 	 */
 	ApiWorksheetFunction.prototype.DSUM = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("DSUM", arguments);
 	};
 	/**
-	 * Estimates variance based on a sample from selected database entries.
+	 * Estimates variance based on a sample from the selected database entries.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DVAR.js
 	 */
 	ApiWorksheetFunction.prototype.DVAR = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("DVAR", arguments);
 	};
 	/**
-	 * Calculates variance based on the entire population of selected database entries.
+	 * Calculates variance based on the entire population of the selected database entries.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells that makes up the list or database. A database is a list of related data.
-	 * @param {number} arg2 Is either the label of the column in double quotation marks or a number that represents the column's position in the list.
-	 * @param {string} arg3 Is the range of cells that contains the conditions you specify. The range includes a column label and one cell below the label for a condition.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells that makes up the list or database. A database is a list of related data.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The column which is used in the function. Either the label of the column in double quotation marks or a number that represents the column's position in the list.
+	 * @param {ApiRange | ApiName} arg3 - The range of cells that contains the conditions you specify. The range includes at least one column label and at least one cell below the column label for a condition.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DVARP.js
 	 */
 	ApiWorksheetFunction.prototype.DVARP = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("DVARP", arguments);
 	};
 	/**
-	 * Returns the accrued interest for a security that pays periodic interest..
+	 * Returns the accrued interest for a security that pays periodic interest.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's first interest date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's annual coupon rate.
-	 * @param {any} arg5 Is the security's par value.
-	 * @param {any} arg6 Is the number of coupon payments per year.
-	 * @param {?any} arg7 Is the type of day count basis to use.
-	 * @param {?any} arg8 Is a logical value: to accrued interest from issue date = TRUE or omitted; to calculate from last coupon payment date = FALSE.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The date when the first interest is paid, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg4 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg5 - The par value of the security.
+	 * @param {ApiRange | ApiName | number} arg6 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg7] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @param {ApiRange | ApiName | number} [arg8] - A logical value: <b>true</b> (1) or omitted returns the accrued interest from the issue date to the settlement date.
+	 * <b>false</b> (0) returns the accrued interest from the first interest date to the settlement date.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACCRINT.js
 	 */
 	ApiWorksheetFunction.prototype.ACCRINT = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
@@ -5074,46 +5195,46 @@
 	 * Returns the accrued interest for a security that pays interest at maturity.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's annual coupon rate.
-	 * @param {any} arg4 Is the security's par value.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The par value of the security.
+	 * @param {ApiRange | ApiName | number} [arg5] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACCRINTM.js
 	 */
 	ApiWorksheetFunction.prototype.ACCRINTM = function (arg1, arg2, arg3, arg4, arg5) {
 		return this.private_calculateFunction("ACCRINTM", arguments);
 	};
 	/**
-	 * Returns the prorated linear depreciation of an asset for each accounting period..
+	 * Returns the prorated linear depreciation of an asset for each accounting period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1.
-	 * @param {any} arg2.
-	 * @param {any} arg3.
-	 * @param {any} arg4.
-	 * @param {any} arg5.
-	 * @param {any} arg6.
-	 * @param {?any} arg7.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The date when asset is purchased.
+	 * @param {ApiRange | ApiName | number} arg3 - The date when the first period ends.
+	 * @param {ApiRange | ApiName | number} arg4 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg5 - The period for which the depreciation will be calculated.
+	 * @param {ApiRange | ApiName | number} arg6 - The rate of depreciation.
+	 * @param {ApiRange | ApiName | number} [arg7] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AMORDEGRC.js
 	 */
 	ApiWorksheetFunction.prototype.AMORDEGRC = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
 		return this.private_calculateFunction("AMORDEGRC", arguments);
 	};
 	/**
-	 * Returns the prorated linear depreciation of an asset for each accounting period..
+	 * Returns the prorated linear depreciation of an asset for each accounting period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the cost of the asset.
-	 * @param {any} arg2 Is the date the asset is purchased.
-	 * @param {any} arg3 Is the date of the end of the first period.
-	 * @param {any} arg4 Is the salvage value at the end of life of the asset..
-	 * @param {any} arg5 Is the period.
-	 * @param {any} arg6 Is the rate of depreciation.
-	 * @param {?any} arg7 Year_basis : 0 for year of 360 days, 1 for actual, 3 for year of 365 days..
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The date when asset is purchased.
+	 * @param {ApiRange | ApiName | number} arg3 - The date when the first period ends.
+	 * @param {ApiRange | ApiName | number} arg4 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg5 - The period for which the depreciation will be calculated.
+	 * @param {ApiRange | ApiName | number} arg6 - The rate of depreciation.
+	 * @param {ApiRange | ApiName | number} [arg7] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AMORLINC.js
 	 */
 	ApiWorksheetFunction.prototype.AMORLINC = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
@@ -5123,11 +5244,11 @@
 	 * Returns the number of days from the beginning of the coupon period to the settlement date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPDAYBS.js
 	 */
 	ApiWorksheetFunction.prototype.COUPDAYBS = function (arg1, arg2, arg3, arg4) {
@@ -5137,11 +5258,11 @@
 	 * Returns the number of days in the coupon period that contains the settlement date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPDAYS.js
 	 */
 	ApiWorksheetFunction.prototype.COUPDAYS = function (arg1, arg2, arg3, arg4) {
@@ -5151,11 +5272,11 @@
 	 * Returns the number of days from the settlement date to the next coupon date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPDAYSNC.js
 	 */
 	ApiWorksheetFunction.prototype.COUPDAYSNC = function (arg1, arg2, arg3, arg4) {
@@ -5165,11 +5286,11 @@
 	 * Returns the next coupon date after the settlement date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPNCD.js
 	 */
 	ApiWorksheetFunction.prototype.COUPNCD = function (arg1, arg2, arg3, arg4) {
@@ -5179,11 +5300,11 @@
 	 * Returns the number of coupons payable between the settlement date and maturity date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPNUM.js
 	 */
 	ApiWorksheetFunction.prototype.COUPNUM = function (arg1, arg2, arg3, arg4) {
@@ -5193,11 +5314,11 @@
 	 * Returns the previous coupon date before the settlement date.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the number of coupon payments per year.
-	 * @param {?any} arg4 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg4] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COUPPCD.js
 	 */
 	ApiWorksheetFunction.prototype.COUPPCD = function (arg1, arg2, arg3, arg4) {
@@ -5207,13 +5328,13 @@
 	 * Returns the cumulative interest paid between two periods.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the interest rate.
-	 * @param {any} arg2 Is the total number of payment periods.
-	 * @param {any} arg3 Is the present value.
-	 * @param {any} arg4 Is the first period in the calculation.
-	 * @param {any} arg5 Is the last period in the calculation.
-	 * @param {any} arg6 Is the timing of the payment.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate for the investment.
+	 * @param {ApiRange | ApiName | number} arg2 - The total number of payment periods.
+	 * @param {ApiRange | ApiName | number} arg3 - A present value of the payments.
+	 * @param {ApiRange | ApiName | number} arg4 - The first period included into the calculation.
+	 * @param {ApiRange | ApiName | number} arg5 - The last period included into the calculation.
+	 * @param {ApiRange | ApiName | number} arg6 - The timing of the payment.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CUMIPMT.js
 	 */
 	ApiWorksheetFunction.prototype.CUMIPMT = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5223,13 +5344,13 @@
 	 * Returns the cumulative principal paid on a loan between two periods.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the interest rate.
-	 * @param {any} arg2 Is the total number of payment periods.
-	 * @param {any} arg3 Is the present value.
-	 * @param {any} arg4 Is the first period in the calculation.
-	 * @param {any} arg5 Is the last period in the calculation.
-	 * @param {any} arg6 Is the timing of the payment.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate for the investment.
+	 * @param {ApiRange | ApiName | number} arg2 - The total number of payment periods.
+	 * @param {ApiRange | ApiName | number} arg3 - A present value of the payments.
+	 * @param {ApiRange | ApiName | number} arg4 - The first period included into the calculation.
+	 * @param {ApiRange | ApiName | number} arg5 - The last period included into the calculation.
+	 * @param {ApiRange | ApiName | number} arg6 - The timing of the payment.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CUMPRINC.js
 	 */
 	ApiWorksheetFunction.prototype.CUMPRINC = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5239,12 +5360,12 @@
 	 * Returns the depreciation of an asset for a specified period using the fixed-declining balance method.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the initial cost of the asset.
-	 * @param {number} arg2 Is the salvage value at the end of the life of the asset.
-	 * @param {number} arg3 Is the number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
-	 * @param {number} arg4 Is the period for which you want to calculate the depreciation. Period must use the same units as Life.
-	 * @param {?number} arg5 Is the number of months in the first year. If month is omitted, it is assumed to be 12.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The initial cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
+	 * @param {ApiRange | ApiName | number} arg4 - The period for which the depreciation will be calculated. Period must use the same units as the useful life of the asset.
+	 * @param {ApiRange | ApiName | number} [arg5] - The number of months in the first year. If this parameter is omitted, it is assumed to be 12.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DB.js
 	 */
 	ApiWorksheetFunction.prototype.DB = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5254,12 +5375,12 @@
 	 * Returns the depreciation of an asset for a specified period using the double-declining balance method or some other method you specify.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the initial cost of the asset.
-	 * @param {number} arg2 Is the salvage value at the end of the life of the asset.
-	 * @param {number} arg3 Is the number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
-	 * @param {number} arg4 Is the period for which you want to calculate the depreciation. Period must use the same units as Life.
-	 * @param {?number} arg5 Is the rate at which the balance declines. If Factor is omitted, it is assumed to be 2 (the double-declining balance method).
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The initial cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
+	 * @param {ApiRange | ApiName | number} arg4 - The period for which the depreciation will be calculated. Period must use the same units as the useful life of the asset.
+	 * @param {ApiRange | ApiName | number} [arg5] - The rate at which the balance declines. If this parameter is omitted, it is assumed to be 2 (the double-declining balance method).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DDB.js
 	 */
 	ApiWorksheetFunction.prototype.DDB = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5269,12 +5390,12 @@
 	 * Returns the discount rate for a security.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's price per $100 face value.
-	 * @param {any} arg4 Is the security's redemption value per $100 face value.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg4 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} [arg5] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DISC.js
 	 */
 	ApiWorksheetFunction.prototype.DISC = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5284,9 +5405,9 @@
 	 * Converts a dollar price, expressed as a fraction, into a dollar price, expressed as a decimal number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a number expressed as a fraction.
-	 * @param {any} arg2 Is the integer to use in the denominator of the fraction.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A number expressed as a fraction.
+	 * @param {ApiRange | ApiName | number} arg2 - The integer to use in the denominator of the fraction.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DOLLARDE.js
 	 */
 	ApiWorksheetFunction.prototype.DOLLARDE = function (arg1, arg2) {
@@ -5296,9 +5417,9 @@
 	 * Converts a dollar price, expressed as a decimal number, into a dollar price, expressed as a fraction.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a decimal number.
-	 * @param {any} arg2 Is the integer to use in the denominator of a fraction.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A decimal number.
+	 * @param {ApiRange | ApiName | number} arg2 - The integer to use in the denominator of a fraction.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DOLLARFR.js
 	 */
 	ApiWorksheetFunction.prototype.DOLLARFR = function (arg1, arg2) {
@@ -5308,13 +5429,13 @@
 	 * Returns the annual duration of a security with periodic interest payments.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's annual coupon rate.
-	 * @param {any} arg4 Is the security's annual yield.
-	 * @param {any} arg5 Is the number of coupon payments per year.
-	 * @param {?any} arg6 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} arg5 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DURATION.js
 	 */
 	ApiWorksheetFunction.prototype.DURATION = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5324,9 +5445,9 @@
 	 * Returns the effective annual interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the nominal interest rate.
-	 * @param {any} arg2 Is the number of compounding periods per year.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The nominal interest rate.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of compounding periods per year.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EFFECT.js
 	 */
 	ApiWorksheetFunction.prototype.EFFECT = function (arg1, arg2) {
@@ -5336,12 +5457,12 @@
 	 * Returns the future value of an investment based on periodic, constant payments and a constant interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Is the total number of payment periods in the investment.
-	 * @param {number} arg3 Is the payment made each period; it cannot change over the life of the investment.
-	 * @param {?number} arg4 Is the present value, or the lump-sum amount that a series of future payments is worth now. If omitted, Pv = 0.
-	 * @param {?number} arg5 Is a value representing the timing of payment: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The total number of payment periods in the investment.
+	 * @param {ApiRange | ApiName | number} arg3 - The payment made each period; it cannot change over the life of the investment.
+	 * @param {ApiRange | ApiName | number} [arg4] - The present value, or the lump-sum amount that a series of future payments is worth now. If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - A value representing the timing of payment: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FV.js
 	 */
 	ApiWorksheetFunction.prototype.FV = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5351,9 +5472,9 @@
 	 * Returns the future value of an initial principal after applying a series of compound interest rates.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the present value.
-	 * @param {any} arg2 Is an array of interest rates to apply.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The present value of an investment.
+	 * @param {number[] | ApiRange | ApiName} arg2 - An array of interest rates to apply.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FVSCHEDULE.js
 	 */
 	ApiWorksheetFunction.prototype.FVSCHEDULE = function (arg1, arg2) {
@@ -5363,12 +5484,12 @@
 	 * Returns the interest rate for a fully invested security.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the amount invested in the security.
-	 * @param {any} arg4 Is the amount to be received at maturity.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The amount invested in the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The amount to be received at maturity.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/INTRATE.js
 	 */
 	ApiWorksheetFunction.prototype.INTRATE = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5378,13 +5499,13 @@
 	 * Returns the interest payment for a given period for an investment, based on periodic, constant payments and a constant interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Is the period for which you want to find the interest and must be in the range 1 to Nper.
-	 * @param {number} arg3 Is the total number of payment periods in an investment.
-	 * @param {number} arg4 Is the present value, or the lump-sum amount that a series of future payments is worth now.
-	 * @param {?number} arg5 Is the future value, or a cash balance you want to attain after the last payment is made. If omitted, Fv = 0.
-	 * @param {?number} arg6 Is a logical value representing the timing of payment: at the end of the period = 0 or omitted, at the beginning of the period = 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The period for which the interest will be returned. It must be in the range from 1 to the total number of payments.
+	 * @param {ApiRange | ApiName | number} arg3 - The total number of payment periods in an investment.
+	 * @param {ApiRange | ApiName | number} arg4 - The present value, or the lump-sum amount that a series of future payments is worth now.
+	 * @param {ApiRange | ApiName | number} [arg5] - The future value, or a cash balance which will be attained after the last payment is made. If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg6] - A logical value representing the timing of payment: at the end of the period = 0 or omitted, at the beginning of the period = 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IPMT.js
 	 */
 	ApiWorksheetFunction.prototype.IPMT = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5394,9 +5515,9 @@
 	 * Returns the internal rate of return for a series of cash flows.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is an array or a reference to cells that contain numbers for which you want to calculate the internal rate of return.
-	 * @param {?number} arg2 Is a number that you guess is close to the result of IRR; 0.1 (10 percent) if omitted.
-	 * @returns {number | string | boolean}
+	 * @param {number[] | ApiRange} arg1 - A range or array of cells that contain numbers for which the internal rate of return will be calculated.
+	 * @param {ApiRange | ApiName | number} [arg2] - An estimate at what the internal rate of return will be. If it is omitted, the function will assume guess to be 0.1 (10 percent).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IRR.js
 	 */
 	ApiWorksheetFunction.prototype.IRR = function (arg1, arg2) {
@@ -5406,27 +5527,27 @@
 	 * Returns the interest paid during a specific period of an investment.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Period for which you want to find the interest.
-	 * @param {number} arg3 Number of payment periods in an investment.
-	 * @param {number} arg4 Lump sum amount that a series of future payments is right now.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The period for which the interest will be retuned. It must be in the range from 1 to the total number of payments.
+	 * @param {ApiRange | ApiName | number} arg3 - The total number of payment periods in an investment.
+	 * @param {ApiRange | ApiName | number} arg4 - The present value, or the lump-sum amount that a series of future payments is worth now.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISPMT.js
 	 */
 	ApiWorksheetFunction.prototype.ISPMT = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("ISPMT", arguments);
 	};
 	/**
-	 * Returns the Macauley modified duration for a security with an assumed par value of $100.
+	 * Returns the modified Macauley duration of a security with an assumed par value of $100.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's annual coupon rate.
-	 * @param {any} arg4 Is the security's annual yield.
-	 * @param {any} arg5 Is the number of coupon payments per year.
-	 * @param {?any} arg6 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} arg5 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MDURATION.js
 	 */
 	ApiWorksheetFunction.prototype.MDURATION = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5436,10 +5557,10 @@
 	 * Returns the internal rate of return for a series of periodic cash flows, considering both cost of investment and interest on reinvestment of cash.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is an array or a reference to cells that contain numbers that represent a series of payments (negative) and income (positive) at regular periods.
-	 * @param {number} arg2 Is the interest rate you pay on the money used in the cash flows.
-	 * @param {number} arg3 Is the interest rate you receive on the cash flows as you reinvest them.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range or array of cells that contain numbers that represent a series of payments (negative) and income (positive) at regular periods.
+	 * @param {ApiRange | ApiName | number} arg2 - The interest rate paid on the money used in the cash flows.
+	 * @param {ApiRange | ApiName | number} arg3 - The interest rate received on the cash reinvestment.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MIRR.js
 	 */
 	ApiWorksheetFunction.prototype.MIRR = function (arg1, arg2, arg3) {
@@ -5449,9 +5570,9 @@
 	 * Returns the annual nominal interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the effective interest rate.
-	 * @param {any} arg2 Is the number of compounding periods per year.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The effective interest rate of the security.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of compounding periods per year.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NOMINAL.js
 	 */
 	ApiWorksheetFunction.prototype.NOMINAL = function (arg1, arg2) {
@@ -5461,12 +5582,12 @@
 	 * Returns the number of periods for an investment based on periodic, constant payments and a constant interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Is the payment made each period; it cannot change over the life of the investment.
-	 * @param {number} arg3 Is the present value, or the lump-sum amount that a series of future payments is worth now.
-	 * @param {?number} arg4 Is the future value, or a cash balance you want to attain after the last payment is made. If omitted, zero is used.
-	 * @param {?number} arg5 Is a logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The payment made each period; it cannot change over the life of the investment.
+	 * @param {ApiRange | ApiName | number} arg3 - Te present value, or the lump-sum amount that a series of future payments is worth now.
+	 * @param {ApiRange | ApiName | number} [arg4] - The future value, or a cash balance which will be attained after the last payment is made. If omitted, zero is used.
+	 * @param {ApiRange | ApiName | number} [arg5] - A logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NPER.js
 	 */
 	ApiWorksheetFunction.prototype.NPER = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5476,7 +5597,10 @@
 	 * Returns the net present value of an investment based on a discount rate and a series of future payments (negative values) and income (positive values).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The discount rate.
+	 * @param {number | ApiRange | number[]} args - Up to 255 arguments representing future payments (negative values) and income (positive values).
+	 * The first argument is required, the subsequent values are optional. Arguments can be numbers, ranges, arrays of numbers.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NPV.js
 	 */
 	ApiWorksheetFunction.prototype.NPV = function () {
@@ -5486,16 +5610,16 @@
 	 * Returns the price per $100 face value of a security with an odd first period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's first coupon date, expressed as a serial date number.
-	 * @param {any} arg5 Is the security's interest rate.
-	 * @param {any} arg6 Is the security's annual yield.
-	 * @param {any} arg7 Is the security's redemption value per $100 face value.
-	 * @param {any} arg8 Is the number of coupon payments per year.
-	 * @param {?any} arg9 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg4 - The first coupon date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg5 - The interest rate of the security.
+	 * @param {ApiRange | ApiName | number} arg6 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} arg7 - The redemption value of the security, per $100 face value.
+	 * @param {ApiRange | ApiName | number} arg8 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg9] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ODDFPRICE.js
 	 */
 	ApiWorksheetFunction.prototype.ODDFPRICE = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
@@ -5505,16 +5629,16 @@
 	 * Returns the yield of a security with an odd first period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's first coupon date, expressed as a serial date number.
-	 * @param {any} arg5 Is the security's interest rate.
-	 * @param {any} arg6 Is the security's price.
-	 * @param {any} arg7 Is the security's redemption value per $100 face value.
-	 * @param {any} arg8 Is the number of coupon payments per year.
-	 * @param {?any} arg9 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg4 - The first coupon date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg5 - The interest rate of the security.
+	 * @param {ApiRange | ApiName | number} arg6 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg7 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg8 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg9] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ODDFYIELD.js
 	 */
 	ApiWorksheetFunction.prototype.ODDFYIELD = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
@@ -5524,15 +5648,15 @@
 	 * Returns the price per $100 face value of a security with an odd last period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's last coupon date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's interest rate.
-	 * @param {any} arg5 Is the security's annual yield.
-	 * @param {any} arg6 Is the security's redemption value per $100 face value.
-	 * @param {any} arg7 Is the number of coupon payments per year.
-	 * @param {?any} arg8 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The last coupon date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg5 - The interest rate of the security.
+	 * @param {ApiRange | ApiName | number} arg5 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} arg6 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg8 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg9] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ODDLPRICE.js
 	 */
 	ApiWorksheetFunction.prototype.ODDLPRICE = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
@@ -5542,15 +5666,15 @@
 	 * Returns the yield of a security with an odd last period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's last coupon date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's interest rate.
-	 * @param {any} arg5 Is the security's price.
-	 * @param {any} arg6 Is the security's redemption value per $100 face value.
-	 * @param {any} arg7 Is the number of coupon payments per year.
-	 * @param {?any} arg8 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The last coupon date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg5 - The interest rate of the security.
+	 * @param {ApiRange | ApiName | number} arg6 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg6 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg8 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg9] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ODDLYIELD.js
 	 */
 	ApiWorksheetFunction.prototype.ODDLYIELD = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
@@ -5560,10 +5684,10 @@
 	 * Returns the number of periods required by an investment to reach a specified value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period..
-	 * @param {number} arg2 Is the present value of the investment.
-	 * @param {number} arg3 Is the desired future value of the investment.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period.
+	 * @param {ApiRange | ApiName | number} arg2 - The present value of the investment.
+	 * @param {ApiRange | ApiName | number} arg3 - The desired future value of the investment.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PDURATION.js
 	 */
 	ApiWorksheetFunction.prototype.PDURATION = function (arg1, arg2, arg3) {
@@ -5573,12 +5697,12 @@
 	 * Calculates the payment for a loan based on constant payments and a constant interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period for the loan. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Is the total number of payments for the loan.
-	 * @param {number} arg3 Is the present value: the total amount that a series of future payments is worth now.
-	 * @param {?number} arg4 Is the future value, or a cash balance you want to attain after the last payment is made, 0 (zero) if omitted.
-	 * @param {?number} arg5 Is a logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period for the loan. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The total number of payments for the loan.
+	 * @param {ApiRange | ApiName | number} arg3 - The present value: the total amount that a series of future payments is worth now.
+	 * @param {ApiRange | ApiName | number} [arg4] - The future value, or a cash balance which will be attained after the last payment is made. If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - A logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PMT.js
 	 */
 	ApiWorksheetFunction.prototype.PMT = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5588,61 +5712,61 @@
 	 * Returns the payment on the principal for a given investment based on periodic, constant payments and a constant interest rate.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Specifies the period and must be in the range 1 to nper.
-	 * @param {number} arg3 Is the total number of payment periods in an investment.
-	 * @param {number} arg4 Is the present value: the total amount that a series of future payments is worth now.
-	 * @param {?number} arg5 Is the future value, or cash balance you want to attain after the last payment is made.
-	 * @param {?number} arg6 Is a logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The period for which the principal payment will be returned. It must be in the range from 1 to to the total number of payment periods.
+	 * @param {ApiRange | ApiName | number} arg3 - The total number of payment periods in an investment.
+	 * @param {ApiRange | ApiName | number} arg4 - The present value: the total amount that a series of future payments is worth now.
+	 * @param {ApiRange | ApiName | number} [arg5] - The future value, or cash balance which will be attained after the last payment is made.
+	 * @param {ApiRange | ApiName | number} [arg6] - A logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PPMT.js
 	 */
 	ApiWorksheetFunction.prototype.PPMT = function (arg1, arg2, arg3, arg4, arg5, arg6) {
 		return this.private_calculateFunction("PPMT", arguments);
 	};
 	/**
-	 * Returns the price per $100 face value of a security that pays periodic interest.
+	 * Returns the price per $100 face value for a security that pays periodic interest.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's annual coupon rate.
-	 * @param {any} arg4 Is the security's annual yield.
-	 * @param {any} arg5 Is the security's redemption value per $100 face value.
-	 * @param {any} arg6 Is the number of coupon payments per year.
-	 * @param {?any} arg7 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} arg5 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg6 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg7] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PRICE.js
 	 */
 	ApiWorksheetFunction.prototype.PRICE = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
 		return this.private_calculateFunction("PRICE", arguments);
 	};
 	/**
-	 * Returns the price per $100 face value of a discounted security.
+	 * Returns the price per $100 face value for a discounted security.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's discount rate.
-	 * @param {any} arg4 Is the security's redemption value per $100 face value.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The discount rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} [arg5] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PRICEDISC.js
 	 */
 	ApiWorksheetFunction.prototype.PRICEDISC = function (arg1, arg2, arg3, arg4, arg5) {
 		return this.private_calculateFunction("PRICEDISC", arguments);
 	};
 	/**
-	 * Returns the price per $100 face value of a security that pays interest at maturity.
+	 * Returns the price per $100 face value for a security that pays interest at maturity.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's interest rate at date of issue.
-	 * @param {any} arg5 Is the security's annual yield.
-	 * @param {?any} arg6 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg4 - The security interest rate at the issue date.
+	 * @param {ApiRange | ApiName | number} arg5 - The annual yield of the security.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PRICEMAT.js
 	 */
 	ApiWorksheetFunction.prototype.PRICEMAT = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5652,28 +5776,28 @@
 	 * Returns the present value of an investment: the total amount that a series of future payments is worth now.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
-	 * @param {number} arg2 Is the total number of payment periods in an investment.
-	 * @param {number} arg3 Is the payment made each period and cannot change over the life of the investment.
-	 * @param {?number} arg4 Is the future value, or a cash balance you want to attain after the last payment is made.
-	 * @param {?number} arg5 Is a logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The interest rate per period. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * @param {ApiRange | ApiName | number} arg2 - The total number of payment periods in an investment.
+	 * @param {ApiRange | ApiName | number} arg3 - The payment made each period and cannot change over the life of the investment.
+	 * @param {ApiRange | ApiName | number} [arg4] - The future value, or a cash balance which will be attained after the last payment is made. If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - A logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PV.js
 	 */
 	ApiWorksheetFunction.prototype.PV = function (arg1, arg2, arg3, arg4, arg5) {
 		return this.private_calculateFunction("PV", arguments);
 	};
 	/**
-	 * Returns the interest rate per period of a loan or an investment. For example, use 6%/4 for quarterly payments at 6% APR.
+	 * Returns the interest rate per period for a loan or an investment. For example, use 6%/4 for quarterly payments at 6% APR.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the total number of payment periods for the loan or investment.
-	 * @param {number} arg2 Is the payment made each period and cannot change over the life of the loan or investment.
-	 * @param {number} arg3 Is the present value: the total amount that a series of future payments is worth now.
-	 * @param {?number} arg4 Is the future value, or a cash balance you want to attain after the last payment is made. If omitted, uses Fv = 0.
-	 * @param {?number} arg5 Is a logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
-	 * @param {?number} arg6 Is your guess for what the rate will be; if omitted, Guess = 0.1 (10 percent).
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The total number of payment periods for the loan or investment.
+	 * @param {ApiRange | ApiName | number} arg2 - The payment made each period and cannot change over the life of the loan or investment.
+	 * @param {ApiRange | ApiName | number} arg3 - The present value: the total amount that a series of future payments is worth now.
+	 * @param {ApiRange | ApiName | number} [arg4] - The future value, or a cash balance which will be attained after the last payment is made. If omitted, it is equal to 0.
+	 * @param {ApiRange | ApiName | number} [arg5] - A logical value: payment at the beginning of the period = 1; payment at the end of the period = 0 or omitted.
+	 * @param {ApiRange | ApiName | number} [arg6] - An estimate at what the rate will be. If it is omitted, the function will assume guess to be 0.1 (10 percent).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RATE.js
 	 */
 	ApiWorksheetFunction.prototype.RATE = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5683,12 +5807,12 @@
 	 * Returns the amount received at maturity for a fully invested security.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the amount invested in the security.
-	 * @param {any} arg4 Is the security's discount rate.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The security settlement date, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The amount invested in the security.
+	 * @param {ApiRange | ApiName | number} arg4 - 	The security discount rate.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RECEIVED.js
 	 */
 	ApiWorksheetFunction.prototype.RECEIVED = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5698,10 +5822,10 @@
 	 * Returns an equivalent interest rate for the growth of an investment.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number of periods for the investment.
-	 * @param {number} arg2 Is the present value of the investment.
-	 * @param {number} arg3 Is the future value of the investment.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number of periods for the investment.
+	 * @param {ApiRange | ApiName | number} arg2 - The present value of the investment.
+	 * @param {ApiRange | ApiName | number} arg3 - The future value of the investment.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RRI.js
 	 */
 	ApiWorksheetFunction.prototype.RRI = function (arg1, arg2, arg3) {
@@ -5711,10 +5835,10 @@
 	 * Returns the straight-line depreciation of an asset for one period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the initial cost of the asset.
-	 * @param {number} arg2 Is the salvage value at the end of the life of the asset.
-	 * @param {number} arg3 Is the number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The initial cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SLN.js
 	 */
 	ApiWorksheetFunction.prototype.SLN = function (arg1, arg2, arg3) {
@@ -5724,11 +5848,11 @@
 	 * Returns the sum-of-years' digits depreciation of an asset for a specified period.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the initial cost of the asset.
-	 * @param {number} arg2 Is the salvage value at the end of the life of the asset.
-	 * @param {number} arg3 Is the number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
-	 * @param {number} arg4 Is the period and must use the same units as Life.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The initial cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
+	 * @param {ApiRange | ApiName | number} arg4 - The period for which the depreciation will be calculated. It must use the same units as the useful life of the asset.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SYD.js
 	 */
 	ApiWorksheetFunction.prototype.SYD = function (arg1, arg2, arg3, arg4) {
@@ -5738,53 +5862,54 @@
 	 * Returns the bond-equivalent yield for a treasury bill.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the Treasury bill's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the Treasury bill's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the Treasury bill's discount rate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The discount rate of the Treasury bill.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TBILLEQ.js
 	 */
 	ApiWorksheetFunction.prototype.TBILLEQ = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("TBILLEQ", arguments);
 	};
 	/**
-	 * Returns the price per $100 face value for a treasury bill.
+	 * Returns the price per $100 face value for a Treasury bill.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the Treasury bill's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the Treasury bill's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the Treasury bill's discount rate.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The discount rate of the Treasury bill.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TBILLPRICE.js
 	 */
 	ApiWorksheetFunction.prototype.TBILLPRICE = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("TBILLPRICE", arguments);
 	};
 	/**
-	 * Returns the yield for a treasury bill.
+	 * Returns the yield for a Treasury bill.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the Treasury bill's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the Treasury bill's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the Treasury Bill's price per $100 face value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The purchase price of the Treasury bill, per $100 par value.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TBILLYIELD.js
 	 */
 	ApiWorksheetFunction.prototype.TBILLYIELD = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("TBILLYIELD", arguments);
 	};
 	/**
-	 * Returns the depreciation of an asset for any period you specify, including partial periods, using the double-declining balance method or some other method you specify.
+	 * Returns the depreciation of an asset for any specified period, including partial periods, using the double-declining balance method or some other method specified.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the initial cost of the asset.
-	 * @param {number} arg2 Is the salvage value at the end of the life of the asset.
-	 * @param {number} arg3 Is the number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
-	 * @param {number} arg4 Is the starting period for which you want to calculate the depreciation, in the same units as Life.
-	 * @param {number} arg5 Is the ending period for which you want to calculate the depreciation, in the same units as Life.
-	 * @param {?number} arg6 Is the rate at which the balance declines, 2 (double-declining balance) if omitted.
-	 * @param {?boolean} arg7 Switch to straight-line depreciation when depreciation is greater than the declining balance = FALSE or omitted; do not switch = TRUE.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The initial cost of the asset.
+	 * @param {ApiRange | ApiName | number} arg2 - The salvage value of the asset at the end of its lifetime.
+	 * @param {ApiRange | ApiName | number} arg3 - The number of periods over which the asset is being depreciated (sometimes called the useful life of the asset).
+	 * @param {ApiRange | ApiName | number} arg4 - The starting period for which the depreciation will be calculated, in the same units as the useful life of the asset.
+	 * @param {ApiRange | ApiName | number} arg5 - The ending period for which the depreciation will be calculated, in the same units as the useful life of the asset.
+	 * @param {ApiRange | ApiName | number} [arg6] - The rate at which the balance declines. If it is omitted, the function will assume it to be 2
+	 * @param {ApiRange | ApiName | boolean} [arg7] - Specifies whether to use straight-line depreciation when depreciation is greater than the declining balance calculation (<b>false</b> or omitted).
+	 * If it is set to <b>true</b>, the function uses the declining balance method.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VDB.js
 	 */
 	ApiWorksheetFunction.prototype.VDB = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
@@ -5794,10 +5919,10 @@
 	 * Returns the internal rate of return for a schedule of cash flows.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a series of cash flows that correspond to a schedule of payments in dates.
-	 * @param {any} arg2 Is a schedule of payment dates that corresponds to the cash flow payments.
-	 * @param {?any} arg3 Is a number that you guess is close to the result of XIRR.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - A range that contains the series of cash flows that corresponds to a schedule of payments in dates.
+	 * @param {ApiRange | ApiName} arg2 - A range that contains the schedule of payment dates that corresponds to the cash flow payments.
+	 * @param {ApiRange | ApiName | number} [arg3] - An estimate at what the internal rate of return will be. If it is omitted, the function will assume guess to be 0.1 (10 percent).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/XIRR.js
 	 */
 	ApiWorksheetFunction.prototype.XIRR = function (arg1, arg2, arg3) {
@@ -5807,10 +5932,10 @@
 	 * Returns the net present value for a schedule of cash flows.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the discount rate to apply to the cash flows.
-	 * @param {any} arg2 Is a series of cash flows that correspond to a schedule of payments in dates.
-	 * @param {any} arg3 Is a schedule of payment dates that corresponds to the cash flow payments.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The discount rate to apply to the cash flows.
+	 * @param {ApiRange | ApiName} arg2 - A range that contains the series of cash flows that corresponds to a schedule of payments in dates.
+	 * @param {ApiRange | ApiName} arg3 - A range that contains the schedule of payment dates that corresponds to the cash flow payments.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/XNPV.js
 	 */
 	ApiWorksheetFunction.prototype.XNPV = function (arg1, arg2, arg3) {
@@ -5820,29 +5945,29 @@
 	 * Returns the yield on a security that pays periodic interest.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's annual coupon rate.
-	 * @param {any} arg4 Is the security's price per $100 face value.
-	 * @param {any} arg5 Is the security's redemption value per $100 face value.
-	 * @param {any} arg6 Is the number of coupon payments per year.
-	 * @param {?any} arg7 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The annual coupon rate of the security.
+	 * @param {ApiRange | ApiName | number} arg4 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg5 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg6 - The number of interest payments per year. The possible values are: 1 for annual payments, 2 for semiannual payments, 4 for quarterly payments.
+	 * @param {ApiRange | ApiName | number} [arg7] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/YIELD.js
 	 */
 	ApiWorksheetFunction.prototype.YIELD = function (arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
 		return this.private_calculateFunction("YIELD", arguments);
 	};
 	/**
-	 * Returns the annual yield for a discounted security. For example, a treasury bill.
+	 * Returns the annual yield for a discounted security. For example, a Treasury bill.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's price per $100 face value.
-	 * @param {any} arg4 Is the security's redemption value per $100 face value.
-	 * @param {?any} arg5 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} arg4 - The redemption value of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} [arg5] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/YIELDDISC.js
 	 */
 	ApiWorksheetFunction.prototype.YIELDDISC = function (arg1, arg2, arg3, arg4, arg5) {
@@ -5852,13 +5977,13 @@
 	 * Returns the annual yield of a security that pays interest at maturity.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the security's settlement date, expressed as a serial date number.
-	 * @param {any} arg2 Is the security's maturity date, expressed as a serial date number.
-	 * @param {any} arg3 Is the security's issue date, expressed as a serial date number.
-	 * @param {any} arg4 Is the security's interest rate at date of issue.
-	 * @param {any} arg5 Is the security's price per $100 face value.
-	 * @param {?any} arg6 Is the type of day count basis to use.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The settlement date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg2 - The maturity date of the Treasury bill, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg3 - The issue date of the security, expressed as a serial date number.
+	 * @param {ApiRange | ApiName | number} arg4 - The interest rate of the security at the issue date.
+	 * @param {ApiRange | ApiName | number} arg5 - The purchase price of the security, per $100 par value.
+	 * @param {ApiRange | ApiName | number} [arg6] - The day count basis to use: <b>0</b> or omitted - US (NASD) 30/360; <b>1</b> - Actual/actual; <b>2</b> - Actual/360; <b>3</b> - Actual/365; <b>4</b> - European 30/360.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/YIELDMAT.js
 	 */
 	ApiWorksheetFunction.prototype.YIELDMAT = function (arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -5868,19 +5993,19 @@
 	 * Returns the absolute value of a number, a number without its sign.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the real number for which you want the absolute value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The real number for which the absolute value will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ABS.js
 	 */
 	ApiWorksheetFunction.prototype.ABS = function (arg1) {
 		return this.private_calculateFunction("ABS", arguments);
 	};
 	/**
-	 * Returns the arccosine of a number, in radians in the range 0 to Pi. The arccosine is the angle whose cosine is Number.
+	 * Returns the arccosine of a number, in radians in the range from 0 to Pi. The arccosine is the angle whose cosine is a number specified in the parameters.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the cosine of the angle you want and must be from -1 to 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle cosine. It must be from -1 to 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACOS.js
 	 */
 	ApiWorksheetFunction.prototype.ACOS = function (arg1) {
@@ -5890,19 +6015,19 @@
 	 * Returns the inverse hyperbolic cosine of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number equal to or greater than 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number equal to or greater than 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACOSH.js
 	 */
 	ApiWorksheetFunction.prototype.ACOSH = function (arg1) {
 		return this.private_calculateFunction("ACOSH", arguments);
 	};
 	/**
-	 * Returns the arccotangent of a number, in radians in the range 0 to Pi..
+	 * Returns the arccotangent of a number, in radians in the range from 0 to Pi.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the cotangent of the angle you want.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle cotangent.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACOT.js
 	 */
 	ApiWorksheetFunction.prototype.ACOT = function (arg1) {
@@ -5912,8 +6037,8 @@
 	 * Returns the inverse hyperbolic cotangent of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the hyperbolic cotangent of the angle that you want.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle hyperbolic cotangent. It must be less than -1 or greater than 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ACOTH.js
 	 */
 	ApiWorksheetFunction.prototype.ACOTH = function (arg1) {
@@ -5923,7 +6048,16 @@
 	 * Returns an aggregate in a list or database.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A numeric value that specifies which function to use: <b>1</b> - AVERAGE, <b>2</b> - COUNT, <b>3</b> - COUNTA, <b>4</b> - MAX, <b>5</b> - MIN,
+	 * <b>6</b> - PRODUCT, <b>7</b> - STDEV.S, <b>8</b> - STDEV.P, <b>9</b> - SUM, <b>10</b> - VAR.S, <b>11</b> - VAR.P, <b>12</b> - MEDIAN, <b>13</b> - MODE.SNGL, <b>14</b> - LARGE,
+	 * <b>15</b> - SMALL, <b>16</b> - PERCENTILE.INC, <b>17</b> - QUARTILE.INC, <b>18</b> - PERCENTILE.EXC, <b>19</b> - QUARTILE.EXC.
+	 * @param {ApiRange | ApiName | number} arg2 - A numeric value that specifies which values should be ignored: <b>0</b> or omitted - nested SUBTOTAL and AGGREGATE functions,
+	 * <b>1</b> - hidden rows, nested SUBTOTAL and AGGREGATE functions, <b>2</b> - error values, nested SUBTOTAL and AGGREGATE functions,
+	 * <b>3</b> - hidden rows, error values, nested SUBTOTAL and AGGREGATE functions, <b>4</b> - nothing, <b>5</b> - hidden rows, <b>6</b> - error values, <b>7</b> - hidden rows and error values.
+	 * @param {number | ApiRange | number[]} arg3 - The first numeric value for which the aggregate value will be returned.
+	 * @param {number | ApiRange | number[]} args - Up to 253 numeric values or a range of cells containing the values for which the aggregate value will be returned.
+	 * Arguments can be numbers, ranges, or arrays of numbers.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AGGREGATE.js
 	 */
 	ApiWorksheetFunction.prototype.AGGREGATE = function () {
@@ -5933,19 +6067,19 @@
 	 * Converts a Roman numeral to Arabic.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 Is the Roman numeral you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string} arg1 - The Roman numeral to convert.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ARABIC.js
 	 */
 	ApiWorksheetFunction.prototype.ARABIC = function (arg1) {
 		return this.private_calculateFunction("ARABIC", arguments);
 	};
 	/**
-	 * Returns the arcsine of a number in radians, in the range -Pi/2 to Pi/2.
+	 * Returns the arcsine of a number in radians, in the range from *-Pi/2* to *Pi/2*.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the sine of the angle you want and must be from -1 to 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle sine. It must be from -1 to 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ASIN.js
 	 */
 	ApiWorksheetFunction.prototype.ASIN = function (arg1) {
@@ -5955,19 +6089,19 @@
 	 * Returns the inverse hyperbolic sine of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number equal to or greater than 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number equal to or greater than 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ASINH.js
 	 */
 	ApiWorksheetFunction.prototype.ASINH = function (arg1) {
 		return this.private_calculateFunction("ASINH", arguments);
 	};
 	/**
-	 * Returns the arctangent of a number in radians, in the range -Pi/2 to Pi/2.
+	 * Returns the arctangent of a number in radians, in the range from *-Pi/2* to *Pi/2*.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the tangent of the angle you want.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle tangent.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ATAN.js
 	 */
 	ApiWorksheetFunction.prototype.ATAN = function (arg1) {
@@ -5977,9 +6111,9 @@
 	 * Returns the arctangent of the specified x and y coordinates, in radians between -Pi and Pi, excluding -Pi.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the x-coordinate of the point.
-	 * @param {number} arg2 Is the y-coordinate of the point.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The x coordinate of the point.
+	 * @param {ApiRange | ApiName | number} arg2 - The y coordinate of the point.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ATAN2.js
 	 */
 	ApiWorksheetFunction.prototype.ATAN2 = function (arg1, arg2) {
@@ -5989,8 +6123,8 @@
 	 * Returns the inverse hyperbolic tangent of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number between -1 and 1 excluding -1 and 1.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number between -1 and 1 excluding -1 and 1.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ATANH.js
 	 */
 	ApiWorksheetFunction.prototype.ATANH = function (arg1) {
@@ -6000,10 +6134,10 @@
 	 * Converts a number into a text representation with the given radix (base).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number that you want to convert.
-	 * @param {number} arg2 Is the base Radix that you want to convert the number into.
-	 * @param {?number} arg3 Is the minimum length of the returned string.  If omitted leading zeros are not added.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number to convert.
+	 * @param {ApiRange | ApiName | number} arg2 - The base radix into which the number will be converted. An integer greater than or equal to 2 and less than or equal to 36.
+	 * @param {ApiRange | ApiName | number} [arg3] - The minimum length of the returned string. An integer greater than or equal to 0 and less than 256. If omitted, leading zeros are not added to the result.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/BASE.js
 	 */
 	ApiWorksheetFunction.prototype.BASE = function (arg1, arg2, arg3) {
@@ -6013,9 +6147,9 @@
 	 * Rounds a number up, to the nearest multiple of significance.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the value you want to round.
-	 * @param {number} arg2 Is the multiple to which you want to round.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round up.
+	 * @param {ApiRange | ApiName | number} arg2 - The multiple of significance to round up to.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CEILING.js
 	 */
 	ApiWorksheetFunction.prototype.CEILING = function (arg1, arg2) {
@@ -6025,22 +6159,23 @@
 	 * Rounds a number up, to the nearest integer or to the nearest multiple of significance.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the value you want to round.
-	 * @param {?number} arg2 Is the multiple to which you want to round.
-	 * @param {?number} arg3 When given and nonzero this function will round away from zero.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round up.
+	 * @param {ApiRange | ApiName | number} [arg2] - The multiple of significance to round up to. If it is omitted, the default value of 1 is used.
+	 * @param {ApiRange | ApiName | number} [arg3] - Specifies if negative numbers are rounded towards or away from zero. If it is omitted or set to 0, negative numbers are rounded towards zero.
+	 * If any other numeric value is specified, negative numbers are rounded away from zero.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CEILING_MATH.js
 	 */
 	ApiWorksheetFunction.prototype.CEILING_MATH = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("CEILING.MATH", arguments);
 	};
 	/**
-	 * Returns a number that is rounded up to the nearest integer or to the nearest multiple of significance.
+	 * Returns a number that is rounded up to the nearest integer or to the nearest multiple of significance. The number is always rounded up regardless of its sing.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1.
-	 * @param {?number} arg2.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round up.
+	 * @param {ApiRange | ApiName | number} [arg2] - The multiple of significance to round up to. If it is omitted, the default value of 1 is used. If it is set to zero, the function returns 0.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CEILING_PRECISE.js
 	 */
 	ApiWorksheetFunction.prototype.CEILING_PRECISE = function (arg1, arg2) {
@@ -6050,9 +6185,9 @@
 	 * Returns the number of combinations for a given number of items.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the total number of items.
-	 * @param {number} arg2 Is the number of items in each combination.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The total number of items, a numeric value greater than or equal to 0.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of items in each combination, a numeric value greater than or equal to 0 but less than the total number of items.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COMBIN.js
 	 */
 	ApiWorksheetFunction.prototype.COMBIN = function (arg1, arg2) {
@@ -6062,9 +6197,9 @@
 	 * Returns the number of combinations with repetitions for a given number of items.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the total number of items.
-	 * @param {number} arg2 Is the number of items in each combination.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The total number of items, a numeric value greater than or equal to 0.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of items in each combination, a numeric value greater than or equal to 0 but less than the total number of items.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COMBINA.js
 	 */
 	ApiWorksheetFunction.prototype.COMBINA = function (arg1, arg2) {
@@ -6074,8 +6209,8 @@
 	 * Returns the cosine of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the cosine.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the cosine will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COS.js
 	 */
 	ApiWorksheetFunction.prototype.COS = function (arg1) {
@@ -6085,8 +6220,8 @@
 	 * Returns the hyperbolic cosine of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number for which the hyperbolic cosine will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COSH.js
 	 */
 	ApiWorksheetFunction.prototype.COSH = function (arg1) {
@@ -6096,8 +6231,8 @@
 	 * Returns the cotangent of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the cotangent.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the cotangent will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COT.js
 	 */
 	ApiWorksheetFunction.prototype.COT = function (arg1) {
@@ -6107,8 +6242,8 @@
 	 * Returns the hyperbolic cotangent of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the hyperbolic cotangent.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the hyperbolic cotangent will be calculated. Its absolute value must be less than *2^27*.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COTH.js
 	 */
 	ApiWorksheetFunction.prototype.COTH = function (arg1) {
@@ -6118,8 +6253,8 @@
 	 * Returns the cosecant of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the cosecant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the cosecant will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CSC.js
 	 */
 	ApiWorksheetFunction.prototype.CSC = function (arg1) {
@@ -6129,8 +6264,8 @@
 	 * Returns the hyperbolic cosecant of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the hyperbolic cosecant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the hyperbolic cosecant will be calculated. Its absolute value must be less than *2^27*.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CSCH.js
 	 */
 	ApiWorksheetFunction.prototype.CSCH = function (arg1) {
@@ -6140,9 +6275,9 @@
 	 * Converts a text representation of a number in a given base into a decimal number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 Is the number that you want to convert.
-	 * @param {number} arg2 Is the base Radix of the number you are converting.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string} arg1 - The number to convert. The string lenght must be less than or equal to 255 characters.
+	 * @param {ApiRange | ApiName | number} arg2 - The base Radix of the number that is converting. An integer greater than or equal to 2 and less than or equal to 36.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DECIMAL.js
 	 */
 	ApiWorksheetFunction.prototype.DECIMAL = function (arg1, arg2) {
@@ -6152,20 +6287,20 @@
 	 * Converts radians to degrees.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians that you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians to convert.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/DEGREES.js
 	 */
 	ApiWorksheetFunction.prototype.DEGREES = function (arg1) {
 		return this.private_calculateFunction("DEGREES", arguments);
 	};
 	/**
-	 * Rounds the number up to the nearest multiple of significance.
+	 * Rounds the number up to the nearest multiple of significance. Negative numbers are rounded towards zero.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1.
-	 * @param {number} arg2.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round up.
+	 * @param {ApiRange | ApiName | number} arg2 - The multiple of significance to round up to.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ECMA_CEILING.js
 	 */
 	ApiWorksheetFunction.prototype.ECMA_CEILING = function (arg1, arg2) {
@@ -6175,30 +6310,30 @@
 	 * Rounds a positive number up and negative number down to the nearest even integer.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the value to round.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round up.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EVEN.js
 	 */
 	ApiWorksheetFunction.prototype.EVEN = function (arg1) {
 		return this.private_calculateFunction("EVEN", arguments);
 	};
 	/**
-	 * Returns e raised to the power of a given number.
+	 * Returns the <b>e</b> constant raised to the power of a given number. The <b>e</b> constant is equal to <b>2.71828182845904</b>, the base of the natural logarithm.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the exponent applied to the base e. The constant e equals 2.71828182845904, the base of the natural logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The exponent applied to the base <b>e</b>.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/EXP.js
 	 */
 	ApiWorksheetFunction.prototype.EXP = function (arg1) {
 		return this.private_calculateFunction("EXP", arguments);
 	};
 	/**
-	 * Returns the factorial of a number, equal to 1*2*3*...* Number.
+	 * Returns the factorial of a number, which is equal to *1*2*3*...** number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the nonnegative number you want the factorial of.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The nonnegative number for which the factorial will be calculated.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FACT.js
 	 */
 	ApiWorksheetFunction.prototype.FACT = function (arg1) {
@@ -6208,8 +6343,8 @@
 	 * Returns the double factorial of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value for which to return the double factorial.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value for which to return the double factorial.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FACTDOUBLE.js
 	 */
 	ApiWorksheetFunction.prototype.FACTDOUBLE = function (arg1) {
@@ -6219,21 +6354,21 @@
 	 * Rounds a number down to the nearest multiple of significance.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the numeric value you want to round.
-	 * @param {number} arg2 Is the multiple to which you want to round. Number and Significance must either both be positive or both be negative.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value to round down.
+	 * @param {ApiRange | ApiName | number} arg2 - The multiple of significance to round down to. The number to round down and the multiple of significance must have the same sign.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FLOOR.js
 	 */
 	ApiWorksheetFunction.prototype.FLOOR = function (arg1, arg2) {
 		return this.private_calculateFunction("FLOOR", arguments);
 	};
 	/**
-	 * Returns a number that is rounded down to the nearest integer or to the nearest multiple of significance.
+	 * Returns a number that is rounded down to the nearest integer or to the nearest multiple of significance. The number is always rounded down regardless of its sign.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1.
-	 * @param {?number} arg2.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value to round down.
+	 * @param {ApiRange | ApiName | number} [arg2] - The multiple of significance to round down to. If it is omitted, the default value of 1 is used. If it is set to zero, the function returns 0.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FLOOR_PRECISE.js
 	 */
 	ApiWorksheetFunction.prototype.FLOOR_PRECISE = function (arg1, arg2) {
@@ -6243,10 +6378,11 @@
 	 * Rounds a number down, to the nearest integer or to the nearest multiple of significance.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the value you want to round.
-	 * @param {?number} arg2 Is the multiple to which you want to round.
-	 * @param {?number} arg3 When given and nonzero this function will round towards zero.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value to round down.
+	 * @param {ApiRange | ApiName | number} [arg2] - The multiple of significance to round down to. If it is omitted, the default value of 1 is used.
+	 * @param {ApiRange | ApiName | number} [arg3] - Specifies if negative numbers are rounded towards or away from zero. If it is omitted or set to 0, negative numbers are rounded away from zero.
+	 * If any other numeric value is specified, negative numbers are rounded towards zero.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FLOOR_MATH.js
 	 */
 	ApiWorksheetFunction.prototype.FLOOR_MATH = function (arg1, arg2, arg3) {
@@ -6256,7 +6392,8 @@
 	 * Returns the greatest common divisor.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} args - Up to 255 numeric values for which the greatest common divisor will be returned. The first argument is required, subsequent arguments are optional.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/GCD.js
 	 */
 	ApiWorksheetFunction.prototype.GCD = function () {
@@ -6266,20 +6403,21 @@
 	 * Rounds a number down to the nearest integer.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the real number you want to round down to an integer.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The real number to round down to an integer.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/INT.js
 	 */
 	ApiWorksheetFunction.prototype.INT = function (arg1) {
 		return this.private_calculateFunction("INT", arguments);
 	};
 	/**
-	 * Returns a number that is rounded up to the nearest integer or to the nearest multiple of significance regardless of the sign of the number. However, if the number or the significance is zero, zero is returned..
+	 * Returns a number that is rounded up to the nearest integer or to the nearest multiple of significance regardless of the sign of the number.
+	 * The number is always rounded up regardless of its sing.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1.
-	 * @param {?number} arg2.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The numeric value to round up.
+	 * @param {ApiRange | ApiName | number} [arg2] - The multiple of significance to round up to. If it is omitted, the default value of 1 is used. If it is set to zero, the function returns 0.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISO_CEILING.js
 	 */
 	ApiWorksheetFunction.prototype.ISO_CEILING = function (arg1, arg2) {
@@ -6289,7 +6427,8 @@
 	 * Returns the least common multiple.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} args - Up to 255 numeric values for which the least common multiple will be returned. The first argument is required, subsequent arguments are optional.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LCM.js
 	 */
 	ApiWorksheetFunction.prototype.LCM = function () {
@@ -6299,20 +6438,20 @@
 	 * Returns the natural logarithm of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the positive real number for which you want the natural logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The positive real number for which the natural logarithm will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LN.js
 	 */
 	ApiWorksheetFunction.prototype.LN = function (arg1) {
 		return this.private_calculateFunction("LN", arguments);
 	};
 	/**
-	 * Returns the logarithm of a number to the base you specify.
+	 * Returns the logarithm of a number to the specified base.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the positive real number for which you want the logarithm.
-	 * @param {?number} arg2 Is the base of the logarithm; 10 if omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The positive real number for which the logarithm will be returned.
+	 * @param {ApiRange | ApiName | number} [arg2] - The logarithm base. If omitted, it is equal to 10.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOG.js
 	 */
 	ApiWorksheetFunction.prototype.LOG = function (arg1, arg2) {
@@ -6322,8 +6461,8 @@
 	 * Returns the base-10 logarithm of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the positive real number for which you want the base-10 logarithm.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The positive real number for which the base-10 logarithm will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOG10.js
 	 */
 	ApiWorksheetFunction.prototype.LOG10 = function (arg1) {
@@ -6367,9 +6506,9 @@
 	 * Returns the remainder after a number is divided by a divisor.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number for which you want to find the remainder after the division is performed.
-	 * @param {number} arg2 Is the number by which you want to divide Number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number to divide and find the remainder.
+	 * @param {ApiRange | ApiName | number} arg2 - The number to divide by.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MOD.js
 	 */
 	ApiWorksheetFunction.prototype.MOD = function (arg1, arg2) {
@@ -6379,19 +6518,20 @@
 	 * Returns a number rounded to the desired multiple.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to round.
-	 * @param {any} arg2 Is the multiple to which you want to round number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round.
+	 * @param {ApiRange | ApiName | number} arg2 - The multiple to round the number to.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MROUND.js
 	 */
 	ApiWorksheetFunction.prototype.MROUND = function (arg1, arg2) {
 		return this.private_calculateFunction("MROUND", arguments);
 	};
 	/**
-	 * Returns the multinomial of a set of numbers.
+	 * Returns the ratio of the factorial of a sum of numbers to the product of factorials.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} args - Up to 255 numeric values for which the multinomial will be returned. The first argument is required, subsequent arguments are optional.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MULTINOMIAL.js
 	 */
 	ApiWorksheetFunction.prototype.MULTINOMIAL = function () {
@@ -6401,8 +6541,8 @@
 	 * Returns the unit matrix for the specified dimension.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is an integer specifying the dimension of the unit matrix that you want to return.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - An integer specifying the dimension of the unit matrix to be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MUNIT.js
 	 */
 	ApiWorksheetFunction.prototype.MUNIT = function (arg1) {
@@ -6412,18 +6552,18 @@
 	 * Rounds a positive number up and negative number down to the nearest odd integer.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the value to round.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to round.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ODD.js
 	 */
 	ApiWorksheetFunction.prototype.ODD = function (arg1) {
 		return this.private_calculateFunction("ODD", arguments);
 	};
 	/**
-	 * Returns the value of Pi, 3.14159265358979, accurate to 15 digits.
+	 * Returns the mathematical constant <b>pi</b>, equal to <b>3.14159265358979</b>, accurate to 15 digits.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PI.js
 	 */
 	ApiWorksheetFunction.prototype.PI = function () {
@@ -6433,9 +6573,9 @@
 	 * Returns the result of a number raised to a power.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the base number, any real number.
-	 * @param {number} arg2 Is the exponent, to which the base number is raised.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The base number. It can be any real number.
+	 * @param {ApiRange | ApiName | number} arg2 - The exponent to which the base number is raised.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/POWER.js
 	 */
 	ApiWorksheetFunction.prototype.POWER = function (arg1, arg2) {
@@ -6445,7 +6585,9 @@
 	 * Multiplies all the numbers given as arguments.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {number | ApiRange | number[]} args - Up to 255 numeric values that will be multiplied. The first argument is required, subsequent arguments are optional.
+	 * Arguments can be numbers, ranges, or arrays of numbers.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/PRODUCT.js
 	 */
 	ApiWorksheetFunction.prototype.PRODUCT = function () {
@@ -6455,9 +6597,9 @@
 	 * Returns the integer portion of a division.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the dividend.
-	 * @param {any} arg2 Is the divisor.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The dividend, a numeric value.
+	 * @param {ApiRange | ApiName | number} arg2 - The divisor, a numeric value.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/QUOTIENT.js
 	 */
 	ApiWorksheetFunction.prototype.QUOTIENT = function (arg1, arg2) {
@@ -6467,8 +6609,8 @@
 	 * Converts degrees to radians.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is an angle in degrees that you want to convert.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - An angle in degrees to convert.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RADIANS.js
 	 */
 	ApiWorksheetFunction.prototype.RADIANS = function (arg1) {
@@ -6478,31 +6620,31 @@
 	 * Returns a random number greater than or equal to 0 and less than 1, evenly distributed (changes on recalculation).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RAND.js
 	 */
 	ApiWorksheetFunction.prototype.RAND = function () {
 		return this.private_calculateFunction("RAND", arguments);
 	};
 	/**
-	 * Returns a random number between the numbers you specify.
+	 * Returns a random number between the numbers specified.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the smallest integer RANDBETWEEN will return.
-	 * @param {any} arg2 Is the largest integer RANDBETWEEN will return.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The smallest integer value.
+	 * @param {ApiRange | ApiName | number} arg2 - The largest integer value.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/RANDBETWEEN.js
 	 */
 	ApiWorksheetFunction.prototype.RANDBETWEEN = function (arg1, arg2) {
 		return this.private_calculateFunction("RANDBETWEEN", arguments);
 	};
 	/**
-	 * Converts an Arabic numeral to Roman, as text.
+	 * Converts an arabic numeral to a roman numeral in the string format.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the Arabic numeral you want to convert.
-	 * @param {?number} arg2 Is the number specifying the type of Roman numeral you want..
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A numeric value greater than or equal to 1 and less than 3999.
+	 * @param {ApiRange | ApiName | number} [arg2] - A roman numeral type: <b>0</b> - classic, <b>1</b> - more concise, <b>2</b> - more concise, <b>3</b> - more concise, <b>4</b> - simplified.
+	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ROMAN.js
 	 */
 	ApiWorksheetFunction.prototype.ROMAN = function (arg1, arg2) {
@@ -6512,21 +6654,23 @@
 	 * Rounds a number to a specified number of digits.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number you want to round.
-	 * @param {number} arg2 Is the number of digits to which you want to round. Negative rounds to the left of the decimal point; zero to the nearest integer.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number to round.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of digits to round to. If this argument is negative, the number will be rounded to the left of the decimal point.
+	 * If it is equal to zero, the number will be rounded to the nearest integer.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ROUND.js
 	 */
 	ApiWorksheetFunction.prototype.ROUND = function (arg1, arg2) {
 		return this.private_calculateFunction("ROUND", arguments);
 	};
 	/**
-	 * Rounds a number down, towards zero.
+	 * Rounds a number down, toward zero.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number that you want rounded down.
-	 * @param {number} arg2 Is the number of digits to which you want to round. Negative rounds to the left of the decimal point; zero or omitted, to the nearest integer.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number that will be rounded down.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of digits to round to. If this argument is negative, the number will be rounded to the left of the decimal point.
+	 * If it is equal to zero, the number will be rounded to the nearest integer.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ROUNDDOWN.js
 	 */
 	ApiWorksheetFunction.prototype.ROUNDDOWN = function (arg1, arg2) {
@@ -6536,9 +6680,10 @@
 	 * Rounds a number up, away from zero.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number that you want rounded up.
-	 * @param {number} arg2 Is the number of digits to which you want to round. Negative rounds to the left of the decimal point; zero or omitted, to the nearest integer.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number that will be rounded up.
+	 * @param {ApiRange | ApiName | number} arg2 - The number of digits to round to. If this argument is negative, the number will be rounded to the left of the decimal point.
+	 * If it is equal to zero, the number will be rounded to the nearest integer.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ROUNDUP.js
 	 */
 	ApiWorksheetFunction.prototype.ROUNDUP = function (arg1, arg2) {
@@ -6548,8 +6693,8 @@
 	 * Returns the secant of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the secant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the secant will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SEC.js
 	 */
 	ApiWorksheetFunction.prototype.SEC = function (arg1) {
@@ -6559,8 +6704,8 @@
 	 * Returns the hyperbolic secant of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the hyperbolic secant.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the hyperbolic secant will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SECH.js
 	 */
 	ApiWorksheetFunction.prototype.SECH = function (arg1) {
@@ -6570,22 +6715,22 @@
 	 * Returns the sum of a power series based on the formula.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the input value to the power series.
-	 * @param {any} arg2 Is the initial power to which you want to raise x.
-	 * @param {any} arg3 Is the step by which to increase n for each term in the series.
-	 * @param {any} arg4 Is a set of coefficients by which each successive power of x is multiplied.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The input value to the power series.
+	 * @param {ApiRange | ApiName | number} arg2 - The initial power to which x will be raised.
+	 * @param {ApiRange | ApiName | number} arg3 - The step by which to increase n for each term in the series.
+	 * @param {ApiRange | ApiName | number} arg4 - A set of coefficients by which each successive power of x is multiplied.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SERIESSUM.js
 	 */
 	ApiWorksheetFunction.prototype.SERIESSUM = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("SERIESSUM", arguments);
 	};
 	/**
-	 * Returns the sign of a number: 1 if the number is positive, zero if the number is zero, or -1 if the number is negative.
+	 * Returns the sign of a number: <b>1</b> if the number is positive, <b>0</b> if the number is zero, or <b>-1</b> if the number is negative.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SIGN.js
 	 */
 	ApiWorksheetFunction.prototype.SIGN = function (arg1) {
@@ -6595,8 +6740,8 @@
 	 * Returns the sine of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the sine. Degrees * PI()/180 = radians.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the sine will be returned. If your argument is in degrees, multiply it by *PI()/180*.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SIN.js
 	 */
 	ApiWorksheetFunction.prototype.SIN = function (arg1) {
@@ -6606,8 +6751,8 @@
 	 * Returns the hyperbolic sine of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number for which the hyperbolic sine will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SINH.js
 	 */
 	ApiWorksheetFunction.prototype.SINH = function (arg1) {
@@ -6617,29 +6762,36 @@
 	 * Returns the square root of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number for which you want the square root.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number for which the square root will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SQRT.js
 	 */
 	ApiWorksheetFunction.prototype.SQRT = function (arg1) {
 		return this.private_calculateFunction("SQRT", arguments);
 	};
 	/**
-	 * Returns the square root of (number * Pi).
+	 * Returns the square root of (number * pi).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the number by which p is multiplied.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number by which pi is multiplied.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SQRTPI.js
 	 */
 	ApiWorksheetFunction.prototype.SQRTPI = function (arg1) {
 		return this.private_calculateFunction("SQRTPI", arguments);
 	};
+
 	/**
 	 * Returns a subtotal in a list or database.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - A numeric value that specifies which function to use for the subtotal: <b>1 (101)</b> - AVERAGE, <b>2 (102)</b> - COUNT,
+	 * <b>3 (103)</b> - COUNTA, <b>4 (104)</b> - MAX, <b>5 (105)</b> - MIN,
+	 * <b>6 (106)</b> - PRODUCT, <b>7 (107)</b> - STDEV, <b>8 (108)</b> - STDEVP, <b>9 (109)</b> - SUM, <b>10 (110)</b> - VAR, <b>11 (111)</b> - VARP.
+	 * 1-11 includes manually-hidden rows, while 101-111 excludes them;
+	 * filtered-out cells are always excluded.
+	 * @param {ApiRange | ApiName} args - Up to 255 ranges containing the values for which the subtotal will be returned. The first argument is required, subsequent arguments are optional.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUBTOTAL.js
 	 */
 	ApiWorksheetFunction.prototype.SUBTOTAL = function () {
@@ -6649,7 +6801,9 @@
 	 * Adds all the numbers in a range of cells.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | string | number | boolean | Array<string | number | boolean>} args - Up to 255 numeric values to add. The first argument is required, subsequent arguments are optional.
+	 * Arguments can be numbers, logical values, text representations of numbers, ranges, or arrays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUM.js
 	 */
 	ApiWorksheetFunction.prototype.SUM = function () {
@@ -6659,10 +6813,10 @@
 	 * Adds the cells specified by a given condition or criteria.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is the range of cells you want evaluated.
-	 * @param {any} arg2 Is the condition or criteria in the form of a number, expression, or text that defines which cells will be added.
-	 * @param {?ApiRange} arg3 Are the actual cells to sum. If omitted, the cells in range are used.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells to be evaluated.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The condition or criteria in the form of a number, expression, or text that defines which cells will be added.
+	 * @param {ApiRange | ApiName} [arg3] - The range to sum. If omitted, the cells in range are used.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUMIF.js
 	 */
 	ApiWorksheetFunction.prototype.SUMIF = function (arg1, arg2, arg3) {
@@ -6672,7 +6826,13 @@
 	 * Adds the cells specified by a given set of conditions or criteria.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - The range of cells to be evaluated.
+	 * @param {ApiRange | ApiName | number | string} arg2 - The first condition or criteria in the form of a number, expression, or text that defines which cells will be added.
+	 * @param {ApiRange | ApiName} [arg3] - The first range to sum. If omitted, the cells in range are used.
+	 * @param {ApiRange | ApiName | number | string} arg4 - Up to 127 additional conditions or criteria in the form of a number, expression, or text that defines which cells will be added.
+	 * These arguments are optional.
+	 * @param {ApiRange | ApiName} [arg5] - Up to 127 actual ranges to be used to be added. If omitted, the cells in the range are used. These arguments are optional.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUMIFS.js
 	 */
 	ApiWorksheetFunction.prototype.SUMIFS = function () {
@@ -6689,10 +6849,13 @@
 	// 	return this.private_calculateFunction("SUMPRODUCT", arguments);
 	// };
 	/**
-	 * Returns the sum of the squares of the arguments. The arguments can be numbers, arrays, names or references to cells that contain numbers.
+	 * Returns the sum of the squares of the arguments.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string | boolean | Array<number | string | boolean>} args - Up to 255 numeric values for which the sum of the squares will be calculated.
+	 * The first argument is required, subsequent arguments are optional.
+	 * The arguments can be numbers, names, logical values or text representations of numbers, ranges of cells that contain numbers, or arrays.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SUMSQ.js
 	 */
 	ApiWorksheetFunction.prototype.SUMSQ = function () {
@@ -6738,8 +6901,8 @@
 	 * Returns the tangent of an angle.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the angle in radians for which you want the tangent. Degrees * PI()/180 = radians.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The angle in radians for which the tangent will be returned. If the argument is in degrees, multiply it by *PI()/180*.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TAN.js
 	 */
 	ApiWorksheetFunction.prototype.TAN = function (arg1) {
@@ -6749,8 +6912,8 @@
 	 * Returns the hyperbolic tangent of a number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is any real number.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - Any real number for which the hyperbolic tangent will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TANH.js
 	 */
 	ApiWorksheetFunction.prototype.TANH = function (arg1) {
@@ -6760,9 +6923,9 @@
 	 * Truncates a number to an integer by removing the decimal, or fractional, part of the number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {number} arg1 Is the number you want to truncate.
-	 * @param {?number} arg2 Is a number specifying the precision of the truncation, 0 (zero) if omitted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The number which will be truncated.
+	 * @param {ApiRange | ApiName | number} [arg2] - A number specifying the precision of the truncation. If this argument is omitted, it is equal to 0 (zero).
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TRUNC.js
 	 */
 	ApiWorksheetFunction.prototype.TRUNC = function (arg1, arg2) {
@@ -6772,44 +6935,49 @@
 	 * Chooses a value or action to perform from a list of values, based on an index number.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The position of the value in the list of values, a numeric value greater than or equal to 1 but less than the number of values in the list of values.
+	 * @param {number | string | ApiRange | ApiName} args - Up to 254 values or the selected range of cells to analyze.
+	 * The first argument is required, subsequent arguments are optional. Arguments can be numbers, ranges, names, or text strings.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/CHOOSE.js
 	 */
 	ApiWorksheetFunction.prototype.CHOOSE = function () {
 		return this.private_calculateFunction("CHOOSE", arguments);
 	};
 	/**
-	 * Returns the number of columns in an array or reference.
+	 * Returns the number of columns in the cell range.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is an array or array formula, or a reference to a range of cells for which you want the number of columns.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range or array of cells for which the number of columns will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/COLUMNS.js
 	 */
 	ApiWorksheetFunction.prototype.COLUMNS = function (arg1) {
 		return this.private_calculateFunction("COLUMNS", arguments);
 	};
 	/**
-	 * Looks for a value in the top row of a table or array of values and returns the value in the same column from a row you specify.
+	 * Looks for a value in the top row of a table or array of values and returns the value in the same column from the specified row.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to be found in the first row of the table and can be a value, a reference, or a text string.
-	 * @param {number} arg2 Is a table of text, numbers, or logical values in which data is looked up. Table_array can be a reference to a range or a range name.
-	 * @param {number} arg3 Is the row number in table_array from which the matching value should be returned. The first row of values in the table is row 1.
-	 * @param {?boolean} arg4 Is a logical value: to find the closest match in the top row (sorted in ascending order) = TRUE or omitted; find an exact match = FALSE.
-	 * @returns {number | string | boolean}
+	 * @param {number | string | ApiRange | ApiName} arg1 - The value to be found in the first row of the table and can be a value, a reference, or a text string.
+	 * @param {ApiRange | ApiName} arg2 - A table of text, numbers, or logical values in which data is looked up. The data is sorted in ascending order.
+	 * This argument can be a range of cells or a range name.
+	 * @param {ApiRange | ApiName | number} arg3 - The row number in data table from which the matching value should be returned. The first row of values in the table is row 1.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value which specifies whether to find the closest match in the top row (sorted in ascending order) (<b>true</b> or omitted)
+	 * or find an exact match (<b>false</b>).
+	 * @returns {number | string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HLOOKUP.js
 	 */
 	ApiWorksheetFunction.prototype.HLOOKUP = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("HLOOKUP", arguments);
 	};
 	/**
-	 * Creates a shortcut or jump that opens a document stored on your hard drive, a network server, or on the Internet.
+	 * Creates a shortcut that jumps to another location in the current workbook, or opens a document stored on your hard drive, a network server, or on the Internet.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {string} arg1 Is the text giving the path and file name to the document to be opened, a hard drive location, UNC address, or URL path.
-	 * @param {?any} arg2 Is text or a number that is displayed in the cell. If omitted, the cell displays the Link_location text.
-	 * @returns {number | string | boolean}
+	 * @param {string | ApiRange | ApiName} arg1 - The text giving the path and file name to the document to be opened, a hard drive location, UNC address, or URL path.
+	 * @param {string | ApiRange | number | ApiName} [arg2] - Text or a number that is displayed in the cell. If omitted, the cell displays the link location text.
+	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/HYPERLINK.js
 	 */
 	ApiWorksheetFunction.prototype.HYPERLINK = function (arg1, arg2) {
@@ -6819,48 +6987,57 @@
 	 * Returns a value or reference of the cell at the intersection of a particular row and column, in a given range.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is a range of cells or an array constant..
-	 * @param {number} arg2 Selects the row in Array or Reference from which to return a value. If omitted, Column_num is required.
-	 * @param {?number} arg3 Selects the column in Array or Reference from which to return a value. If omitted, Row_num is required.
-	 * @param {?any} arg4 Is a reference to one or more cell ranges.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number[]} arg1 - A range of cells or an array constant.
+	 * @param {ApiRange | ApiName | number} arg2 - The row in the range from which to return a value. If omitted, the column number is required.
+	 * @param {ApiRange | ApiName | number} [arg3] - The column in the range from which to return a value. If omitted, the row number is required.
+	 * @param {ApiRange | ApiName | number} [arg4] - An area to use in case the range contains several ranges. If it is omitted, the function will assume argument to be 1.
+	 * @returns {number | string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/INDEX.js
 	 */
 	ApiWorksheetFunction.prototype.INDEX = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("INDEX", arguments);
 	};
 	/**
-	 * Looks up a value either from a one-row or one-column range or from an array. Provided for backwards compatibility.
+	 * Looks up a value either from a one-row or one-column range. Provided for backwards compatibility.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a value that LOOKUP searches for in Lookup_vector and can be a number, text, a logical value, or a name or reference to a value.
-	 * @param {ApiRange} arg2 Is a range that contains only one row or one column of text, numbers, or logical values, placed in ascending order.
-	 * @param {?ApiRange} arg3 Is a range that contains only one row or column, the same size as Lookup_vector.
+	 * @param {number | string | boolean | ApiRange | ApiName} arg1 - A value that is searched for in the first vector. It can be a number, text, a logical value, or a name or reference to a value.
+	 * @param {ApiRange | ApiName} arg2 - A range that contains only one row or one column of text, numbers, or logical values, placed in ascending order.
+	 * @param {ApiRange | ApiName} [arg3] - A range that contains only one row or column. It must be the same size as the first vector.
 	 * @returns {number | string | boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/LOOKUP.js
 	 */
 	ApiWorksheetFunction.prototype.LOOKUP = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("LOOKUP", arguments);
 	};
+
 	/**
-	 * Returns the relative position of an item in an array that matches a specified value in a specified order.
+	 * The match type.
+	 * * <b>-1</b> - The values must be sorted in descending order. If the exact match is not found, the function will return the smallest value that is greater than the searched value.
+	 * * <b>0</b> - The values can be sorted in any order. If the exact match is not found, the function will return the *#N/A* error.
+	 * * <b>1</b> (or omitted) - The values must be sorted in ascending order. If the exact match is not found, the function will return the largest value that is less than the searched value.
+	 * @typedef {("-1" | "0" | "1")} MatchType
+	 * */
+
+	/**
+	 * Returns the relative position of an item in a range that matches the specified value in the specified order.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you use to find the value you want in the array, a number, text, or logical value, or a reference to one of these.
-	 * @param {number} arg2 Is a contiguous range of cells containing possible lookup values, an array of values, or a reference to an array.
-	 * @param {?number} arg3 Is a number 1, 0, or -1 indicating which value to return..
-	 * @returns {number | string | boolean}
+	 * @param {number | string | boolean | ApiRange | ApiName} arg1 - The value to be matched in the range. It can be a number, text, or logical value, or a reference to one of these.
+	 * @param {ApiRange | ApiName | Array<number | string | boolean>} arg2 - A contiguous range of cells or an array containing possible lookup values.
+	 * @param {ApiRange | ApiName | number} [arg3] - A number 1, 0, or -1 indicating which value to return.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/MATCH.js
 	 */
 	ApiWorksheetFunction.prototype.MATCH = function (arg1, arg2, arg3) {
 		return this.private_calculateFunction("MATCH", arguments);
 	};
 	/**
-	 * Returns the number of rows in a reference or array.
+	 * Returns the number of rows in a range.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is an array, an array formula, or a reference to a range of cells for which you want the number of rows.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | Array<number | string | boolean>} arg1 - A range of cells or an array for which the number of rows will be returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ROWS.js
 	 */
 	ApiWorksheetFunction.prototype.ROWS = function (arg1) {
@@ -6870,186 +7047,210 @@
 	 * Converts a vertical range of cells to a horizontal range, or vice versa.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is a range of cells on a worksheet or an array of values that you want to transpose.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | Array<number | string | boolean>} arg1 - A range of cells on a worksheet or an array that will be transposed.
+	 * @returns {ApiRange}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TRANSPOSE.js
 	 */
 	ApiWorksheetFunction.prototype.TRANSPOSE = function (arg1) {
 		return this.private_calculateFunction("TRANSPOSE", arguments);
 	};
 	/**
-	 * Looks for a value in the leftmost column of a table and then returns a value in the same row from a column that you specify. By default, the table must be sorted in an ascending order.
+	 * Looks for a value in the leftmost column of a table and then returns a value in the same row from the specified column. By default, the table must be sorted in an ascending order.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to be found in the first column of the table, and can be a value, a reference, or a text string.
-	 * @param {number} arg2 Is a table of text, numbers, or logical values, in which data is retrieved. Table_array can be a reference to a range or a range name.
-	 * @param {number} arg3 Is the column number in table_array from which the matching value should be returned. The first column of values in the table is column 1.
-	 * @param {?boolean} arg4 Is a logical value: to find the closest match in the first column (sorted in ascending order) = TRUE or omitted; find an exact match = FALSE.
-	 * @returns {number | string | boolean}
+	 * @param {number | string | ApiRange | ApiName} arg1 - The value to be found in the first column of the table. It can be a value, a reference, or a text string.
+	 * @param {ApiRange | ApiName} arg2 - A table of text, numbers, or logical values, in which data is retrieved. It can be a range of cells.
+	 * @param {ApiRange | ApiName | number} arg3 - The column number in the data table from which the matching value should be returned. The first column of values in the table is column 1.
+	 * @param {ApiRange | ApiName | boolean} [arg4] - A logical value that specifies whether to find the closest match in the first column (sorted in ascending order) (<b>true</b> or omitted)
+	 * or find an exact match (<b>false</b>).
+	 * @returns {number | string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/VLOOKUP.js
 	 */
 	ApiWorksheetFunction.prototype.VLOOKUP = function (arg1, arg2, arg3, arg4) {
 		return this.private_calculateFunction("VLOOKUP", arguments);
 	};
+
 	/**
-	 * Returns a number matching an error value..
+	 * The error value.
+	 * * <b>"#NULL!"</b> - 1
+	 * * <b>"#DIV/0!"</b> - 2
+	 * * <b>"#VALUE!"</b> - 3
+	 * * <b>"#REF!"</b> - 4
+	 * * <b>"#NAME?"</b> - 5
+	 * * <b>"#NUM!"</b> - 6
+	 * * <b>"#N/A"</b> - 7
+	 * * <b>"#GETTING_DATA"</b> - 8
+	 * * <b>"Other"</b> - "#N/A"
+	 * @typedef {("#NULL!" | "#DIV/0!" | "#VALUE!" | "#REF!" | "#NAME?" | "#NUM!" | "#N/A" | "#GETTING_DATA")} ErrorValue
+	 * */
+
+	/**
+	 * Returns a number matching an error value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the error value for which you want the identifying number, and can be an actual error value or a reference to a cell containing an error value.
-	 * @returns {number | string | boolean}
+	 * @param {ErrorValue | ApiRange | ApiName} arg1 - The error value for which the identifying number will be returned. It can be an actual error value or a reference to a cell containing an error value.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ERROR_TYPE.js
 	 */
 	ApiWorksheetFunction.prototype.ERROR_TYPE = function (arg1) {
 		return this.private_calculateFunction("ERROR.TYPE", arguments);
 	};
 	/**
-	 * Checks whether a value is an error other than #N/A, and returns TRUE or FALSE.
+	 * Checks whether a value is an error other than *#N/A*, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {number | string | boolean | ApiRange | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISERR.js
 	 */
 	ApiWorksheetFunction.prototype.ISERR = function (arg1) {
 		return this.private_calculateFunction("ISERR", arguments);
 	};
 	/**
-	 * Checks whether a value is an error, and returns TRUE or FALSE.
+	 * Checks whether a value is an error, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {number | string | boolean | ApiRange | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISERROR.js
 	 */
 	ApiWorksheetFunction.prototype.ISERROR = function (arg1) {
 		return this.private_calculateFunction("ISERROR", arguments);
 	};
 	/**
-	 * Returns TRUE if the number is even.
+	 * Returns <b>true</b> if a number is even.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to test.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to test.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISEVEN.js
 	 */
 	ApiWorksheetFunction.prototype.ISEVEN = function (arg1) {
 		return this.private_calculateFunction("ISEVEN", arguments);
 	};
 	/**
-	 * Checks whether a reference is to a cell containing a formula, and returns TRUE or FALSE.
+	 * Checks whether a reference to a cell contains a formula, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} arg1 Is a reference to the cell you want to test.  Reference can be a cell reference, a formula, or name that refers to a cell.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} arg1 - A cell range to test. This argument can be a range or a range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISFORMULA.js
 	 */
 	ApiWorksheetFunction.prototype.ISFORMULA = function (arg1) {
 		return this.private_calculateFunction("ISFORMULA", arguments);
 	};
 	/**
-	 * Checks whether a value is a logical value (TRUE or FALSE), and returns TRUE or FALSE.
+	 * Checks whether a value is a logical value (<b>true</b> or <b>false</b>), and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISLOGICAL.js
 	 */
 	ApiWorksheetFunction.prototype.ISLOGICAL = function (arg1) {
 		return this.private_calculateFunction("ISLOGICAL", arguments);
 	};
 	/**
-	 * Checks whether a value is #N/A, and returns TRUE or FALSE.
+	 * Checks whether a value is *#N/A*, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISNA.js
 	 */
 	ApiWorksheetFunction.prototype.ISNA = function (arg1) {
 		return this.private_calculateFunction("ISNA", arguments);
 	};
 	/**
-	 * Checks whether a value is not text (blank cells are not text), and returns TRUE or FALSE.
+	 * Checks whether a value is not text (blank cells are not text), and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want tested: a cell; a formula; or a name referring to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISNONTEXT.js
 	 */
 	ApiWorksheetFunction.prototype.ISNONTEXT = function (arg1) {
 		return this.private_calculateFunction("ISNONTEXT", arguments);
 	};
 	/**
-	 * Checks whether a value is a number, and returns TRUE or FALSE.
+	 * Checks whether a value is a number, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISNUMBER.js
 	 */
 	ApiWorksheetFunction.prototype.ISNUMBER = function (arg1) {
 		return this.private_calculateFunction("ISNUMBER", arguments);
 	};
 	/**
-	 * Returns TRUE if the number is odd.
+	 * Returns <b>true</b> if a number is odd.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value to test.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number} arg1 - The value to test.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISODD.js
 	 */
 	ApiWorksheetFunction.prototype.ISODD = function (arg1) {
 		return this.private_calculateFunction("ISODD", arguments);
 	};
 	/**
-	 * Checks whether a value is a reference, and returns TRUE or FALSE.
+	 * Checks whether a value is a reference, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISREF.js
 	 */
 	ApiWorksheetFunction.prototype.ISREF = function (arg1) {
 		return this.private_calculateFunction("ISREF", arguments);
 	};
 	/**
-	 * Checks whether a value is text, and returns TRUE or FALSE.
+	 * Checks whether a value is text, and returns <b>true</b> or <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want to test. Value can refer to a cell, a formula, or a name that refers to a cell, formula, or value.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | string | number | boolean | ApiName} arg1 - The value to test.
+	 * The value can be an empty cell, error, logical value, text, number, range, or range name.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/ISTEXT.js
 	 */
 	ApiWorksheetFunction.prototype.ISTEXT = function (arg1) {
 		return this.private_calculateFunction("ISTEXT", arguments);
 	};
 	/**
-	 * Converts non-number value to a number, dates to serial numbers, TRUE to 1, anything else to 0 (zero).
+	 * Converts a value to a number, dates to serial numbers, <b>true</b> to 1, error to {@link global#ErrorValue ErrorValue}, anything else to 0 (zero).
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is the value you want converted.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - The value to be converted. The value can be a logical value, text, or number.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/N.js
 	 */
 	ApiWorksheetFunction.prototype.N = function (arg1) {
 		return this.private_calculateFunction("N", arguments);
 	};
 	/**
-	 * Returns the error value #N/A (value not available).
+	 * Returns the *#N/A* error value which means "no value is available".
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {string}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NA.js
 	 */
 	ApiWorksheetFunction.prototype.NA = function () {
 		return this.private_calculateFunction("NA", arguments);
 	};
 	/**
-	 * Returns the sheet number of the referenced sheet.
+	 * Returns the sheet number of the reference sheet.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {?string} arg1 Is the name of a sheet or a reference that you want the sheet number of.  If omitted the number of the sheet containing the function is returned.
-	 * @returns {number | string | boolean}
+	 * @param {string | ApiRange | ApiName} [arg1] - The name of a sheet or a reference for which the sheet number will be returned. If omitted the number of the sheet containing the function is returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SHEET.js
 	 */
 	ApiWorksheetFunction.prototype.SHEET = function (arg1) {
@@ -7059,8 +7260,8 @@
 	 * Returns the number of sheets in a reference.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {?ApiRange} arg1 Is a reference for which you want to know the number of sheets it contains.  If omitted the number of sheets in the workbook containing the function is returned.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName} [arg1] - A reference for which the number of sheets will be returned. If omitted the number of sheets in the workbook containing the function is returned.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/SHEETS.js
 	 */
 	ApiWorksheetFunction.prototype.SHEETS = function (arg1) {
@@ -7070,40 +7271,41 @@
 	 * Returns an integer representing the data type of a value: number = 1; text = 2; logical value = 4; error value = 16; array = 64; compound data = 128.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Can be any value.
-	 * @returns {number | string | boolean}
+	 * @param {number | string | boolean | Array<number | string | boolean> | ApiRange | ApiName} arg1 - A value to test.
+	 * @returns {number}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TYPE.js
 	 */
 	ApiWorksheetFunction.prototype.TYPE = function (arg1) {
 		return this.private_calculateFunction("TYPE", arguments);
 	};
 	/**
-	 * Checks whether all arguments are TRUE, and returns TRUE if all arguments are TRUE.
+	 * Checks whether all conditions in a test are <b>true</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {number | string | ApiRange | boolean | ApiName} args - A condition to check.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/AND.js
 	 */
 	ApiWorksheetFunction.prototype.AND = function () {
 		return this.private_calculateFunction("AND", arguments);
 	};
 	/**
-	 * Returns the logical value FALSE.
+	 * Returns the <b>false</b> logical value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/FALSE.js
 	 */
 	ApiWorksheetFunction.prototype.FALSE = function () {
 		return this.private_calculateFunction("FALSE", arguments);
 	};
 	/**
-	 * Checks whether a condition is met, and returns one value if TRUE, and another value if FALSE.
+	 * Checks whether a condition is met, and returns one value if <b>true</b>, and another value if <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} arg1 Is any value or expression that can be evaluated to TRUE or FALSE.
-	 * @param {any} arg2 Is the value that is returned if Logical_test is TRUE. If omitted, TRUE is returned. You can nest up to seven IF functions.
-	 * @param {?any} arg3 Is the value that is returned if Logical_test is FALSE. If omitted, FALSE is returned.
+	 * @param {number | string | ApiRange | ApiName | boolean} arg1 - Any value or expression that can be evaluated to <b>true</b> or <b>false</b>.
+	 * @param {number | string | ApiRange | ApiName | boolean} arg2 - The value that is returned if the condition is <b>true</b>. If omitted, <b>true</b> is returned. You can nest up to seven IF functions.
+	 * @param {ApiRange | ApiName | number | string | boolean} [arg3] - The value that is returned if the condition is <b>false</b>. If omitted, <b>false</b> is returned.
 	 * @returns {number | string | boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IF.js
 	 */
@@ -7111,11 +7313,11 @@
 		return this.private_calculateFunction("IF", arguments);
 	};
 	/**
-	 * Returns value_if_error if expression is an error and the value of the expression itself otherwise.
+	 * Checks if there is an error in the formula in the first argument. The function returns the result of the formula if there is no error, or the value specified in the second argument if there is one.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is any value or expression or reference.
-	 * @param {any} arg2 Is any value or expression or reference.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - The value, expression, or reference that is checked for an error.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg2 - The value to be returned if the formula evaluates to an error. The following errors are evaluated: <b>#N/A</b>, <b>#VALUE!</b>, <b>#REF!</b>, <b>#DIV/0!</b>, <b>#NUM!</b>, <b>#NAME?</b>, <b>#NULL!</b>.
 	 * @returns {number | string | boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IFERROR.js
 	 */
@@ -7123,11 +7325,11 @@
 		return this.private_calculateFunction("IFERROR", arguments);
 	};
 	/**
-	 * Returns the value you specify if the expression resolves to #N/A, otherwise returns the result of the expression.
+	 * Checks if there is an error in the formula in the first argument. The function returns the specified value if the formula returns the *#N/A* error value, otherwise returns the result of the formula.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {any} arg1 Is any value or expression or reference.
-	 * @param {any} arg2 Is any value or expression or reference.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - The value, expression, or reference that is checked for an error.
+	 * @param {ApiRange | ApiName | number | string | boolean} arg2 - The value to return if the formula evaluates to the *#N/A* error value.
 	 * @returns {number | string | boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/IFNA.js
 	 */
@@ -7135,48 +7337,48 @@
 		return this.private_calculateFunction("IFNA", arguments);
 	};
 	/**
-	 * Changes FALSE to TRUE, or TRUE to FALSE.
+	 * Checks if the specified logical value is <b>true</b> or <b>false</b>. The function returns <b>true</b> if the argument is <b>false</b> and <b>false</b> if the argument is <b>true</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} arg1 Is a value or expression that can be evaluated to TRUE or FALSE.
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | number | string | boolean} arg1 - A value or expression that can be evaluated to <b>true</b> or <b>false</b>.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/NOT.js
 	 */
 	ApiWorksheetFunction.prototype.NOT = function (arg1) {
 		return this.private_calculateFunction("NOT", arguments);
 	};
 	/**
-	 * Checks whether any of the arguments are TRUE, and returns TRUE or FALSE. Returns FALSE only if all arguments are FALSE.
+	 * Checks whether any of the arguments are <b>true</b>. Returns <b>false</b> only if all arguments are <b>false</b>.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {number | string | ApiRange | ApiName | boolean} args - A condition to check.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/OR.js
 	 */
 	ApiWorksheetFunction.prototype.OR = function () {
 		return this.private_calculateFunction("OR", arguments);
 	};
 	/**
-	 * Returns the logical value TRUE.
+	 * Returns the <b>true</b> logical value.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/TRUE.js
 	 */
 	ApiWorksheetFunction.prototype.TRUE = function () {
 		return this.private_calculateFunction("TRUE", arguments);
 	};
 	/**
-	 * Returns a logical 'Exclusive Or' of all arguments.
+	 * Returns the logical <b>Exclusive Or</b> value of all arguments. The function returns <b>true</b> when the number of <b>true</b> inputs is odd and <b>false</b> when the number of <b>true</b> inputs is even.
 	 * @memberof ApiWorksheetFunction
 	 * @typeofeditors ["CSE"]
-	 * @returns {number | string | boolean}
+	 * @param {ApiRange | ApiName | boolean | boolean[]} args - The conditions to check.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheetFunction/Methods/XOR.js
 	 */
 	ApiWorksheetFunction.prototype.XOR = function () {
 		return this.private_calculateFunction("XOR", arguments);
 	};
-
-
 
 	/**
 	 * Returns an object that represents the range of the specified sheet using the maximum and minimum row/column coordinates.
@@ -7393,13 +7595,14 @@
 	};
 
 	/**
-	 * Inserts PivotTable on existing worksheet.
+	 * Inserts the specified pivot table into an existing worksheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} dataRef - Source data range.
-	 * @param {ApiRange} pivotRef - Range in which the table will be located.
-	 * @param {bool} confirmation - Replace the data in pivotRef (if it exists) or create a dialog box for this (if it exists).
+	 * @param {ApiRange} dataRef - The source data range.
+	 * @param {ApiRange} pivotRef - A range in which the pivot table will be located.
+	 * @param {boolean} confirmation - Specifies whether to replace the data in the specified pivot table range (if it exists) or create a dialog box for this (if it exists).
 	 * @returns {ApiPivotTable}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/Api/Methods/InsertPivotExistingWorksheet.js
 	 */
 	Api.prototype.InsertPivotExistingWorksheet = function (dataRef, pivotRef, confirmation) {
@@ -7422,12 +7625,13 @@
 	};
 
 	/**
-	 * Inserts PivotTable on new worksheet.
+	 * Inserts the specified pivot table into a new worksheet.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} dataRef - Source data range.
-	 * @param {ApiRange} [newSheetName] - New worksheet name.
+	 * @param {ApiRange} dataRef - The source data range.
+	 * @param {ApiRange} [newSheetName] - A new worksheet name.
 	 * @returns {ApiPivotTable}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/Api/Methods/InsertPivotNewWorksheet.js
 	 */
 	Api.prototype.InsertPivotNewWorksheet = function (dataRef, newSheetName) {
@@ -7459,11 +7663,12 @@
 	};
 
 	/**
-	 * Returns PivotTable by name or null.
+	 * Returns a pivot table by its name, or null if it does not exist.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name of PivotTable.
+	 * @param {string} name - The pivot table name.
 	 * @returns {ApiPivotTable|null}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/Api/Methods/GetPivotByName.js
 	 */
 	Api.prototype.GetPivotByName = function (name) {
@@ -7477,9 +7682,10 @@
 	};
 
 	/**
-	 * Refreshs all PivotTables.
+	 * Refreshes all pivot tables.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/Api/Methods/RefreshAllPivots.js
 	 */
 	Api.prototype.RefreshAllPivots = function () {
@@ -7487,10 +7693,11 @@
 	};
 
 	/**
-	 * Returns all PivotTables.
+	 * Returns all pivot tables.
 	 * @memberof Api
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotTable[]}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/Api/Methods/GetAllPivotTables.js
 	 */
 	Api.prototype.GetAllPivotTables = function () {
@@ -7755,7 +7962,7 @@
 	 * <b>LastModifiedRaw</b> - the date and time when the file was last modified.
 	 * <b>LastModified</b> - the parsed date and time when the file was last modified.
 	 * <b>LastModifiedBy</b> - the name of the user who has made the latest change to the document.
-	 * <b>Autrors</b> - the persons who has created the file.
+	 * <b>Authors</b> - the persons who has created the file.
 	 * <b>Title</b> - this property allows you to simplify your documents classification.
 	 * <b>Tags</b> - this property allows you to simplify your documents classification.
 	 * <b>Subject</b> - this property allows you to simplify your documents classification.
@@ -7768,21 +7975,21 @@
 	Api.prototype.GetDocumentInfo = function()
 	{
 		const oDocInfo = {
-			Application: '',
-			CreatedRaw: null,
-			Created: '',
-			LastModifiedRaw: null,
-			LastModified: '',
-			LastModifiedBy: '',
-			Autrors: [],
-			Title: '',
-			Tags: '',
-			Subject: '',
-			Comment: ''
+			"Application": '',
+			"CreatedRaw": null,
+			"Created": '',
+			"LastModifiedRaw": null,
+			"LastModified": '',
+			"LastModifiedBy": '',
+			"Authors": [],
+			"Title": '',
+			"Tags": '',
+			"Subject": '',
+			"Comment": ''
 		};
 
 		let props = (this) ? this.asc_getAppProps() : null;
-		oDocInfo.Application = (props.asc_getApplication() || '') + (props.asc_getAppVersion() ? ' ' : '') + (props.asc_getAppVersion() || '');
+		oDocInfo["Application"] = (props.asc_getApplication() || '') + (props.asc_getAppVersion() ? ' ' : '') + (props.asc_getAppVersion() || '');
 
 		let langCode = 1033; // en-US
 		let langName = 'en-us';
@@ -7795,38 +8002,64 @@
 		}
 
 		props = this.asc_getCoreProps();
-		oDocInfo.CreatedRaw = props.asc_getCreated();
-		oDocInfo.LastModifiedRaw = props.asc_getModified();
+		oDocInfo["CreatedRaw"] = props.asc_getCreated();
+		oDocInfo["LastModifiedRaw"] = props.asc_getModified();
 
 		try {
-			if (oDocInfo.CreatedRaw)
-				oDocInfo.Created = (oDocInfo.CreatedRaw.toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' +oDocInfo. CreatedRaw.toLocaleString(langName, {timeStyle: 'short'}));
+			if (oDocInfo["CreatedRaw"])
+				oDocInfo["Created"] = (oDocInfo["CreatedRaw"].toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo["CreatedRaw"].toLocaleString(langName, {timeStyle: 'short'}));
 			
-			if (oDocInfo.LastModifiedRaw)
-				oDocInfo.LastModified = (oDocInfo.LastModifiedRaw.toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo.LastModifiedRaw.toLocaleString(langName, {timeStyle: 'short'}));
+			if (oDocInfo["LastModifiedRaw"])
+				oDocInfo["LastModified"] = (oDocInfo["LastModifiedRaw"].toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo["LastModifiedRaw"].toLocaleString(langName, {timeStyle: 'short'}));
 		} catch (e) {
 			langName = 'en';
-			if (oDocInfo.CreatedRaw)
-				oDocInfo.Created = (oDocInfo.CreatedRaw.toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo.CreatedRaw.toLocaleString(langName, {timeStyle: 'short'}));
+			if (oDocInfo["CreatedRaw"])
+				oDocInfo["Created"] = (oDocInfo["CreatedRaw"].toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo["CreatedRaw"].toLocaleString(langName, {timeStyle: 'short'}));
 
-			if (oDocInfo.LastModifiedRaw)
-				oDocInfo.LastModified = (oDocInfo.LastModifiedRaw.toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo.LastModifiedRaw.toLocaleString(langName, {timeStyle: 'short'}));
+			if (oDocInfo["LastModifiedRaw"])
+				oDocInfo["LastModified"] = (oDocInfo["LastModifiedRaw"].toLocaleString(langName, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + oDocInfo["LastModifiedRaw"].toLocaleString(langName, {timeStyle: 'short'}));
 		}
 
 		const LastModifiedBy = props.asc_getLastModifiedBy();
-		oDocInfo.LastModifiedBy = AscCommon.UserInfoParser.getParsedName(LastModifiedBy);
-
-		oDocInfo.Title = (props.asc_getTitle() || '');
-		oDocInfo.Tags = (props.asc_getKeywords() || '');
-		oDocInfo.Subject = (props.asc_getSubject() || '');
-		oDocInfo.Comment = (props.asc_getDescription() || '');
+		oDocInfo["LastModifiedBy"] = AscCommon.UserInfoParser.getParsedName(LastModifiedBy);
+		
+		oDocInfo["Title"] = (props.asc_getTitle() || '');
+		oDocInfo["Tags"] = (props.asc_getKeywords() || '');
+		oDocInfo["Subject"] = (props.asc_getSubject() || '');
+		oDocInfo["Comment"] = (props.asc_getDescription() || '');
 
 		const authors = props.asc_getCreator();
 		if (authors)
-			oDocInfo.Autrors = authors.split(/\s*[,;]\s*/);
+			oDocInfo["Authors"] = authors.split(/\s*[,;]\s*/);
 
 		return oDocInfo;
 	};
+
+	/**
+	 * Returns the core properties interface for the workbook.
+	 * This method is used to view or modify standard metadata such as title, author, and keywords.
+	 * @memberof Api
+	 * @returns {ApiCore}
+	 * @typeofeditors ["CSE"]
+	 * @since 9.0.0
+	 * @see office-js-api/Examples/{Editor}/Api/Methods/GetCore.js
+	 */
+	Api.prototype.GetCore = function () {
+		return new AscBuilder.ApiCore(this.wbModel.Core);
+	};
+
+	/**
+	 * Returns the workbook custom properties.
+	 * @memberof Api
+	 * @returns {ApiCustomProperties}
+	 * @typeofeditors ["CSE"]
+	 * @since 9.0.0
+	 * @see office-js-api/Examples/{Editor}/Api/Methods/GetCustomProperties.js
+	 */
+	Api.prototype.GetCustomProperties = function () {
+		return new AscBuilder.ApiCustomProperties(this.wbModel.CustomProperties);
+	};
+
 	/**
 	 * Returns the state of sheet visibility.
 	 * @memberof ApiWorksheet
@@ -8040,8 +8273,11 @@
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheet/Methods/GetUsedRange.js
 	 */
 	ApiWorksheet.prototype.GetUsedRange = function () {
-		var rEnd = this.worksheet.getRowsCount() - 1;
-		var cEnd = this.worksheet.getColsCount() - 1;
+		const ws = this.worksheet;
+		const eot = ws.findEOT(true);
+		const rEnd = eot.row;
+		const cEnd = eot.col;
+
 		return new ApiRange(this.worksheet.getRange3(0, 0, (rEnd < 0) ? 0 : rEnd,
 			(cEnd < 0) ? 0 : cEnd));
 	};
@@ -8532,29 +8768,43 @@
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sRange - The range where the hyperlink will be added to.
 	 * @param {string} sAddress - The link address.
-	 * @param {string} subAddress - The link subaddress to insert internal sheet hyperlinks.
-	 * @param {string} sScreenTip - The screen tip text.
-	 * @param {string} sTextToDisplay - The link text that will be displayed on the sheet.
+	 * @param {string} [subAddress] - The link subaddress to insert internal sheet hyperlinks.
+	 * @param {string} [sScreenTip] - The screen tip text.
+	 * @param {string} [sTextToDisplay] - The link text that will be displayed on the sheet.
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheet/Methods/SetHyperlink.js
 	 */
 	ApiWorksheet.prototype.SetHyperlink = function (sRange, sAddress, subAddress, sScreenTip, sTextToDisplay) {
+		// Validate required parameters
+		if (!sRange || !sAddress) {
+			throwException(new Error('Incorrect required parameters'));
+			return false;
+		}
+
 		var range = new ApiRange(this.worksheet.getRange2(sRange));
 		var address;
-		if (range && range.range.isOneCell() && (sAddress || subAddress)) {
+		if (range && range.range.isOneCell()) {
 			var externalLink = sAddress ? AscCommon.rx_allowedProtocols.test(sAddress) : false;
 			if (externalLink && AscCommonExcel.getFullHyperlinkLength(sAddress) > Asc.c_nMaxHyperlinkLength) {
 				throwException(new Error('Incorrect "sAddress".'));
+				return false;
 			}
 			if (!externalLink) {
-				address = subAddress.split("!");
-				if (address.length == 1)
-					address.unshift(this.GetName());
-				else if (this.worksheet.workbook.getWorksheetByName(address[0]) === null) {
+				if (!subAddress) {
 					throwException(new Error('Invalid "subAddress".'));
+					return false;
+				}
+
+				address = subAddress.split("!");
+				if (address.length === 1) {
+					address.unshift(this.GetName());
+				} else if (this.worksheet.workbook.getWorksheetByName(address[0]) === null) {
+					throwException(new Error('Invalid "subAddress".'));
+					return false;
 				}
 				var res = this.worksheet.workbook.oApi.asc_checkDataRange(Asc.c_oAscSelectionDialogType.FormatTable, address[1], false);
 				if (res === Asc.c_oAscError.ID.DataRangeError) {
 					throwException(new Error('Invalid "subAddress".'));
+					return false;
 				}
 			}
 			this.worksheet.selectionRange.assign2(range.range.bbox);
@@ -8757,19 +9007,11 @@
 	 * Returns all drawings from the current sheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @returns {ApiDrawing[]}.
+	 * @returns {Drawing[]}.
 	 * @see office-js-api/Examples/{Editor}/ApiWorksheet/Methods/GetAllDrawings.js
 	 */
 	ApiWorksheet.prototype.GetAllDrawings = function () {
-		var allDrawings = this.worksheet.Drawings;
-		var allApiDrawings = [];
-
-		for (var nDrawing = 0; nDrawing < allDrawings.length; nDrawing++) {
-			if (allDrawings[nDrawing].graphicObject) {
-				allApiDrawings.push(new ApiDrawing(allDrawings[nDrawing].graphicObject));
-			}
-		}
-		return allApiDrawings;
+		return GetApiDrawings(this.worksheet.Drawings.map(function(drawingBase) { return drawingBase.graphicObject }));
 	};
 
 	/**
@@ -8869,11 +9111,12 @@
 	};
 
 	/**
-	 * Return PivotTable by name.
+	 * Returns a pivot table by its name from the current worksheet, or null if it does not exist.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name of PivotTable.
+	 * @param {string} name - The pivot table name.
 	 * @returns {ApiPivotTable|null}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/ApiWorksheet/Methods/GetPivotByName.js
 	 */
 	ApiWorksheet.prototype.GetPivotByName = function (name) {
@@ -8887,10 +9130,11 @@
 	};
 
 	/**
-	 * Returns all PivotTables on worksheet.
+	 * Returns all pivot tables from the current worksheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotTable[]}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/ApiWorksheet/Methods/GetAllPivotTables.js
 	 */
 	ApiWorksheet.prototype.GetAllPivotTables = function () {
@@ -8909,9 +9153,10 @@
 	});
 
 	/**
-	 * Refresh all PivotTables on current worksheet.
+	 * Refreshes all pivot tables on the current worksheet.
 	 * @memberof ApiWorksheet
 	 * @typeofeditors ["CSE"]
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/ApiWorksheet/Methods/RefreshAllPivots.js
 	 */
 	ApiWorksheet.prototype.RefreshAllPivots = function () {
@@ -9370,7 +9615,7 @@
 	 * @param {boolean} ColAbs - Defines if the link to the column is absolute or not.
 	 * @param {string} RefStyle - The reference style.
 	 * @param {boolean} External - Defines if the range is in the current file or not.
-	 * @param {range} RelativeTo - The range which the current range is relative to.
+	 * @param {ApiRange} RelativeTo - The range which the current range is relative to.
 	 * @returns {string | null} - returns address of range as string.
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/GetAddress.js
 	 */
@@ -9488,7 +9733,7 @@
 	 * Sets a value to the current cell or cell range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {string | bool | number | Array[] | Array[][]} data - The general value for the cell or cell range.
+	 * @param {string | boolean | number | Array<string | boolean | number> | Array<Array<string | boolean | number>>} data - The general value for the cell or cell range.
 	 * @returns {boolean} - returns false if such a range does not exist.
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/SetValue.js
 	 */
@@ -10478,7 +10723,7 @@
 	 * Deletes the Range object.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {?DeleteShiftDirection} shift - Specifies how to shift cells to replace the deleted cells.
+	 * @param {DeleteShiftDirection} [shift] - Specifies how to shift cells to replace the deleted cells.
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/Delete.js
 	 */
 	ApiRange.prototype.Delete = function (shift) {
@@ -10517,7 +10762,7 @@
 	 * Inserts a cell or a range of cells into the worksheet or macro sheet and shifts other cells away to make space.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {?string} shift - Specifies which way to shift the cells ("right", "down").
+	 * @param {string} [shift] - Specifies which way to shift the cells ("right", "down").
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/Insert.js
 	 */
 	ApiRange.prototype.Insert = function (shift) {
@@ -10539,8 +10784,8 @@
 	 * Changes the width of the columns or the height of the rows in the range to achieve the best fit.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
-	 * @param {?bool} bRows - Specifies if the width of the columns will be autofit.
-	 * @param {?bool} bCols - Specifies if the height of the rows will be autofit.
+	 * @param {boolean} [bRows] - Specifies if the width of the columns will be autofit.
+	 * @param {boolean} [bCols] - Specifies if the height of the rows will be autofit.
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/AutoFit.js
 	 */
 	ApiRange.prototype.AutoFit = function (bRows, bCols) {
@@ -10756,10 +11001,11 @@
 	};
 
 	/**
-	 * Returns a PivotTable object that represents the PivotTable report containing the upper-left corner of the specified range.
+	 * Returns the ApiPivotTable object that represents the pivot table report containing the upper-left corner of the specified range.
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotTable | null}
+	 * @since 8.2.0
 	 * @see office-js-api/Examples/Cell/ApiRange/Methods/GetPivotTable.js
 	 */
 	ApiRange.prototype.GetPivotTable = function() {
@@ -10839,18 +11085,6 @@
 	 * @memberof ApiRange
 	 * @typeofeditors ["CSE"]
 	 * @param {SearchData} oSearchData - The search data used to make search.
-	 * @returns {ApiRange | null} - Returns null if the current range does not contain such text.
-	 * @also
-	 * Finds specific information in the current range.
-	 * @memberof ApiRange
-	 * @typeofeditors ["CSE"]
-	 * @param {string | undefined} What - The data to search for.
-	 * @param {ApiRange} After - The cell after which you want the search to begin. If this argument is not specified, the search starts after the cell in the upper-left corner of the range.
-	 * @param {XlFindLookIn} LookIn - Search data type (formulas or values).
-	 * @param {XlLookAt} LookAt - Specifies whether the whole search text or any part of the search text is matched.
-	 * @param {XlSearchOrder} SearchOrder - Range search order - by rows or by columns.
-	 * @param {XlSearchDirection} SearchDirection - Range search direction - next match or previous match.
-	 * @param {boolean} MatchCase - Case sensitive or not. The default value is "false".
 	 * @returns {ApiRange | null} - Returns null if the current range does not contain such text.
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/Find.js
 	 */
@@ -11000,17 +11234,6 @@
 	 * @typeofeditors ["CSE"]
 	 * @param {ReplaceData} oReplaceData - The data used to make search and replace.
 	 * @returns {ApiRange | null} - Returns null if the current range does not contain such text.
-	 * @also
-	 * Replaces specific information to another one in a range.
-	 * @memberof ApiRange
-	 * @typeofeditors ["CSE"]
-	 * @param {string | undefined} What - The data to search for.
-	 * @param {string} Replacement - The replacement string.
-	 * @param {XlLookAt} LookAt - Specifies whether the whole search text or any part of the search text is matched.
-	 * @param {XlSearchOrder} SearchOrder - Range search order - by rows or by columns.
-	 * @param {XlSearchDirection} SearchDirection - Range search direction - next match or previous match.
-	 * @param {boolean} MatchCase - Case sensitive or not. The default value is "false".
-	 * @param {boolean} ReplaceAll - Specifies if all the found data will be replaced or not. The default value is "true".
 	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/Replace.js
 	 */
 	ApiRange.prototype.Replace = function (oReplaceData) {
@@ -11111,6 +11334,679 @@
 		}
 	});
 
+	/**
+	 * Filter type.
+	 * @typedef {("xlAnd" | "xlBottom10Items" | "xlBottom10Percent" | "xlFilterCellColor" | "xlFilterDynamic" | "xlFilterFontColor" | "xlFilterValues" | "xlOr" | "xlTop10Items" | "xlTop10Percent")} XlAutoFilterOperator
+	 * @see office-js-api/Examples/Enumerations/XlAutoFilterOperator.js
+	 */
+
+	/**
+	 * Specifies the filter criterion.
+	 * @typedef {("xlFilterAboveAverage" | "xlFilterAllDatesInPeriodApril" | "xlFilterAllDatesInPeriodAugust" | "xlFilterAllDatesInPeriodDecember"
+	 * | "xlFilterAllDatesInPeriodFebruary" | "xlFilterAllDatesInPeriodJanuary" | "xlFilterAllDatesInPeriodJuly" | "xlFilterAllDatesInPeriodJune"
+	 * | "xlFilterAllDatesInPeriodMarch" | "xlFilterAllDatesInPeriodMay" | "xlFilterAllDatesInPeriodNovember" | "xlFilterAllDatesInPeriodOctober"
+	 * | "xlFilterAllDatesInPeriodQuarter1" | "xlFilterAllDatesInPeriodQuarter2" | "xlFilterAllDatesInPeriodQuarter3" | "xlFilterAllDatesInPeriodQuarter4"
+	 * | "xlFilterBelowAverage" | "xlFilterLastMonth" | "xlFilterLastQuarter" | "xlFilterLastWeek"
+	 * | "xlFilterLastYear" | "xlFilterNextMonth" | "xlFilterNextQuarter" | "xlFilterNextWeek"
+	 * | "xlFilterNextYear" | "xlFilterThisMonth" | "xlFilterThisQuarter" | "xlFilterThisWeek"
+	 * | "xlFilterThisYear" | "xlFilterToday" | "xlFilterTomorrow" | "xlFilterYearToDate" | "xlFilterYesterday")} XlDynamicFilterCriteria
+	 * @see office-js-api/Examples/Enumerations/XlDynamicFilterCriteria.js
+	 */
+
+	/**
+	 * Adds an AutoFilter to the current range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {number} [Field] - The integer offset of the field on which you want to base the filter (from the left of the list; the leftmost field is field one).
+	 * @param {string | string[] | ApiColor | XlDynamicFilterCriteria} [Criteria1] - The criteria (a string; for example, "101"). Use "=" to find blank fields, "<>" to find non-blank fields, and "><" to select (No Data) fields in data types.
+	 * If this argument is omitted, the criteria is All. If Operator is xlTop10Items, Criteria1 specifies the number of items (for example, "10").
+	 * @param {XlAutoFilterOperator} [Operator] - An XlAutoFilterOperator constant specifying the type of filter.
+	 * @param {string} [Criteria2] - The second criteria (a string). Used with Criteria1 and Operator to construct compound criteria.
+	 * @param {boolean} [VisibleDropDown] - True to display the AutoFilter drop-down arrow for the filtered field. False to hide the AutoFilter drop-down arrow for the filtered field. True by default.
+	 * @since 8.3.0
+	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/SetAutoFilter.js
+	 */
+	ApiRange.prototype.SetAutoFilter = function (Field, Criteria1, Operator, Criteria2, VisibleDropDown) {
+		//TODO filtering date!
+
+		// 1) add/remove autofilter
+		// (function()
+		// {
+		// 	let range = Api.ActiveSheet.GetRange("A1");
+		// 	range.SetAutoFilter();
+		// })();
+		//
+		// 2) add(if not added) + apply vlues filter
+		//
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, [2,5], "xlFilterValues");
+		// })();
+		//
+		// 3) custom filter xlOr/xlAnd
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, ">1", "xlOr","=1");
+		// })();
+		// 4) top filter
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, "10", "xlTop10Items");
+		// })();
+		// 5) color filter
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, Api.CreateColorFromRGB(255,255,0), "xlFilterCellColor");
+		// })();
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, Api.CreateColorFromRGB(255,0,0), "xlFilterFontColor");
+		// })();
+		// 6) dynamic filter
+		// (function()
+		// {
+		// 	let test = Api.ActiveSheet.GetRange("A1");
+		// 	test.SetAutoFilter(1, "xlFilterAboveAverage", "xlFilterDynamic");
+		// })();
+
+
+		if (Criteria2 && Array.isArray(Criteria2)) {
+			private_MakeError('Error! Criteria2 must be string!');
+			return;
+		}
+
+		//check on number
+		if (Field) {
+			Field = Field - 0;
+			if (isNaN(Field)) {
+				private_MakeError('Error! Field range error!');
+				return;
+			}
+		}
+		//field must be more than 0
+		if (Field && Field < 1) {
+			private_MakeError('Error! Field range error!');
+			return;
+		}
+
+		let ws = this.range.worksheet;
+		let selectionRange = ws.selectionRange.getLast();
+		let api = ws.workbook.oApi;
+
+
+		let _range;
+		if (ws.AutoFilter) {
+			_range = ws.AutoFilter.Ref;
+		} else {
+			let filterProps = ws.autoFilters.getAddFormatTableOptions(this.range.bbox);
+			_range = filterProps && filterProps.range && AscCommonExcel.g_oRangeCache.getAscRange(filterProps.range);
+		}
+
+		//field must be between c1/c2 of range
+		if (Field && _range && Field > (_range.c2 - _range.c1 + 1)) {
+			private_MakeError('Error! Field range error!');
+			return;
+		}
+
+		var columnRange = new Asc.Range(Field - 1 + _range.c1, _range.r1 + 1, Field -1 + _range.c1, _range.r2);
+		var filterTypes = ws.getRowColColors(columnRange);
+		if (Field && (Operator === "xlBottom10Percent" || Operator === "xlBottom10Items" || Operator === "xlTop10Percent" || Operator === "xlTop10Items")) {
+			if (filterTypes.text) {
+				//need number filter!
+				private_MakeError('Error! Range error!');
+				return;
+			}
+			let top10Num = Criteria1 ? Criteria1 - 0 : 10;
+			if (isNaN(top10Num)) {
+				//need number filter!
+				private_MakeError('Error! Range error!');
+				return;
+			}
+		}
+
+		//firstly add filter or remove filter
+		if (Field == null && ws.AutoFilter) {
+			ws.autoFilters.deleteAutoFilter(ws.AutoFilter.Ref);
+			//api.asc_changeAutoFilter(null, Asc.c_oAscChangeFilterOptions.filter, false);
+			return;
+		} else if (!ws.AutoFilter) {
+			ws.autoFilters.addAutoFilter(null, this.range.bbox);
+			//api.asc_addAutoFilter(null, null, this.range.bbox);
+		}
+
+		if (Field == null) {
+			return;
+		}
+
+		if (Criteria1 == null) {
+			//clean current filter
+			ws.autoFilters.clearFilterColumn(Asc.range(_range.c1 + Field, _range.r1, _range.c1 + Field, _range.r1).getName());
+			//api.asc_clearFilterColumn(Asc.range(_range.c1 + Field, _range.r1, _range.c1 + Field, _range.r1).getName());
+			return;
+		}
+
+		let cellId = Asc.Range(_range.c1 + Field - 1, _range.r1, _range.c1 + Field - 1, _range.r1).getName();
+
+		let getOperator = function (val) {
+			let res = Asc.c_oAscCustomAutoFilter.equals;
+			switch (val) {
+				case "=": {
+					res = Asc.c_oAscCustomAutoFilter.equals;
+					break
+				}
+				case ">": {
+					res = Asc.c_oAscCustomAutoFilter.isGreaterThan;
+					break
+				}
+				case ">=": {
+					res = Asc.c_oAscCustomAutoFilter.isGreaterThanOrEqualTo;
+					break
+				}
+				case "<": {
+					res = Asc.c_oAscCustomAutoFilter.isLessThan;
+					break
+				}
+				case "<=": {
+					res = Asc.c_oAscCustomAutoFilter.isLessThanOrEqualTo;
+					break
+				}
+				case "<>": {
+					res = Asc.c_oAscCustomAutoFilter.doesNotEqual;
+					break
+				}
+			}
+			return res;
+		};
+
+		let createCustomFilter = function () {
+			if (Criteria1 || Criteria1) {
+				let filterObj = new Asc.AutoFilterObj();
+				filterObj.asc_setFilter(new Asc.CustomFilters());
+				filterObj.asc_setType(Asc.c_oAscAutoFilterTypes.CustomFilters);
+				let newCustomFilter = filterObj.asc_getFilter();
+
+				let oCriteria1 = Criteria1 && AscCommonExcel.matchingValue(new AscCommonExcel.cString(Criteria1));
+				let oCriteria2 = Criteria2 && AscCommonExcel.matchingValue(new AscCommonExcel.cString(Criteria2));
+				let operator1 = oCriteria1 && getOperator(oCriteria1.op);
+				let operator2 = oCriteria2 && getOperator(oCriteria2.op);
+
+
+				let customFiltersArr = [];
+				if (oCriteria1) {
+					customFiltersArr[0] = new Asc.CustomFilter();
+					customFiltersArr[0].asc_setVal(oCriteria1.val.getValue() + "");
+					customFiltersArr[0].asc_setOperator(operator1);
+				}
+				if (oCriteria2) {
+					customFiltersArr[1] = new Asc.CustomFilter();
+					customFiltersArr[1].asc_setVal(oCriteria2.val.getValue() + "");
+					customFiltersArr[1].asc_setOperator(operator2);
+				}
+
+				newCustomFilter.asc_setCustomFilters(customFiltersArr);
+				newCustomFilter.asc_setAnd(Operator === "xlAnd");
+
+				autoFilterOptions = new window["Asc"].AutoFiltersOptions();
+				autoFilterOptions.asc_setFilterObj(filterObj);
+				autoFilterOptions.asc_setCellId(cellId);
+			}
+		};
+
+		let createSimpleFilter = function () {
+			if (Criteria1 && Array.isArray(Criteria1)) {
+				let autoFiltersOptionsElements = ws.autoFilters.getOpenAndClosedValues(ws.AutoFilter, Field - 1);
+
+				let criteriaMap = {};
+				for (let i in Criteria1) {
+					criteriaMap[Criteria1[i]] = 1;
+				}
+
+				for (let i = 0; i < autoFiltersOptionsElements.values.length; i++) {
+					autoFiltersOptionsElements.values[i].asc_setVisible(!!criteriaMap[autoFiltersOptionsElements.values[i].text]);
+				}
+				// for (let i in Criteria1) {
+				// 	let elem = new AscCommonExcel.AutoFiltersOptionsElements();
+				// 	elem.asc_setVisible(true);
+				// 	elem.asc_setVal(Criteria1[i]);
+				// 	elem.asc_setText(Criteria1[i]);
+				//
+				// 	//res.asc_setText(text);
+				// 	/*res.asc_setIsDateFormat(isDateTimeFormat);
+				// 	if (isDateTimeFormat) {
+				// 		res.asc_setYear(dataValue.year);
+				// 		res.asc_setMonth(dataValue.month);
+				// 		res.asc_setDay(dataValue.d);
+				// 		if (dataValue.hour !== 0 || dataValue.min !== 0 || dataValue.sec !== 0) {
+				// 			isTimeFormat = true;
+				// 		}
+				// 		res.asc_setHour(dataValue.hour);
+				// 		res.asc_setMinute(dataValue.min);
+				// 		res.asc_setSecond(dataValue.sec);
+				// 		res.asc_setDateTimeGrouping(Asc.EDateTimeGroup.datetimegroupYear);
+				// 	}*/
+				//
+				// 	arrVals.push(elem);
+				// }
+
+				autoFilterOptions = new window["Asc"].AutoFiltersOptions();
+				let oFilter = new window["Asc"].AutoFilterObj();
+				oFilter.asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+				autoFilterOptions.asc_setFilterObj(oFilter);
+				autoFilterOptions.asc_setCellId(cellId);
+				autoFilterOptions.asc_setValues(autoFiltersOptionsElements.values);
+			}
+		};
+
+		let createTop10Filter = function (val, isPercent, isBottom) {
+			let _topFilter = new Asc.Top10();
+			_topFilter.asc_setVal(val);
+			if (isPercent) {
+				_topFilter.asc_setPercent(isPercent);
+			}
+			if (isBottom) {
+				_topFilter.asc_setTop(!isBottom);
+			}
+
+			autoFilterOptions = new window["Asc"].AutoFiltersOptions();
+			let oFilter = new window["Asc"].AutoFilterObj();
+			oFilter.asc_setFilter(_topFilter);
+			oFilter.asc_setType(Asc.c_oAscAutoFilterTypes.Top10);
+			autoFilterOptions.asc_setFilterObj(oFilter);
+			autoFilterOptions.asc_setCellId(cellId);
+		};
+
+		let toAscColor = function (_color) {
+			let res;
+			if (_color instanceof AscCommonExcel.RgbColor) {
+				res = new Asc.asc_CColor(_color.getR(), _color.getG(), _color.getB());
+			} else if (_color - 0) {
+				_color = _color - 0;
+				if (!isNaN(_color)) {
+					if (_color === 0) {
+						res = new Asc.asc_CColor(0,0,0);
+					} else {
+						res = new Asc.asc_CColor(1,1,1);
+					}
+				} else {
+					res = new Asc.asc_CColor(1,1,1);
+				}
+			}
+			return res;
+		};
+
+		let createColorFilter = function (color, isCellColor) {
+
+			let _colorFilter = new Asc.ColorFilter();
+			_colorFilter.asc_setCellColor(isCellColor ? null : false);
+			_colorFilter.asc_setCColor(color/*(isCellColor && color == 'transparent' || !isCellColor && color == '#000000') ? null : Common.Utils.ThemeColor.getRgbColor(color)*/);
+
+			autoFilterOptions = new Asc.AutoFiltersOptions();
+			let oFilter = new Asc.AutoFilterObj();
+			oFilter.asc_setFilter(_colorFilter);
+			oFilter.asc_setType(Asc.c_oAscAutoFilterTypes.ColorFilter);
+			autoFilterOptions.asc_setFilterObj(oFilter);
+			autoFilterOptions.asc_setCellId(cellId);
+		};
+
+		let toDynamicConst = function (val) {
+			let res = null;
+			switch (val) {
+				case "xlFilterAboveAverage": {
+					res = Asc.c_oAscDynamicAutoFilter.aboveAverage;
+					break
+				}
+				case "xlFilterAllDatesInPeriodApril": {
+					res = Asc.c_oAscDynamicAutoFilter.m4;
+					break
+				}
+				case "xlFilterAllDatesInPeriodSeptember": {
+					res = Asc.c_oAscDynamicAutoFilter.m9;
+					break
+				}
+				case "xlFilterAllDatesInPeriodMay": {
+					res = Asc.c_oAscDynamicAutoFilter.m5;
+					break
+				}
+				case "xlFilterAllDatesInPeriodAugust": {
+					res = Asc.c_oAscDynamicAutoFilter.m8;
+					break
+				}
+				case "xlFilterAllDatesInPeriodDecember": {
+					res = Asc.c_oAscDynamicAutoFilter.m12;
+					break
+				}
+				case "xlFilterAllDatesInPeriodFebruary": {
+					res = Asc.c_oAscDynamicAutoFilter.m2;
+					break
+				}
+				case "xlFilterAllDatesInPeriodMarch": {
+					res = Asc.c_oAscDynamicAutoFilter.m3;
+					break
+				}
+				case "xlFilterAllDatesInPeriodJanuary": {
+					res = Asc.c_oAscDynamicAutoFilter.m1;
+					break
+				}
+				case "xlFilterAllDatesInPeriodJuly": {
+					res = Asc.c_oAscDynamicAutoFilter.m7;
+					break
+				}
+				case "xlFilterAllDatesInPeriodJune": {
+					res = Asc.c_oAscDynamicAutoFilter.m6;
+					break
+				}
+				case "xlFilterAllDatesInPeriodNovember": {
+					res = Asc.c_oAscDynamicAutoFilter.m11;
+					break
+				}
+				case "xlFilterAllDatesInPeriodOctober": {
+					res = Asc.c_oAscDynamicAutoFilter.m10;
+					break
+				}
+				case "xlFilterAllDatesInPeriodQuarter1": {
+					res = Asc.c_oAscDynamicAutoFilter.q1;
+					break
+				}
+				case "xlFilterAllDatesInPeriodQuarter2": {
+					res = Asc.c_oAscDynamicAutoFilter.q2;
+					break
+				}
+				case "xlFilterAllDatesInPeriodQuarter3": {
+					res = Asc.c_oAscDynamicAutoFilter.q3;
+					break
+				}
+				case "xlFilterAllDatesInPeriodQuarter4": {
+					res = Asc.c_oAscDynamicAutoFilter.q4;
+					break
+				}
+				case "xlFilterBelowAverage": {
+					res = Asc.c_oAscDynamicAutoFilter.belowAverage;
+					break
+				}
+				case "xlFilterLastMonth": {
+					res = Asc.c_oAscDynamicAutoFilter.lastMonth;
+					break
+				}
+				case "xlFilterLastQuarter": {
+					res = Asc.c_oAscDynamicAutoFilter.lastQuarter;
+					break
+				}
+				case "xlFilterLastWeek": {
+					res = Asc.c_oAscDynamicAutoFilter.lastWeek;
+					break
+				}
+				case "xlFilterLastYear": {
+					res = Asc.c_oAscDynamicAutoFilter.lastYear;
+					break
+				}
+				case "xlFilterNextMonth": {
+					res = Asc.c_oAscDynamicAutoFilter.nextMonth;
+					break
+				}
+				case "xlFilterNextQuarter": {
+					res = Asc.c_oAscDynamicAutoFilter.nextQuarter;
+					break
+				}
+				case "xlFilterNextWeek": {
+					res = Asc.c_oAscDynamicAutoFilter.nextWeek;
+					break
+				}
+				case "xlFilterNextYear": {
+					res = Asc.c_oAscDynamicAutoFilter.nextYear;
+					break
+				}
+				case "xlFilterThisMonth": {
+					res = Asc.c_oAscDynamicAutoFilter.thisMonth;
+					break
+				}
+				case "xlFilterThisQuarter": {
+					res = Asc.c_oAscDynamicAutoFilter.thisQuarter;
+					break
+				}
+				case "xlFilterThisWeek": {
+					res = Asc.c_oAscDynamicAutoFilter.thisWeek;
+					break
+				}
+				case "xlFilterThisYear": {
+					res = Asc.c_oAscDynamicAutoFilter.thisYear;
+					break
+				}
+				case "xlFilterToday": {
+					res = Asc.c_oAscDynamicAutoFilter.today;
+					break
+				}
+				case "xlFilterTomorrow": {
+					res = Asc.c_oAscDynamicAutoFilter.tomorrow;
+					break
+				}
+				case "xlFilterYearToDate": {
+					res = Asc.c_oAscDynamicAutoFilter.yearToDate;
+					break
+				}
+				case "xlFilterYesterday": {
+					res = Asc.c_oAscDynamicAutoFilter.yesterday;
+					break
+				}
+
+			}
+			return res;
+		};
+
+		let createDynamicFilter = function (val) {
+			let _dynamicFilter = new Asc.DynamicFilter();
+			_dynamicFilter.asc_setType(val);
+
+			autoFilterOptions = new Asc.AutoFiltersOptions();
+			let oFilter = new Asc.AutoFilterObj();
+			oFilter.asc_setFilter(_dynamicFilter);
+			oFilter.asc_setType(Asc.c_oAscAutoFilterTypes.DynamicFilter);
+			autoFilterOptions.asc_setFilterObj(oFilter);
+			autoFilterOptions.asc_setCellId(cellId);
+		};
+
+		//apply filtering
+		let isAutoFilter = this.range.worksheet && this.range.worksheet.AutoFilter && this.range.worksheet.AutoFilter.Ref.intersection(this.range.bbox);
+		let autoFilterOptions;
+		if (isAutoFilter) {
+			switch (Operator) {
+				case "xlOr":
+				case "xlAnd": {
+					createCustomFilter();
+					break;
+				}
+				case "xlFilterFontColor":
+				case "xlFilterCellColor": {
+					let _color;
+					if (Criteria1 instanceof ApiColor) {
+						_color = Criteria1.color;
+					}
+
+					createColorFilter(toAscColor(_color), "xlFilterCellColor" === Operator);
+					break;
+				}
+				case "xlFilterDynamic": {
+					let _type = toDynamicConst(Criteria1);
+					createDynamicFilter(_type);
+					break;
+				}
+				/*case "xlFilterIcon": {
+					break;
+				}*/
+				case "xlBottom10Percent":
+				case "xlBottom10Items":
+				case "xlTop10Percent":
+				case "xlTop10Items": {
+					//only criteria1, 1 to 500 number value
+					let top10Num = Criteria1 ? Criteria1 - 0 : 10;
+					if (top10Num > 0 && top10Num <= 500) {
+						createTop10Filter(top10Num, "xlTop10Percent" === Operator || "xlBottom10Percent" === Operator,
+							"xlBottom10Items" === Operator || "xlBottom10Percent" === Operator);
+					} else {
+						private_MakeError('Error! Criteria1 must be between 1 and 500!');
+						return false;
+					}
+					break;
+				}
+				case "xlFilterValues":
+				default:
+					if (Criteria1 && Array.isArray(Criteria1)) {
+						createSimpleFilter();
+					} else {
+						createCustomFilter();
+					}
+					break;
+			}
+			if (autoFilterOptions) {
+				if (VisibleDropDown === false) {
+					autoFilterOptions.asc_setVisibleDropDown(VisibleDropDown);
+				}
+				let applyFilterProps = ws.autoFilters.applyAutoFilter(autoFilterOptions, ws.selectionRange.getLast().clone());
+				let minChangeRow = applyFilterProps && applyFilterProps.minChangeRow;
+				if (null !== minChangeRow) {
+					let oWorksheet = Asc['editor'] && Asc['editor'].wb && Asc['editor'].wb.getWorksheet();
+					if (oWorksheet && oWorksheet.objectRender) {
+						let rangeOldFilter = applyFilterProps && applyFilterProps.rangeOldFilter;
+						if (rangeOldFilter) {
+							oWorksheet.objectRender.bUpdateMetrics = false;
+							oWorksheet._onUpdateFormatTable(rangeOldFilter, true);
+							oWorksheet.objectRender.bUpdateMetrics = true;
+						}
+						if (oWorksheet.objectRender.controller) {
+							oWorksheet.objectRender.updateSizeDrawingObjects({target: AscCommonExcel.c_oTargetType.RowResize, row: minChangeRow});
+						}
+					}
+				}
+			}
+		}
+	};
+
+	/**
+	 * Sets an array formula to the current range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @param {string | boolean | number} data - The general value for the cell or cell range.
+	 * @returns {boolean} - Returns false if such a range does not exist.
+	 * @since 9.0.0
+	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/SetFormulaArray.js
+	 */
+	ApiRange.prototype.SetFormulaArray = function (data) {
+		if (!this.range) {
+			return false;
+		}
+
+		let worksheet = this.range.worksheet;
+
+		if (data === undefined || data === null) {
+			data = AscCommon.cErrorLocal["na"];
+		}
+
+		data = checkFormat(data);
+		let range = this.range;
+		let merged = range.hasMerged();
+		if (merged) {
+			range = this.range.worksheet.getRange3(merged.r1, merged.c1, merged.r1, merged.c1);
+		}
+
+		range.setValue(data.toString(), null, null, range.bbox);
+
+		if (data.type === AscCommonExcel.cElementType.number) {
+			range.setNumFormat(AscCommon.getShortDateFormat());
+		}
+
+		worksheet.workbook.handlers.trigger("cleanCellCache", worksheet.getId(), [range.bbox], true);
+		worksheet.workbook.oApi.onWorksheetChange(range.bbox);
+		return true;
+	};
+
+	/**
+	 * Returns an array formula from the current range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @returns {string | null}
+	 * @since 9.0.0
+	 * @see office-js-api/Examples/{Editor}/ApiRange/Methods/GetFormulaArray.js
+	 */
+	ApiRange.prototype.GetFormulaArray = function () {
+		let bbox = this.range.bbox;
+		let nCol = bbox.c2 - bbox.c1 + 1;
+		let nRow = bbox.r2 - bbox.r1 + 1;
+		let res;
+		//returns:
+		//1) duplicated formulas
+		//2) duplicated values
+		//3) cells with 1 array formulas
+
+		let formulaRef, sFormula, sValue;
+		this.range.worksheet.getCell3(bbox.r1, bbox.c1)._foreachNoEmpty(function (cell) {
+			if (cell.isFormula()) {
+				let formulaParsed = cell.getFormulaParsed();
+				if (formulaParsed) {
+					formulaRef = formulaParsed.ref;
+					sFormula = cell.getValueForEdit();
+				}
+			} else {
+				sValue = cell.getValue();
+			}
+		});
+		if (!sFormula && !sValue) {
+			sValue = "";
+		}
+		if (formulaRef && formulaRef.containsRange(bbox)) {
+			res = sFormula;
+		} else {
+			res = sFormula ? sFormula : sValue;
+			for (let i = 0; i < nRow; i++) {
+				for (let k = 0; k < nCol; k++) {
+					let cell = this.range.worksheet.getRange3((bbox.r1 + i), (bbox.c1 + k), (bbox.r1 + i), (bbox.c1 + k));
+					if (sFormula && cell.getFormula() !== sFormula) {
+						return null;
+					} else if (cell.getValue() !== sValue) {
+						return null;
+					}
+				}
+			}
+		}
+
+		return res;
+	};
+
+	Object.defineProperty(ApiRange.prototype, "FormulaArray", {
+		get: function () {
+			return this.GetValue();
+		},
+		set: function (sValue) {
+			this.SetFormulaArray(sValue);
+		}
+	});
+
+	/**
+	 * Returns a range that represents the expanded range around the current range.
+	 * @memberof ApiRange
+	 * @typeofeditors ["CSE"]
+	 * @returns {ApiRange | null} - Returns the expanded range or null if the range cannot be expanded.
+	 */
+	ApiRange.prototype.Expand = function () {
+		if (!this.range) {
+			return null;
+		}
+
+		let bbox = this.range.bbox;
+		let ws = this.range.worksheet;
+		let expandRange = ws && ws.autoFilters && ws.autoFilters.expandRange(bbox);
+
+		if (!expandRange) {
+			return null;
+		}
+
+		let res = ws.getRange3(expandRange.r1, expandRange.c1, expandRange.r2, expandRange.c2);
+		return new ApiRange(res);
+	};
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// ApiDrawing
@@ -11205,7 +12101,7 @@
 	 * Returns the lock value for the specified lock type of the current drawing.
 	 * @typeofeditors ["CSE"]
 	 * @param {DrawingLockType} sType - Lock type in the string format.
-	 * @returns {bool}
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiDrawing/Methods/GetLockValue.js
 	 */
 	ApiDrawing.prototype.GetLockValue = function (sType) {
@@ -11224,8 +12120,8 @@
 	 * Sets the lock value to the specified lock type of the current drawing.
 	 * @typeofeditors ["CSE"]
 	 * @param {DrawingLockType} sType - Lock type in the string format.
-	 * @param {bool} bValue - Specifies if the specified lock is applied to the current drawing.
-	 * @returns {bool}
+	 * @param {boolean} bValue - Specifies if the specified lock is applied to the current drawing.
+	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiDrawing/Methods/SetLockValue.js
 	 */
 	ApiDrawing.prototype.SetLockValue = function (sType, bValue) {
@@ -11243,6 +12139,68 @@
 		return false;
 	};
 
+	/**
+	 * Returns the parent sheet of the current drawing.
+	 * @typeofeditors ["CSE"]
+	 * @returns {?ApiWorksheet}
+	 * @since 8.3.0
+	 * @see office-js-api/Examples/{Editor}/ApiDrawing/Methods/GetParentSheet.js
+	 */
+	ApiDrawing.prototype.GetParentSheet = function () {
+		let oSheet = this.Drawing.getWorksheet();
+		if (oSheet) {
+			return new ApiWorksheet(oSheet);
+		}
+
+		return null;
+	};
+
+
+	ApiDrawing.prototype.resetDrawingBaseCoords = function() {
+		if(!this.Drawing) return;
+		this.Drawing.setDrawingBaseType(AscCommon.c_oAscCellAnchorType.cellanchorAbsolute);
+		this.Drawing.setDrawingBaseEditAs(AscCommon.c_oAscCellAnchorType.cellanchorAbsolute);
+		this.Drawing.setDrawingBasePos(this.Drawing.getXfrmOffX(), this.Drawing.getXfrmOffY());
+		this.Drawing.setDrawingBaseExt(this.Drawing.getXfrmExtX(), this.Drawing.getXfrmExtY());
+	};
+	/**
+     * Sets the rotation angle to the current drawing object.
+     * @memberof ApiDrawing
+     * @param {number} nRotAngle - New drawing rotation angle.
+     * @typeofeditors ["CSE"]
+     * @returns {boolean}
+	 * @since 9.0.0
+     * @see office-js-api/Examples/{Editor}/ApiDrawing/Methods/SetRotation.js
+	 */
+	ApiDrawing.prototype.SetRotation = function(nRotAngle)
+	{
+		if (!this.Drawing.canRotate()) {
+			return false;
+		}
+
+		let oXfrm = this.Drawing.getXfrm();
+		oXfrm.setRot(nRotAngle * Math.PI / 180);
+		return true;
+	};
+	/**
+     * Returns the rotation angle of the current drawing object.
+     * @memberof ApiDrawing
+     * @typeofeditors ["CSE"]
+     * @returns {number}
+	 * @since 9.0.0
+     * @see office-js-api/Examples/{Editor}/ApiDrawing/Methods/GetRotation.js
+	 */
+	ApiDrawing.prototype.GetRotation = function()
+	{
+		if (!this.Drawing.canRotate()) {
+			return 0;
+		}
+
+		let oXfrm = this.Drawing.getXfrm();
+		let nRad = oXfrm.getRot();
+
+		return nRad * 180 / Math.PI
+	};
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -13615,7 +14573,7 @@
 	 * @memberof ApiProtectedRange
 	 * @typeofeditors ["CSE"]
 	 * @param {string} sId - The user ID.
-	 * @returns {bool}
+	 * @returns {boolean}
 	 * @since 8.1.0
 	 * @see office-js-api/Examples/{Editor}/ApiProtectedRange/Methods/DeleteUser.js
 	 */
@@ -13678,7 +14636,7 @@
 	 * @memberof ApiProtectedRange
 	 * @typeofeditors ["CSE"]
 	 * @param {ProtectedRangeUserType} protectedRangeUserType - The user type of the protected range.
-	 * @returns {bool}
+	 * @returns {boolean}
 	 * @since 8.1.0
 	 * @see office-js-api/Examples/{Editor}/ApiProtectedRange/Methods/SetAnyoneType.js
 	 */
@@ -13795,12 +14753,13 @@
 	/* Methods */
 
 	/**
-	 * Adds a data field to a PivotTable report.
+	 * Adds a data field to the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {number | string} field - The index number or name of the field.
+	 * @param {number | string} field - The index number or name of the data field.
 	 * @returns {ApiPivotDataField}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/AddDataField.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/AddDataField.js
 	 */
 	ApiPivotTable.prototype.AddDataField = function (field) {
 		let pivotIndex = -1;
@@ -13822,16 +14781,12 @@
 		return null;
 	};
 	/**
-	 * Adds row, column, and page fields to a PivotTable report.
+	 * Adds the row, column, and page fields to the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {Object} options
-	 * @param {number | string | number[] | string[]} [options.rows] - Specifies an array of field names or ids to be added as rows or added to the category axis.
-	 * @param {number | string | number[] | string[]} [options.columns] - Specifies an array of field names or ids to be added as columns or added to the series axis.
-	 * @param {number | string | number[] | string[]} [options.pages] - Specifies an array of field names or ids to be added as pages or added to the page area.
-	 * @param {boolean} [options.addToTable] - Applies only to PivotTable reports. True to add the specified fields to the report (none of the existing fields are replaced).
-	 * False to replace existing fields with the new fields. The default value is False.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/AddFields.js
+	 * @param {PivotTableFieldOptions} options - The settings for adding row, column, and page fields to the pivot table report.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/AddFields.js
 	 */
 	ApiPivotTable.prototype.AddFields = function (options) {
 		options['rows'] = options['rows'] != null ? options['rows'] : [];
@@ -13885,19 +14840,21 @@
 		});
 	};
 	/**
-	 * Deletes all filters currently applied to the PivotTable.
+	 * Deletes all filters currently applied to the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/ClearAllFilters.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/ClearAllFilters.js
 	 */
 	ApiPivotTable.prototype.ClearAllFilters = function () {
 		this.pivot.asc_removeFilters(this.api);
 	};
 	/**
-	 * Clears the Pivot Table.
+	 * Clears the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/ClearTable.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/ClearTable.js
 	 */
 	ApiPivotTable.prototype.ClearTable = function () {
 		const ws = this.pivot.worksheet;
@@ -13921,12 +14878,15 @@
 		private_MakeError("Unknown error!");
 	};
 	/**
-	 * Returns the value for the data filed in a PivotTable.
+	 * Returns the value for the data field in a pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string[]} items - Describes a single cell in the PivotTable report.
+	 * @param {string[]} items - Describes a single cell in the pivot table report.
+	 * For example, "'Estimated Costs' Tables May", which shows the estimated costs for tables in May
+	 * (Data field = Costs, Product = Tables, Month = May).
 	 * @returns {number | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetData.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetData.js
 	 */
 	ApiPivotTable.prototype.GetData = function (items) {
 		const params = this.pivot.asc_getDataToGetPivotData(items);
@@ -13938,13 +14898,14 @@
 		return null;
 	};
 	/**
-	 * Returns a Range object with information about a data item in a PivotTable report.
+	 * Returns a Range object with information about a data item in the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string} [dataField]
-	 * @param {string[]} [fieldItemsArray]
+	 * @param {string} [dataField] - The name of the field containing the data for the PivotTable.
+	 * @param {string[]} [fieldItemsArray] - An array of field items from the pivot table.
 	 * @returns {ApiRange}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetPivotData.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetPivotData.js
 	 */
 	ApiPivotTable.prototype.GetPivotData = function (dataField, fieldItemsArray) {
 		const cell = this.pivot.getCellByGetPivotDataParams({
@@ -13957,13 +14918,14 @@
 		return null;
 	};
 	/**
-	 * Returns an collection that represents either a single PivotTable field
-	 * or a collection of both the visible and hidden fields in the PivotTable report.
+	 * Returns a collection that represents either a single pivot table field
+	 * or a collection of both the visible and hidden fields in the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @param {string | number} [field] - The name or index of the field to be returned.
 	 * @returns {ApiPivotField[] | ApiPivotField | ApiPivotDataField | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetPivotFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetPivotFields.js
 	 */
 	ApiPivotTable.prototype.GetPivotFields = function (field) {
 		const pivotFields = this.pivot.asc_getPivotFields();
@@ -13996,10 +14958,11 @@
 	 * Returns the value of a pivot table cell.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {number} rowLine
-	 * @param {number} colLine
+	 * @param {number} rowLine - The position of the pivot line (a line of rows in the pivot table) on the row area.
+	 * @param {number} colLine - The position of the pivot line (a line of columns in the pivot table) on the column area.
 	 * @returns {number | string | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/PivotValueCell.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/PivotValueCell.js
 	 */
 	ApiPivotTable.prototype.PivotValueCell = function (rowLine, colLine) {
 		if (rowLine > 0 && colLine > 0) {
@@ -14017,13 +14980,14 @@
 		return null;
 	};
 	/**
-	 * Show details of pivot cell.
+	 * Shows details of the pivot table cell.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {number} rowLine - report area row
-	 * @param {number} colLine - report area column
-	 * @returns {boolean} success
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/ShowDetails.js
+	 * @param {number} rowLine - The position of the pivot line (a line of rows in the pivot table) on the row area.
+	 * @param {number} colLine - The position of the pivot line (a line of columns in the pivot table) on the column area.
+	 * @returns {boolean} - Returns true if the operation is successful.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/ShowDetails.js
 	 */
 	ApiPivotTable.prototype.ShowDetails = function (rowLine, colLine) {
 		if (rowLine > 0 && colLine > 0) {
@@ -14041,29 +15005,32 @@
 		return false;
 	};
 	/**
-	 * Refreshes the PivotTable report from the source data.
+	 * Refreshes the pivot table report from the source data.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/RefreshTable.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/RefreshTable.js
 	 */
 	ApiPivotTable.prototype.RefreshTable = function () {
 		this.pivot.asc_refresh(this.api);
 	};
 	/**
-	 * Updates the PivotTable.
+	 * Updates the current pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/Update.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/Update.js
 	 */
 	ApiPivotTable.prototype.Update = function () {
 		this.pivot.asc_refresh(this.api);
 	};
 	/**
-	 * Specifies whether to repeat item labels for all PivotFields in the specified PivotTable.
+	 * Specifies whether to repeat item labels for all pivot fields in the specified pivot table.
 	 * @memberof ApiPivotTable
-	 * @param {boolean} repeat - Specifies whether to repeat all field item labels in a PivotTable report.
+	 * @param {boolean} repeat - Specifies whether to repeat all field item labels in a pivot table report.
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetRepeatAllLabels.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetRepeatAllLabels.js
 	 */
 	ApiPivotTable.prototype.SetRepeatAllLabels = function (repeat) {
 		if (typeof repeat == "boolean") {
@@ -14080,12 +15047,13 @@
 		}
 	});
 	/**
-	 * Sets the way the specified PivotTable items appear—in table format or in outline format.
+	 * Sets the way the specified pivot table items appear — in table format or in outline format.
 	 * @memberof ApiPivotTable
-	 * @param {PivotLayoutType} type - Type of layot report form.
-	 * @param {boolean} compact - Use compact form or not.
+	 * @param {PivotLayoutType} type - The layout type of the pivot table report.
+	 * @param {boolean} compact - Specifies whether the pivot table items will be displayed in the compact form.
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetRowAxisLayout.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetRowAxisLayout.js
 	 */
 	ApiPivotTable.prototype.SetRowAxisLayout = function (type, compact) {
 		let props = null;
@@ -14115,14 +15083,16 @@
 		}
 	});
 	/**
+	 * The type of the pivot table subtotal layout.
 	 * @typedef { "Hidden" | "Top" | "Bottom" } PivotSubtotalLayoutType
 	 */
 	/**
-	 * Sets PivotTable setting layout subtotal location.
+	 * Sets the layout subtotal location in the pivot table.
 	 * @memberof ApiPivotTable
-	 * @param {PivotSubtotalLayoutType} type - Type of subtotal layout
+	 * @param {PivotSubtotalLayoutType} type - The type of the pivot table subtotal layout.
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetSubtotalLocation.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetSubtotalLocation.js
 	 */
 	ApiPivotTable.prototype.SetSubtotalLocation = function (type) {
 		if ( typeof type == "string" && (type === "Hidden" || type === "Bottom" || type === "Top") ) {
@@ -14145,11 +15115,12 @@
 		}
 	});
 	/**
-	 * Removes field from all PivotTable categories.
+	 * Removes the specified field from all the pivot table categories.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @param {number | string} identifier - The index number or name of the field.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/RemoveField.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/RemoveField.js
 	 */
 	ApiPivotTable.prototype.RemoveField = function (identifier) {
 		const pivotField = this.GetPivotFields(identifier);
@@ -14159,20 +15130,24 @@
 	};
 
 	/**
+	 * The direction to move the pivot table field.
 	 * @typedef { "Up" | "Down" | "Begin" | "End" } PivotMoveFieldType
 	 */
 	/**
+	 * The pivot field orientation type.
 	 * @typedef {"Rows" | "Columns" | "Filters" | "Values" | "Hidden" } PivotFieldOrientationType
 	 */
 
 	/**
-	 * Moves field from one category to another.
+	 * Moves the specified field from one category to another.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @param {number | string} identifier - The index number or name of the field.
-	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The type of the field to move.
-	 * @param {number} [index] - The index of the field in new category.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/MoveField.js
+	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The direction to move the pivot table field,
+	 * or the pivot field orientation type.
+	 * @param {number} [index] - The field index in a new category.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/MoveField.js
 	 */
 	ApiPivotTable.prototype.MoveField = function (identifier, type, index) {
 		const pivotField = this.GetPivotFields(identifier);
@@ -14181,10 +15156,11 @@
 		}
 	};
 	/**
-	 * Selects the PivotTable.
+	 * Selects the current pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/Select.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/Select.js
 	 */
 	ApiPivotTable.prototype.Select = function () {
 		this.pivot.asc_select(this.api);
@@ -14193,11 +15169,13 @@
 	/* Attributes */
 
 	/**
-	 * Returns an collection that represents a collection of all column fields.
+	 * Returns a collection that is currently displayed as column fields in the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
+	 * @param {number | string | undefined} field - The name or index of the field to be returned.
 	 * @returns {ApiPivotField[]}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetColumnFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetColumnFields.js
 	 */
 	ApiPivotTable.prototype.GetColumnFields = function (field) {
 		const pivotFields = this.pivot.asc_getPivotFields();
@@ -14215,13 +15193,14 @@
 		}
 	});
 	/**
-	 * Returns an collection that represents either a single PivotTable data field
+	 * Returns a collection that represents either a single pivot table data field
 	 * or a collection of all visible data fields.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @param {number | string |undefined} field - The name or index of the field to be returned.
 	 * @returns {ApiPivotDataField[] | ApiPivotDataField | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetDataFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetDataFields.js
 	 */
 	ApiPivotTable.prototype.GetDataFields = function (field) {
 		const dataFields = this.pivot.asc_getDataFields();
@@ -14255,11 +15234,12 @@
 	});
 
 	/**
-	 * Returns array that represents all not added fields in PivotTable.
+	 * Returns an array that represents all the hidden fields in the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotField[]}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetHiddenFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetHiddenFields.js
 	 */
 	ApiPivotTable.prototype.GetHiddenFields = function () {
 		var fields = this.pivot.asc_getPivotFields();
@@ -14278,11 +15258,12 @@
 	});
 
 	/**
-	 * Returns array that represents all added fields in PivotTable.
+	 * Returns an array that represents all the visible fields in the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotField[]}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetVisibleFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetVisibleFields.js
 	 */
 	ApiPivotTable.prototype.GetVisibleFields = function () {
 		const pivotFields = this.pivot.asc_getPivotFields();
@@ -14302,12 +15283,14 @@
 	});
 
 	/**
-	 * Returns an collection that represents either a single PivotTable page field
+	 * Returns a collection that represents either a single pivot table page field
 	 * or a collection of all visible page fields.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
+	 * @param {number | string |undefined} field - The name or index of the field to be returned.
 	 * @returns {ApiPivotField[]}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetPageFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetPageFields.js
 	 */
 	ApiPivotTable.prototype.GetPageFields = function (field) {
 		const pivotFields = this.pivot.asc_getPivotFields();
@@ -14325,11 +15308,13 @@
 		}
 	});
 	/**
-	 * Returns an collection that represents a collection of all row fields.
+	 * Returns a collection that is currently displayed as row fields in the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
+	 * @param {number | string |undefined} field - The name or index of the field to be returned.
 	 * @returns {ApiPivotField[]}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetRowFields.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetRowFields.js
 	 */
 	ApiPivotTable.prototype.GetRowFields = function (field) {
 		const pivotFields = this.pivot.asc_getPivotFields();
@@ -14347,22 +15332,24 @@
 		}
 	});
 	/**
-	 * Returns name of the PivotTable.
+	 * Returns the pivot table name.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetName.js
 	 */
 	ApiPivotTable.prototype.GetName = function () {
 		return this.pivot.asc_getName();
 	};
 
 	/**
-	 * Sets name of the PivotTable.
+	 * Sets the pivot table name.
 	 * @memberof ApiPivotTable
-	 * @param {string} name - Name for PivotTable.
+	 * @param {string} name - The pivot table name.
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetName.js
 	 */
 	ApiPivotTable.prototype.SetName = function (name) {
 		if (typeof name == "string" && name.trim().length) {
@@ -14384,22 +15371,24 @@
 	});
 
 	/**
-	 * Returns PivotTable Grand Totals settings for columns.
+	 * Returns the <b>Grand Totals</b> setting of the pivot table columns.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetColumnGrand.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetColumnGrand.js
 	 */
 	ApiPivotTable.prototype.GetColumnGrand = function () {
 		return this.pivot.asc_getColGrandTotals();
 	};
 
 	/**
-	 * Sets PivotTable Grand Totals settings for columns.
+	 * Sets the <b>Grand Totals</b> setting to the pivot table columns.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Shows grand totals for columns or not.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetColumnGrand.js
+	 * @param {boolean} show - Specifies whether to display the grand totals for columns.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetColumnGrand.js
 	 */
 	ApiPivotTable.prototype.SetColumnGrand = function (show) {
 		if (typeof show == "boolean") {
@@ -14421,22 +15410,24 @@
 	});
 
 	/**
-	 * Returns PivotTable Grand Totals settings for rows.
+	 * Returns the <b>Grand Totals</b> setting of the pivot table rows.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetRowGrand.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetRowGrand.js
 	 */
 	ApiPivotTable.prototype.GetRowGrand = function () {
 		return this.pivot.asc_getRowGrandTotals();
 	};
 
 	/**
-	 * Sets PivotTable Grand Totals settings for rows.
+	 * Sets the <b>Grand Totals</b> setting to the pivot table rows.
 	 * @memberof ApiPivotTable
-	 * @param {boolean} show - Shows grand totals for rows or not.
+	 * @param {boolean} show - Specifies whether to display the grand totals for rows.
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetRowGrand.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetRowGrand.js
 	 */
 	ApiPivotTable.prototype.SetRowGrand = function (show) {
 		if (typeof show == "boolean") {
@@ -14457,14 +15448,18 @@
 		}
 	});
 
-	/** @typedef {"OverThenDown" | "DownThenOver"} FieldsInReportFilterType */
+	/**
+	 * Specifies how the report filter fields are located.
+	 * @typedef {"OverThenDown" | "DownThenOver"} FieldsInReportFilterType
+	 */
 
 	/**
-	 * Returns PivotTable display fields in report filter area settings.
+	 * Returns the pivot table display fields in the report filter area settings.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @returns {{Type: FieldsInReportFilterType, ReportFilterFields: number}}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetDisplayFieldsInReportFilterArea.js
+	 * @returns {PivotTableFilterAreaInfo}
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetDisplayFieldsInReportFilterArea.js
 	 */
 	ApiPivotTable.prototype.GetDisplayFieldsInReportFilterArea = function () {
 		return {
@@ -14474,12 +15469,13 @@
 	};
 
 	/**
-	 * Returns PivotTable display fields in report filter area settings.
+	 * Sets the pivot table display fields in the report filter area settings.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {FieldsInReportFilterType} type
-	 * @param {number} fields - Count of report filter fields.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetDisplayFieldsInReportFilterArea.js
+	 * @param {FieldsInReportFilterType} type - Specifies how the report filter fields are located.
+	 * @param {number} fields - A number of the report filter fields.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetDisplayFieldsInReportFilterArea.js
 	 */
 	ApiPivotTable.prototype.SetDisplayFieldsInReportFilterArea = function (type, fields) {
 		var props = null;
@@ -14508,22 +15504,24 @@
 	};
 
 	/**
-	 * Returns PivotTable setting show field headers for rows and columns.
+	 * Returns the setting which specifies whether to display field headers for rows and columns.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetDisplayFieldCaptions.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetDisplayFieldCaptions.js
 	 */
 	ApiPivotTable.prototype.GetDisplayFieldCaptions = function () {
 		return this.pivot.asc_getShowHeaders();
 	};
 
 	/**
-	 * Sets show field headers for rows and columns.
+	 * Returns the setting which specifies whether to display field headers for rows and columns.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show or not field headers for rows and columns.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetDisplayFieldCaptions.js
+	 * @param {boolean} show - Specifies whether to display field headers for rows and columns.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetDisplayFieldCaptions.js
 	 */
 	ApiPivotTable.prototype.SetDisplayFieldCaptions = function (show) {
 		if (typeof show == "boolean") {
@@ -14545,22 +15543,24 @@
 	});
 
 	/**
-	 * Returns the title of the PivotTable.
+	 * Returns the pivot table title.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTitle.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTitle.js
 	 */
 	ApiPivotTable.prototype.GetTitle = function () {
 		return this.pivot.asc_getTitle() || "";
 	};
 
 	/**
-	 * Sets the title of the PivotTable.
+	 * Sets the pivot table title.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string} title - Title for PivotTable.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetTitle.js
+	 * @param {string} title - The pivot table title.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetTitle.js
 	 */
 	ApiPivotTable.prototype.SetTitle = function (title) {
 		if (typeof title == "string") {
@@ -14582,22 +15582,24 @@
 	});
 
 	/**
-	 * Returns the description of the PivotTable.
+	 * Returns the pivot table description.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetDescription.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetDescription.js
 	 */
 	ApiPivotTable.prototype.GetDescription = function () {
 		return this.pivot.asc_getDescription() || "";
 	};
 
 	/**
-	 * Sets the description of the PivotTable.
+	 * Sets the pivot table description.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string} description - Description for PivotTable.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetDescription.js
+	 * @param {string} description - The pivot table description.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetDescription.js
 	 */
 	ApiPivotTable.prototype.SetDescription = function (description) {
 		if (typeof description == "string") {
@@ -14619,22 +15621,24 @@
 	});
 
 	/**
-	 * Returns the style name of the PivotTable.
+	 * Returns the pivot table style name.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetStyleName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetStyleName.js
 	 */
 	ApiPivotTable.prototype.GetStyleName = function () {
 		return this.pivot.asc_getStyleInfo().asc_getName();
 	};
 
 	/**
-	 * Sets the style of the PivotTable.
+	 * Sets the pivot table style name.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Style name.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetStyleName.js
+	 * @param {string} name - The pivot table style name.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetStyleName.js
 	 */
 	ApiPivotTable.prototype.SetStyleName = function (name) {
 		if (typeof name == "string" && name.trim().length) {
@@ -14654,22 +15658,24 @@
 	});
 
 	/**
-	 * Returns the row headers style for PivotTable.
+	 * Returns the setting which specifies whether the row headers of the pivot table will be highlighted with the special formatting.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableStyleRowHeaders.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableStyleRowHeaders.js
 	 */
 	ApiPivotTable.prototype.GetTableStyleRowHeaders = function () {
 		return this.pivot.asc_getStyleInfo().asc_getShowRowHeaders();
 	};
 
 	/**
-	 * Sets the row headers style for PivotTable.
+	 * Sets the setting which specifies whether the row headers of the pivot table will be highlighted with the special formatting.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show or not row headers.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetTableStyleRowHeaders.js
+	 * @param {boolean} show - Specifies whether the row headers of the pivot table will be highlighted with the special formatting.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetTableStyleRowHeaders.js
 	 */
 	ApiPivotTable.prototype.SetTableStyleRowHeaders = function (show) {
 		if (typeof show == "boolean") {
@@ -14689,22 +15695,24 @@
 	});
 
 	/**
-	 * Returns the column headers style for PivotTable.
+	 * Returns the setting which specifies whether the column headers of the pivot table will be highlighted with the special formatting.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableStyleColumnHeaders.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableStyleColumnHeaders.js
 	 */
 	ApiPivotTable.prototype.GetTableStyleColumnHeaders = function () {
 		return this.pivot.asc_getStyleInfo().asc_getShowColHeaders();
 	};
 
 	/**
-	 * Sets the column headers style for PivotTable.
+	 * Sets the setting which specifies whether the column headers of the pivot table will be highlighted with the special formatting.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show or not column headers.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetTableStyleColumnHeaders.js
+	 * @param {boolean} show - Specifies whether the column headers of the pivot table will be highlighted with the special formatting.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetTableStyleColumnHeaders.js
 	 */
 	ApiPivotTable.prototype.SetTableStyleColumnHeaders = function (show) {
 		if (typeof show == "boolean") {
@@ -14724,22 +15732,24 @@
 	});
 
 	/**
-	 * Returns the banded rows style for PivotTable.
+	 * Returns the setting which specifies whether the background color alternation for odd and even rows will be enabled for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableStyleRowStripes.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableStyleRowStripes.js
 	 */
 	ApiPivotTable.prototype.GetTableStyleRowStripes = function () {
 		return this.pivot.asc_getStyleInfo().asc_getShowRowStripes();
 	};
 
 	/**
-	 * Sets the banded rows style for PivotTable.
+	 * Sets the setting which specifies whether the background color alternation for odd and even rows will be enabled for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show or not banded rows.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetTableStyleRowStripes.js
+	 * @param {boolean} show - Specifies whether the background color alternation for odd and even rows will be enabled for the pivot table.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetTableStyleRowStripes.js
 	 */
 	ApiPivotTable.prototype.SetTableStyleRowStripes = function (show) {
 		if (typeof show == "boolean") {
@@ -14759,22 +15769,24 @@
 	});
 
 	/**
-	 * Returns the banded columns style for PivotTable.
+	 * Returns the setting which specifies whether the background color alternation for odd and even columns will be enabled for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableStyleColumnStripes.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableStyleColumnStripes.js
 	 */
 	ApiPivotTable.prototype.GetTableStyleColumnStripes = function () {
 		return this.pivot.asc_getStyleInfo().asc_getShowColStripes();
 	};
 
 	/**
-	 * Sets the banded columns style for PivotTable.
+	 * Sets the setting which specifies whether the background color alternation for odd and even columns will be enabled for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show or not banded columns.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetTableStyleColumnStripes.js
+	 * @param {boolean} show - Specifies whether the background color alternation for odd and even columns will be enabled for the pivot table.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetTableStyleColumnStripes.js
 	 */
 	ApiPivotTable.prototype.SetTableStyleColumnStripes = function (show) {
 		if (typeof show == "boolean") {
@@ -14794,11 +15806,12 @@
 	});
 
 	/**
-	 * Returns source for the PivotTable.
+	 * Returns the source range for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetSource.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetSource.js
 	 */
 	ApiPivotTable.prototype.GetSource = function () {
 		var location = this.pivot.getDataLocation();
@@ -14806,11 +15819,12 @@
 	};
 
 	/**
-	 * Sets source for the PivotTable.
+	 * Sets the source range for the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {ApiRange} source - Range where pivot table will be located.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetSource.js
+	 * @param {ApiRange} source - The range where the pivot table will be located.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetSource.js
 	 */
 	ApiPivotTable.prototype.SetSource = function (source) {
 		if (source instanceof ApiRange) {
@@ -14833,11 +15847,12 @@
 	});
 
 	/**
-	 * Returns a Range object that represents the range that contains the column area in the PivotTable report.
+	 * Returns a Range object that represents the column area in the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetColumnRange.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetColumnRange.js
 	 */
 	ApiPivotTable.prototype.GetColumnRange = function () {
 		const res = this.pivot.asc_getColumnRange();
@@ -14854,11 +15869,12 @@
 	});
 
 	/**
-	 * Returns a Range object that represents the range that contains the row area in the PivotTable report.
+	 * Returns a Range object that represents the row area in the pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetRowRange.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetRowRange.js
 	 */
 	ApiPivotTable.prototype.GetRowRange = function () {
 		const res = this.pivot.asc_getRowRange();
@@ -14875,11 +15891,12 @@
 	});
 
 	/**
-	 * Returns a Range object that represents the range of values in a PivotTable.
+	 * Returns a Range object that represents the range of values in the pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetDataBodyRange.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetDataBodyRange.js
 	 */
 	ApiPivotTable.prototype.GetDataBodyRange = function () {
 		const res = this.pivot.asc_getDataBodyRange();
@@ -14896,12 +15913,12 @@
 	});
 
 	/**
-	 * Returns a Range object that represents the range containing the entire PivotTable report,
-	 * but doesn't include page fields.
+	 * Returns a Range object that represents the entire pivot table report, but doesn't include page fields.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableRange1.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableRange1.js
 	 */
 	ApiPivotTable.prototype.GetTableRange1 = function () {
 		var ref =  (this.pivot.location ? this.pivot.location.ref : null);
@@ -14915,12 +15932,12 @@
 	});
 
 	/**
-	 * Returns a Range object that represents the range containing the entire PivotTable report,
-	 * including page fields.
+	 * Returns a Range object that represents the entire pivot table report, including page fields.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiRange | null}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetTableRange2.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetTableRange2.js
 	 */
 	ApiPivotTable.prototype.GetTableRange2 = function () {
 		var ref =  (this.pivot.location ? this.pivot.location.ref : null);
@@ -14946,24 +15963,24 @@
 	});
 
 	/**
-	 * Returns the text string label that is displayed in the grand total column
-	 * or row heading in the specified PivotTable report.
+	 * Returns the text string label that is displayed in the grand total column or row heading in the specified pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetGrandTotalName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetGrandTotalName.js
 	 */
 	ApiPivotTable.prototype.GetGrandTotalName = function () {
 		return ( this.pivot.asc_getGrandTotalCaption() || AscCommon.translateManager.getValue(AscCommonExcel.GRAND_TOTAL_CAPTION) );
 	};
 
 	/**
-	 * Sets the text string label that is displayed in the grand total column
-	 * or row heading in the specified PivotTable report.
+	 * Sets the text string label that is displayed in the grand total column or row heading in the specified pivot table report.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Grand total name.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetGrandTotalName.js
+	 * @param {string} name - The grand total name.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetGrandTotalName.js
 	 */
 	ApiPivotTable.prototype.SetGrandTotalName = function (name) {
 		if (typeof name == "string") {
@@ -14984,11 +16001,12 @@
 		}
 	});
 	/**
-	 * Sets PivotTable setting insert blank rows after each item.
+	 * Sets the setting which specifies whether to insert blank rows after each item.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} insert - Flag insert blank row after each item or not.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetLayoutBlankLine.js
+	 * @param {boolean} insert - Specifies whether to insert blank rows after each item.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetLayoutBlankLine.js
 	 */
 	ApiPivotTable.prototype.SetLayoutBlankLine = function (insert) {
 		if (typeof insert == "boolean") {
@@ -15007,11 +16025,12 @@
 	});
 
 	/**
-	 * Sets PivotTable setting show subtotals.
+	 * Sets the setting which specifies whether to show subtotals.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show subtotals or not.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/SetLayoutSubtotals.js
+	 * @param {boolean} show - Specifies whether to show subtotals.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/SetLayoutSubtotals.js
 	 */
 	ApiPivotTable.prototype.SetLayoutSubtotals = function (show) {
 		if (typeof show == "boolean") {
@@ -15030,11 +16049,12 @@
 	});
 
 	/**
-	 * Returns Pivot Table parent
+	 * Returns the parent object for the current pivot table.
 	 * @memberof ApiPivotTable
 	 * @typeofeditors ["CSE"]
-	 * @returns {ApiWorksheet} - Pivot Table parent.
-	 * @see office-js-api/Examples/ApiPivotTable/Methods/GetParent.js
+	 * @returns {ApiWorksheet} - The parent object for the current pivot table.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotTable/Methods/GetParent.js
 	 */
 	ApiPivotTable.prototype.GetParent = function () {
 		return new ApiWorksheet(this.pivot.worksheet);
@@ -15055,21 +16075,24 @@
 	/** Methods */
 
 	/**
-	 * Removes data field from category.
+	 * Removes  the current data field from the category.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/Remove.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/Remove.js
 	 */
 	ApiPivotDataField.prototype.Remove = function () {
 		this.table.pivot.asc_removeDataField(this.table.api, this.index, this.dataIndex);
 	};
 	/**
-	 * Moves field inside category.
+	 * Moves the current data field inside the category.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The type of the field to move.
-	 * @param {number} [index] - The index of the field in new category.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/Move.js
+	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The direction to move the pivot table field,
+	 * or the pivot field orientation type.
+	 * @param {number} [index] - The index of the data field in a new category.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/Move.js
 	 */
 	ApiPivotDataField.prototype.Move = function (type, index) {
 		function getIndexTo(type, indexFrom, fields) {
@@ -15115,17 +16138,18 @@
 	/** Attributes */
 
 	/**
-	 * Type of calculation to perform on the data field items.
+	 * The type of calculation to perform on the data field items.
 	 * @typedef {"Average" | "CountNumbers" | "Count" | "Max" | "Min" | "Product" |
 	 * "StdDev" | "StdDevP" | "Sum" | "Var" | "VarP"} DataConsolidateFunctionType
 	 */
 
 	/**
-	 * Sets the function performed in the data field.
+	 * Sets a function to the current data field.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {DataConsolidateFunctionType} func - The function performed in the added data field.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetFunction.js
+	 * @param {DataConsolidateFunctionType} func - The function to perform in the added data field.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetFunction.js
 	 */
 	ApiPivotDataField.prototype.SetFunction = function (func) {
 		const field = new Asc.CT_DataField();
@@ -15170,11 +16194,12 @@
 		this.dataField.asc_set(this.table.api, this.table.pivot, this.dataIndex, field);
 	};
 	/**
-	 * Returns the function performed in the data field.
+	 * Returns a function performed in the data field.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {DataConsolidateFunctionType} func - The function performed in the added data field.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetFunction.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetFunction.js
 	 */
 	ApiPivotDataField.prototype.GetFunction = function () {
 		const subtotal = this.dataField.asc_getSubtotal();
@@ -15205,22 +16230,24 @@
 	};
 
 	/**
-	 * Returns a value that represents the position of the field in category.
+	 * Returns a value that represents the data field position within a category.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetPosition.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetPosition.js
 	 */
 	ApiPivotDataField.prototype.GetPosition = function () {
 		return this.dataIndex + 1;
 	};
 
 	/**
-	 * Sets a value that represents the position of the field in dataField category.
+	 * Sets a value that represents the data field position within a category.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {number} position - Position.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetPosition.js
+	 * @param {number} position - The data field position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetPosition.js
 	 */
 	ApiPivotDataField.prototype.SetPosition = function (position) {
 		const dataFields = this.table.pivot.asc_getDataFields();
@@ -15245,12 +16272,12 @@
 		}
 	});
 	/**
-	 * Returns a data field orientation value that represents the location
-	 * of the field in the specified PivotTable report.
+	 * Returns a data field orientation value that represents the data field location in the specified pivot table report.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {PivotFieldOrientationType}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetOrientation.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetOrientation.js
 	 */
 	ApiPivotDataField.prototype.GetOrientation = function () {
 		if (this.dataField) {
@@ -15264,22 +16291,24 @@
 		},
 	});
 	/**
-	 * Returns a value representing the name of the object.
+	 * Returns a value representing the name of the specified data field in the pivot table report.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetValue.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetValue.js
 	 */
 	ApiPivotDataField.prototype.GetValue = function () {
 		return this.GetName();
 	};
 
 	/**
-	 * Sets a value representing the name of the object.
+	 * Sets a value representing the name of the specified data field in the pivot table report.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetValue.js
+	 * @param {string} name - The name of the specified field in the pivot table report.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetValue.js
 	 */
 	ApiPivotDataField.prototype.SetValue = function (name) {
 		this.SetName(name);
@@ -15298,17 +16327,19 @@
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetCaption.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetCaption.js
 	 */
 	ApiPivotDataField.prototype.GetCaption = function () {
 		return this.GetName();
 	};
 	/**
-	 * Set value that represents the label text for the pivot field.
+	 * Sets a value that represents the label text for the data field.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} caption
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetCaption.js
+	 * @param {string} caption - The label text for the data field.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetCaption.js
 	 */
 	ApiPivotDataField.prototype.SetCaption = function (caption) {
 		return this.SetName(caption);
@@ -15324,22 +16355,24 @@
 	});
 
 	/**
-	 * Returns a value representing the name of the object.
+	 * Returns a value representing the object name.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetName.js
 	 */
 	ApiPivotDataField.prototype.GetName = function () {
 		return this.dataField.asc_getName();
 	};
 
 	/**
-	 * Sets a value representing the name of the object.
+	 * Sets a value representing the object name.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name.
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetName.js
+	 * @param {string} name - The object name.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetName.js
 	 */
 	ApiPivotDataField.prototype.SetName = function (name) {
 		if (typeof name === 'string' && name.length > 0) {
@@ -15365,17 +16398,19 @@
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string | null}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetNumberFormat.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetNumberFormat.js
 	 */
 	ApiPivotDataField.prototype.GetNumberFormat = function () {
 		return this.dataField.asc_getNumFormat();
 	};
 	/**
-	 * Sets value that represents the format code for the object.
+	 * Sets a value that represents the format code for the object.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} format
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/SetNumberFormat.js
+	 * @param {string} format - The format code for the object.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/SetNumberFormat.js
 	 */
 	ApiPivotDataField.prototype.SetNumberFormat = function (format) {
 		const newField = new Asc.CT_DataField();
@@ -15391,11 +16426,12 @@
 		}
 	});
 	/**
-	 * Returns index of the data field.
+	 * Returns an index of the data field.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetIndex.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetIndex.js
 	 */
 	ApiPivotDataField.prototype.GetIndex = function () {
 		return this.dataIndex + 1;
@@ -15407,11 +16443,12 @@
 		}
 	});
 	/**
-	 * Returns the pivotField from which the data field was created.
+	 * Returns the pivot field from which the data field was created.
 	 * @memberof ApiPivotDataField
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotField}
-	 * @see office-js-api/Examples/ApiPivotDataField/Methods/GetPivotField.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotDataField/Methods/GetPivotField.js
 	 */
 	ApiPivotDataField.prototype.GetPivotField = function () {
 		return new ApiPivotField(this.table, this.index, this.pivotField);
@@ -15432,48 +16469,54 @@
 	/** Methods */
 
 	/**
-	 * Calling this method deletes all filters currently applied to the PivotField.
+	 * Deletes all filters currently applied to the pivot field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotField/Methods/ClearAllFilters.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/ClearAllFilters.js
 	 */
 	ApiPivotField.prototype.ClearAllFilters  = function () {
 		this.table.pivot.removeFiltersWithLock(this.table.api, [this.index], false);
 	};
 	/**
-	 * This method deletes all label filters or all date filters in the PivotFilters collection.
+	 * Deletes all label filters or all date filters from the pivot filters collection.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotField/Methods/ClearLabelFilters.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/ClearLabelFilters.js
 	 */
 	ApiPivotField.prototype.ClearLabelFilters  = function () {
 		this.table.pivot.asc_removePivotFilter(this.table.api, this.index, false, true, false);
 	};
 	/**
+	 * Deletes all manual filters from the pivot filters collection.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotField/Methods/ClearManualFilters.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/ClearManualFilters.js
 	 */
 	ApiPivotField.prototype.ClearManualFilters  = function () {
 		this.table.pivot.asc_removePivotFilter(this.table.api, this.index, true, false, false);
 	};
 	/**
-	 * Calling this method deletes all value filters in the PivotFilters collection of the PivotField.
+	 * Deletes all value filters from the pivot filters collection.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotField/Methods/ClearValueFilters.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/ClearValueFilters.js
 	 */
 	ApiPivotField.prototype.ClearValueFilters  = function () {
 		this.table.pivot.asc_removePivotFilter(this.table.api, this.index, false, false, true);
 	};
 	/**
-	 * Returns an object that represents either a single PivotTable item (a PivotItem object)
-	 * or a collection of all the visible and hidden items (a PivotItems object) in the specified field.
+	 * Returns an object that represents either a single pivot table item (the ApiPivotItem object)
+	 * or a collection of all the visible and hidden items (an array of the ApiPivotItem objects) in the specified field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {number} [index]
+	 * @param {number} [index] - The item index.
 	 * @returns {ApiPivotItem[] | ApiPivotItem | null}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetPivotItems.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetPivotItems.js
 	 */
 	ApiPivotField.prototype.GetPivotItems = function (index) {
 		const pivotFields = this.table.pivot.asc_getPivotFields();
@@ -15501,12 +16544,14 @@
 		}
 	});
 	/**
-	 * Moves field inside category.
+	 * Moves the current pivot field inside the category.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The type of the field to move.
-	 * @param {number | undefined} index - The index of the field in new category.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/Move.js
+	 * @param {PivotMoveFieldType | PivotFieldOrientationType} type - The direction to move the pivot table field,
+	 * or the pivot field orientation type.
+	 * @param {number | undefined} index - The field index in a new category.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/Move.js
 	 */
 	ApiPivotField.prototype.Move = function (type, index) {
 		function getIndexTo(type, indexFrom, fields) {
@@ -15577,10 +16622,11 @@
 		}
 	};
 	/**
-	 * Removes field from PivotTable.
+	 * Removes the current pivot field from the pivot table.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @see office-js-api/Examples/ApiPivotField/Methods/Remove.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/Remove.js
 	 */
 	ApiPivotField.prototype.Remove = function () {
 		this.table.pivot.asc_removeNoDataField(this.table.api, this.index);
@@ -15589,11 +16635,13 @@
 	/** Attributes */
 
 	/**
-	 * Returns a value that represents the position of the field in category.
+	 * Returns a value that represents the position of the field (first, second, third, and so on)
+	 * among all the fields in its orientation (Rows, Columns, Pages, Data).
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetPosition.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetPosition.js
 	 */
 	ApiPivotField.prototype.GetPosition = function () {
 		const fields = this.table.pivot.getAxisFields(this.pivotField.axis);
@@ -15611,12 +16659,13 @@
 	};
 
 	/**
-	 * Sets a value that represents the position of the field
-	 * among all the fields in its orientation (Rows, Columns, Pages).
+	 * Sets a value that represents the position of the field (first, second, third, and so on)
+	 * among all the fields in its orientation (Rows, Columns, Pages, Data).
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {number} position - Position.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetPosition.js
+	 * @param {number} position - The field position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetPosition.js
 	 */
 	ApiPivotField.prototype.SetPosition = function (position) {
 		if (typeof position == "number") {
@@ -15646,11 +16695,12 @@
 
 	/**
 	 * Returns a pivot field orientation value that represents the location
-	 * of the field in the specified PivotTable report.
+	 * of the field in the specified pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {PivotFieldOrientationType}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetOrientation.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetOrientation.js
 	 */
 	ApiPivotField.prototype.GetOrientation = function () {
 		if (this.pivotField.axis === Asc.c_oAscAxis.AxisRow) {
@@ -15666,11 +16716,12 @@
 
 	/**
 	 * Sets a pivot field orientation value that represents the location
-	 * of the field in the specified PivotTable report.
+	 * of the field in the specified pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {PivotFieldOrientationType} type - Field orientation type.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetOrientation.js
+	 * @param {PivotFieldOrientationType} type - The pivot field orientation type.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetOrientation.js
 	 */
 	ApiPivotField.prototype.SetOrientation = function (type) {
 		switch (type) {
@@ -15716,22 +16767,24 @@
 		}
 	});
 	/**
-	 * Returns a value representing the name of the object.
+	 * Returns a value representing the name of the specified field in the pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetValue.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetValue.js
 	 */
 	ApiPivotField.prototype.GetValue = function () {
 		return this.GetName();
 	};
 
 	/**
-	 * Sets a value representing the name of the object.
+	 * Sets a value representing the name of the specified field in the pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetValue.js
+	 * @param {string} name - The name of the specified field in the pivot table report.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetValue.js
 	 */
 	ApiPivotField.prototype.SetValue = function (name) {
 		this.SetName(name)
@@ -15750,17 +16803,19 @@
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetCaption.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetCaption.js
 	 */
 	ApiPivotField.prototype.GetCaption = function () {
 		return this.GetName();
 	};
 	/**
-	 * Set value that represents the label text for the pivot field.
+	 * Sets a value that represents the label text for the pivot field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} caption
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetCaption.js
+	 * @param {string} caption - The label text for the pivot field.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetCaption.js
 	 */
 	ApiPivotField.prototype.SetCaption = function (caption) {
 		return this.SetName(caption);
@@ -15776,22 +16831,24 @@
 	});
 
 	/**
-	 * Returns a value representing the name of the object.
+	 * Returns a value representing the object name.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetName.js
 	 */
 	ApiPivotField.prototype.GetName = function () {
 		return this.pivotField.asc_getName() || this.GetSourceName();
 	};
 
 	/**
-	 * Sets a value representing the name of the object.
+	 * Sets a value representing the object name.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} name - Name.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetName.js
+	 * @param {string} name - The object name.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetName.js
 	 */
 	ApiPivotField.prototype.SetName = function (name) {
 		if (typeof name === 'string' && name.length > 0) {
@@ -15813,11 +16870,12 @@
 		}
 	});
 	/**
-	 * Returns source name
+	 * Returns a source name for the pivot table field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetSourceName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetSourceName.js
 	 */
 	ApiPivotField.prototype.GetSourceName = function () {
 		return this.table.pivot.getCacheFieldName(this.index);
@@ -15830,11 +16888,12 @@
 	});
 
 	/**
-	 * Returns index of the PivotField.
+	 * Returns an index for the pivot table field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {number}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetIndex.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetIndex.js
 	 */
 	ApiPivotField.prototype.GetIndex = function () {
 		return this.index + 1;
@@ -15847,11 +16906,12 @@
 	});
 
 	/**
-	 * Returns ApiPivotTable.
+	 * Returns the ApiPivotTable object which represents the pivot table for the current field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotTable}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetTable.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetTable.js
 	 */
 	ApiPivotField.prototype.GetTable = function () {
 		return this.table;
@@ -15864,11 +16924,12 @@
 	});
 
 	/**
-	 * Returns parent object to this field.
+	 * Returns the parent object for the current field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotTable}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetParent.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetParent.js
 	 */
 	ApiPivotField.prototype.GetParent = function () {
 		return this.table;
@@ -15881,11 +16942,12 @@
 	});
 
 	/**
-	 * Returns whether or not a PivotField is compacted.
+	 * Returns the setting which specifies whether a pivot table field is compacted.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutCompactRow.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutCompactRow.js
 	 */
 	ApiPivotField.prototype.GetLayoutCompactRow = function () {
 		const pivField = this.table.pivot.asc_getPivotFields()[this.index];
@@ -15893,11 +16955,12 @@
 	};
 
 	/**
-	 * Sets whether or not a PivotField is compacted.
+	 * Sets the setting which specifies whether a pivot table field is compacted.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} compact - Use compact form or not.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutCompactRow.js
+	 * @param {boolean} compact - Specifies whether a pivot table field is compacted.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutCompactRow.js
 	 */
 	ApiPivotField.prototype.SetLayoutCompactRow = function (compact) {
 		if (typeof compact == "boolean") {
@@ -15920,26 +16983,29 @@
 	});
 
 	/**
+	 * The layout type of the pivot table report.
 	 * @typedef {"Tabular" | "Outline"} PivotLayoutType
 	 */
 
 	/**
-	 * Returns the way the specified PivotTable items appear—in table format or in outline format.
+	 * Returns the way the specified pivot table items appear — in table format or in outline format.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {PivotLayoutType}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutForm.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutForm.js
 	 */
 	ApiPivotField.prototype.GetLayoutForm = function () {
 		return this.pivotField.asc_getOutline() ? "Outline" : "Tabular";
 	};
 
 	/**
-	 * Sets the way the specified PivotTable items appear—in table format or in outline format.
+	 * Sets the way the specified pivot table items appear — in table format or in outline format.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {PivotLayoutType} type - Type of layot report form.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutForm.js
+	 * @param {PivotLayoutType} type - The layout type of the pivot table report.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutForm.js
 	 */
 	ApiPivotField.prototype.SetLayoutForm = function (type) {
 		if (type === "Tabular" || type === "Outline") {
@@ -15961,22 +17027,24 @@
 	});
 
 	/**
-	 * Returns the flag that represents page break is inserted after each field.
+	 * Returns the setting which specifies whether to insert a page break after each field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutPageBreak.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutPageBreak.js
 	 */
 	ApiPivotField.prototype.GetLayoutPageBreak = function () {
 		return this.pivotField.insertPageBreak;
 	};
 
 	/**
-	 * Sets the flag that represents page break is inserted after each field.
+	 * Sets the setting which specifies whether to insert a page break after each field.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} insert - Flag insert or not page break after each field.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutPageBreak.js
+	 * @param {boolean} insert - Specifies whether to insert a page break after each field.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutPageBreak.js
 	 */
 	ApiPivotField.prototype.SetLayoutPageBreak = function (insert) {
 		if ( typeof insert == "boolean") {
@@ -15996,11 +17064,12 @@
 	});
 
 	/**
-	 * Returns if the PivotField is currently visible in the PivotTable or not.
+	 * Returns the setting which specifies whether the pivot table field is currently visible in the pivot table.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetShowingInAxis.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetShowingInAxis.js
 	 */
 	ApiPivotField.prototype.GetShowingInAxis = function () {
 		return this.pivotField.axis !== null || this.pivotField.dataField;
@@ -16013,22 +17082,24 @@
 	});
 
 	/**
-	 * Returns setting repeat items labels at each row.
+	 * Returns the setting which specifies whether to repeat items labels at each row.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetRepeatLabels.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetRepeatLabels.js
 	 */
 	ApiPivotField.prototype.GetRepeatLabels = function () {
 		return this.pivotField.asc_getFillDownLabelsDefault();
 	};
 
 	/**
-	 * Sets setting repeat items labels at each row.
+	 * Sets the setting which specifies whether to repeat items labels at each row.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} repeat - Flag repeat items labels at each row or not.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetRepeatLabels.js
+	 * @param {boolean} repeat - Specifies whether to repeat items labels at each row.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetRepeatLabels.js
 	 */
 	ApiPivotField.prototype.SetRepeatLabels = function (repeat) {
 		if (typeof repeat == "boolean") {
@@ -16050,22 +17121,24 @@
 	});
 
 	/**
-	 * Returns setting insert blank rows after each item.
+	 * Returns the setting which specifies whether to insert blank rows after each item.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutBlankLine.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutBlankLine.js
 	 */
 	ApiPivotField.prototype.GetLayoutBlankLine = function () {
 		return this.pivotField.asc_getInsertBlankRow();
 	};
 
 	/**
-	 * Sets setting insert blank rows after each item.
+	 * Sets the setting which specifies whether to insert blank rows after each item.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} insert - Flag insert blank rows after each item or not.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutBlankLine.js
+	 * @param {boolean} insert - Specifies whether to insert blank rows after each item.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutBlankLine.js
 	 */
 	ApiPivotField.prototype.SetLayoutBlankLine = function (insert) {
 		if (typeof insert == "boolean") {
@@ -16087,22 +17160,24 @@
 	});
 
 	/**
-	 * Returns setting show items with no data.
+	 * Returns the setting which specifies whether to show items with no data.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetShowAllItems.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetShowAllItems.js
 	 */
 	ApiPivotField.prototype.GetShowAllItems = function () {
 		return this.pivotField.asc_getShowAll();
 	};
 
 	/**
-	 * Sets setting show items with no data.
+	 * Sets the setting which specifies whether to show items with no data.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show items with no data or not.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetShowAllItems.js
+	 * @param {boolean} show - Specifies whether to show items with no data.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetShowAllItems.js
 	 */
 	ApiPivotField.prototype.SetShowAllItems = function (show) {
 		if (typeof show == "boolean") {
@@ -16124,22 +17199,24 @@
 	});
 
 	/**
-	 * Returns setting show subtotals.
+	 * Returns the setting which specifies whether to show subtotals.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutSubtotals.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutSubtotals.js
 	 */
 	ApiPivotField.prototype.GetLayoutSubtotals = function () {
 		return this.pivotField.asc_getDefaultSubtotal();
 	};
 
 	/**
-	 * Set setting show subtotals.
+	 * Sets the setting which specifies whether to show subtotals.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} show - Flag show subtotals or not.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutSubtotals.js
+	 * @param {boolean} show - Specifies whether to show subtotals.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutSubtotals.js
 	 */
 	ApiPivotField.prototype.SetLayoutSubtotals = function (show) {
 		if (typeof show == "boolean") {
@@ -16160,25 +17237,30 @@
 		}
 	});
 
-	/** @typedef { "Top" | "Bottom" } LayoutSubtotalLocationType */
+	/**
+	 * The layout subtotal location. 
+	 * @typedef { "Top" | "Bottom" } LayoutSubtotalLocationType
+	 */
 
 	/**
-	 * Returns setting layout subtotal location.
+	 * Returns the layout subtotal location.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {LayoutSubtotalLocationType}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetLayoutSubtotalLocation.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetLayoutSubtotalLocation.js
 	 */
 	ApiPivotField.prototype.GetLayoutSubtotalLocation = function () {
 		return ( this.pivotField.asc_getSubtotalTop() ? "Top" : "Bottom" );
 	};
 
 	/**
-	 * Sets setting layout subtotal location.
+	 * Sets the layout subtotal location.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {LayoutSubtotalLocationType} type - Type of layot subtotal location
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetLayoutSubtotalLocation.js
+	 * @param {LayoutSubtotalLocationType} type - The layout subtotal location.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetLayoutSubtotalLocation.js
 	 */
 	ApiPivotField.prototype.SetLayoutSubtotalLocation = function (type) {
 		if (typeof type == "string" && ( type == "Top" || type == "Bottom")) {
@@ -16200,22 +17282,24 @@
 	});
 
 	/**
-	 * Returns the text string label displayed in the subtotal column or row heading in the specified PivotTable report.
+	 * Returns the text label displayed in the subtotal column or row heading in the specified pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetSubtotalName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetSubtotalName.js
 	 */
 	ApiPivotField.prototype.GetSubtotalName = function () {
 		return (this.pivotField.subtotalCaption);
 	};
 
 	/**
-	 * Sets the text string label displayed in the subtotal column or row heading in the specified PivotTable report.
+	 * Sets the text label displayed in the subtotal column or row heading in the specified pivot table report.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {string} caption - Caption.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetSubtotalName.js
+	 * @param {string} caption - The text label displayed in the subtotal column or row heading.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetSubtotalName.js
 	 */
 	ApiPivotField.prototype.SetSubtotalName = function (caption) {
 		if ( typeof caption == "string") {
@@ -16237,27 +17321,28 @@
 	});
 
 	/**
-	 * Subtotal pivot field types
+	 * Subtotal pivot field types (functions for subtotals).
 	 * @typedef {Object} PivotFieldSubtotals
-	 * @property {boolean} Sum
-	 * @property {boolean} Count
-	 * @property {boolean} Average
-	 * @property {boolean} Max
-	 * @property {boolean} Min
-	 * @property {boolean} Product
-	 * @property {boolean} CountNumbers
-	 * @property {boolean} StdDev
-	 * @property {boolean} StdDevP
-	 * @property {boolean} Var
-	 * @property {boolean} VarP
+	 * @property {boolean} Sum - Specififes whether the SUM function will be used.
+	 * @property {boolean} Count - Specififes whether the COUNTA function will be used.
+	 * @property {boolean} Average - Specififes whether the AVERAGE function will be used.
+	 * @property {boolean} Max - Specififes whether the MAX function will be used.
+	 * @property {boolean} Min - Specififes whether the MIN function will be used.
+	 * @property {boolean} Product - Specififes whether the PRODUCT function will be used.
+	 * @property {boolean} CountNumbers - Specififes whether the COUNT function will be used.
+	 * @property {boolean} StdDev - Specififes whether the STDEV function will be used.
+	 * @property {boolean} StdDevP - Specififes whether the STDEV.P function will be used.
+	 * @property {boolean} Var - Specififes whether the VAR function will be used.
+	 * @property {boolean} VarP - Specififes whether the VAR.P function will be used.
 	 */
 
 	/**
-	 * Returns object that represent all subtotals.
+	 * Returns an object that represents all subtotals.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {PivotFieldSubtotals}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetSubtotals.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetSubtotals.js
 	 */
 	ApiPivotField.prototype.GetSubtotals = function () {
 		const res = {
@@ -16317,11 +17402,12 @@
 	};
 
 	/**
-	 * Sets Subtotals.
+	 * Sets an object that represents all subtotals.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {PivotFieldSubtotals} subtotals - Object that represent all subtotals or some of them.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetSubtotals.js
+	 * @param {PivotFieldSubtotals} subtotals - An object that represents all subtotals or some of them.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetSubtotals.js
 	 */
 	ApiPivotField.prototype.SetSubtotals = function (subtotals) {
 			if (typeof subtotals == "object") {
@@ -16381,22 +17467,24 @@
 	});
 
 	/**
-	 * Returns the specified field, can be dragged to the column position or not.
+	 * Returns the setting which specifies whether the specified field can be dragged to the column position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetDragToColumn.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetDragToColumn.js
 	 */
 	ApiPivotField.prototype.GetDragToColumn = function () {
 		return this.pivotField.dragToCol;
 	};
 
 	/**
-	 * Sets the specified field, can be dragged to the column position or not.
+	 * Sets the setting which specifies whether the specified field can be dragged to the column position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} flag - Flag whether this field can be moved to columns.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetDragToColumn.js
+	 * @param {boolean} flag - Specifies whether the specified field can be dragged to the column position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetDragToColumn.js
 	 */
 	ApiPivotField.prototype.SetDragToColumn = function (flag) {
 		if (typeof flag == "boolean") {
@@ -16416,22 +17504,24 @@
 	});
 
 	/**
-	 * Returns the specified field, can be dragged to the row position or not.
+	 * Returns the setting which specifies whether the specified field can be dragged to the row position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetDragToRow.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetDragToRow.js
 	 */
 	ApiPivotField.prototype.GetDragToRow = function () {
 		return this.pivotField.dragToRow;
 	};
 
 	/**
-	 * Sets the specified field, can be dragged to the row position or not.
+	 * Sets the setting which specifies whether the specified field can be dragged to the row position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} flag - Flag whether this field can be moved to rows.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetDragToRow.js
+	 * @param {boolean} flag - Specifies whether the specified field can be dragged to the row position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetDragToRow.js
 	 */
 	ApiPivotField.prototype.SetDragToRow = function (flag) {
 		if (typeof flag == "boolean") {
@@ -16451,22 +17541,24 @@
 	});
 
 	/**
-	 * Returns the specified field, can be dragged to the data position or not.
+	 * Returns the setting which specifies whether the specified field can be dragged to the data position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetDragToData.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetDragToData.js
 	 */
 	ApiPivotField.prototype.GetDragToData = function () {
 		return this.pivotField.dragToData;
 	};
 
 	/**
-	 * Sets the specified field, can be dragged to the data position or not.
+	 * Sets the setting which specifies whether the specified field can be dragged to the data position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} flag - Flag whether this field can be moved to data.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetDragToData.js
+	 * @param {boolean} flag - Specifies whether the specified field can be dragged to the data position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetDragToData.js
 	 */
 	ApiPivotField.prototype.SetDragToData = function (flag) {
 		if (typeof flag == "boolean") {
@@ -16486,22 +17578,24 @@
 	});
 
 	/**
-	 * Returns the specified field, can be dragged to the page position or not.
+	 * Returns the setting which specifies whether the specified field can be dragged to the page position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {boolean}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetDragToPage.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetDragToPage.js
 	 */
 	ApiPivotField.prototype.GetDragToPage = function () {
 		return this.pivotField.dragToPage;
 	};
 
 	/**
-	 * Sets the specified field, can be dragged to the page position or not.
+	 * Sets the setting which specifies whether the specified field can be dragged to the page position.
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
-	 * @param {boolean} flag - Flag whether this field can be moved to page.
-	 * @see office-js-api/Examples/ApiPivotField/Methods/SetDragToPage.js
+	 * @param {boolean} flag - Specifies whether the specified field can be dragged to the page position.
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/SetDragToPage.js
 	 */
 	ApiPivotField.prototype.SetDragToPage = function (flag) {
 		if (typeof flag == "boolean") {
@@ -16521,11 +17615,12 @@
 	});
 
 	/**
-	 * Returns the current page showing for the page field (valid only for page fields).
+	 * Returns the current page which is displayed for the page field (valid only for page fields).
 	 * @memberof ApiPivotField
 	 * @typeofeditors ["CSE"]
 	 * @returns {string | number}
-	 * @see office-js-api/Examples/ApiPivotField/Methods/GetCurrentPage.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotField/Methods/GetCurrentPage.js
 	 */
 	ApiPivotField.prototype.GetCurrentPage = function () {
 		const pageFields = this.table.pivot.asc_getPageFields();
@@ -16596,11 +17691,12 @@
 	/* Attributes */
 
 	/**
-	 * Returns a String value representing the name of the object.
+	 * Returns a name of the pivot item.
 	 * @memberof ApiPivotItem
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotItem/Methods/GetName.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotItem/Methods/GetName.js
 	 */
 	ApiPivotItem.prototype.GetName = function () {
 		if (this.pivotItem.n) {
@@ -16621,11 +17717,12 @@
 	});
 
 	/**
-	 * Returns a String value that represents the label text for the pivot item.
+	 * Returns a caption of the pivot item.
 	 * @memberof ApiPivotItem
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotItem/Methods/GetCaption.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotItem/Methods/GetCaption.js
 	 */
 	ApiPivotItem.prototype.GetCaption = function () {
 		return this.GetName();
@@ -16638,11 +17735,12 @@
 	});
 
 	/**
-	 * Returns a String value that represents the name of the specified item in the PivotTable field.
+	 * Returns a name of the specified item in the pivot table field.
 	 * @memberof ApiPivotItem
 	 * @typeofeditors ["CSE"]
 	 * @returns {string}
-	 * @see office-js-api/Examples/ApiPivotItem/Methods/GetValue.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotItem/Methods/GetValue.js
 	 */
 	ApiPivotItem.prototype.GetValue = function () {
 		return this.GetName();
@@ -16655,11 +17753,12 @@
 	});
 
 	/**
-	 * Returns the parent object for the specified object.
+	 * Returns a parent of the pivot item.
 	 * @memberof ApiPivotItem
 	 * @typeofeditors ["CSE"]
 	 * @returns {ApiPivotField}
-	 * @see office-js-api/Examples/ApiPivotItem/Methods/GetParent.js
+	 * @since 8.2.0
+	 * @see office-js-api/Examples/{Editor}/ApiPivotItem/Methods/GetParent.js
 	 */
 	ApiPivotItem.prototype.GetParent = function () {
 		return this.field;
@@ -16700,6 +17799,8 @@
 	Api.prototype["SetFreezePanesType"] = Api.prototype.SetFreezePanesType;
 	Api.prototype["GetFreezePanesType"] = Api.prototype.GetFreezePanesType;
 	Api.prototype["GetDocumentInfo"] = Api.prototype.GetDocumentInfo;
+	Api.prototype["GetCore"] = Api.prototype.GetCore;
+	Api.prototype["GetCustomProperties"] = Api.prototype.GetCustomProperties;
 
 	Api.prototype["AddCustomFunction"] = Api.prototype.AddCustomFunction;
 	Api.prototype["RemoveCustomFunction"] = Api.prototype.RemoveCustomFunction;
@@ -16840,6 +17941,11 @@
 	ApiRange.prototype["GetCharacters"] = ApiRange.prototype.GetCharacters;
 	ApiRange.prototype["PasteSpecial"] = ApiRange.prototype.PasteSpecial;
 	ApiRange.prototype["GetPivotTable"] = ApiRange.prototype.GetPivotTable;
+	ApiRange.prototype["SetAutoFilter"] = ApiRange.prototype.SetAutoFilter;
+	ApiRange.prototype["SetFormulaArray"] = ApiRange.prototype.SetFormulaArray;
+	ApiRange.prototype["GetFormulaArray"] = ApiRange.prototype.GetFormulaArray;
+	ApiRange.prototype["Expand"] = ApiRange.prototype.Expand;
+
 
 
 	ApiDrawing.prototype["GetClassType"]               =  ApiDrawing.prototype.GetClassType;
@@ -16849,6 +17955,9 @@
 	ApiDrawing.prototype["GetHeight"]                  =  ApiDrawing.prototype.GetHeight;
 	ApiDrawing.prototype["GetLockValue"]               =  ApiDrawing.prototype.GetLockValue;
 	ApiDrawing.prototype["SetLockValue"]               =  ApiDrawing.prototype.SetLockValue;
+	ApiDrawing.prototype["GetParentSheet"]             =  ApiDrawing.prototype.GetParentSheet;
+	ApiDrawing.prototype["SetRotation"]                =  ApiDrawing.prototype.SetRotation;
+	ApiDrawing.prototype["GetRotation"]                =  ApiDrawing.prototype.GetRotation;
 
 	ApiImage.prototype["GetClassType"]                 =  ApiImage.prototype.GetClassType;
 
@@ -16856,8 +17965,6 @@
 	ApiShape.prototype["GetDocContent"]                =  ApiShape.prototype.GetDocContent;
 	ApiShape.prototype["GetContent"]                   =  ApiShape.prototype.GetContent;
 	ApiShape.prototype["SetVerticalTextAlign"]         =  ApiShape.prototype.SetVerticalTextAlign;
-
-
 
 	ApiChart.prototype["SetSeriaValues"]              =  ApiChart.prototype.SetSeriaValues;
 	ApiChart.prototype["SetSeriaXValues"]             =  ApiChart.prototype.SetSeriaXValues;
@@ -17691,9 +18798,9 @@
 	function private_ValidateParamsForCustomFunction(jsdoc) {
 		let result = true;
 		const types = [
-			'number', 'string', 'boolean', 'bool', 'any',
-			'number[]', 'string[]', 'boolean[]', 'bool[]', 'any[]',
-			'number[][]', 'string[][]', 'boolean[][]', 'bool[][]', 'any[][]'
+			'number', 'string', 'boolean', 'boolean', 'any',
+			'number[]', 'string[]', 'boolean[]', 'boolean[]', 'any[]',
+			'number[][]', 'string[][]', 'boolean[][]', 'boolean[][]', 'any[][]'
 		];
 
 		if (jsdoc.returnInfo && !types.includes(jsdoc.returnInfo.type)) {
@@ -17755,9 +18862,37 @@
 		oldSelection && oldSelection.Select(true);
 	}
 
+	function GetApiDrawings(drawingObjects) {
+		return drawingObjects.map(function(drawing) {
+			return GetApiDrawing(drawing);
+		}).filter(function(apiDrawing) {
+			return !!apiDrawing;
+		});
+	}
+	
+	function GetApiDrawing(drawing) {
+        switch (drawing.getObjectType()) {
+            case AscDFH.historyitem_type_Shape:
+                return new AscBuilder.ApiShape(drawing);
+            case AscDFH.historyitem_type_ImageShape:
+                return new AscBuilder.ApiImage(drawing);
+            case AscDFH.historyitem_type_OleObject:
+                return new AscBuilder.ApiOleObject(drawing);
+			case AscDFH.historyitem_type_GroupShape:
+                return new ApiDrawing(drawing);
+			case AscDFH.historyitem_type_ChartSpace:
+				return new AscBuilder.ApiChart(drawing);
+        }
+        return null;
+    }
+
 	function private_MakeError(message) {
 		console.error(new Error(message) );
-	};
+	}
+	window['AscBuilder'] = window['AscBuilder'] || {};
+	window['AscBuilder'].ApiShape           = ApiShape;
+	window['AscBuilder'].ApiImage           = ApiImage;
+	window['AscBuilder'].ApiOleObject       = ApiOleObject;
 
 }(window, null));
 

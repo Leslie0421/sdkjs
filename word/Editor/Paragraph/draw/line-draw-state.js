@@ -54,7 +54,8 @@
 		this.VisitedHyperlink = false;
 		this.Hyperlink = false;
 		
-		this.ulTrailSpace = false;
+		this.ulTrailSpace     = false;
+		this.activePermRanges = false;
 		
 		this.Strikeout  = new CParaDrawingRangeHorizontalLines();
 		this.DStrikeout = new CParaDrawingRangeHorizontalLines();
@@ -73,8 +74,11 @@
 		this.BaseLine        = 0;
 		this.UnderlineOffset = 0;
 		this.Spaces          = 0;
+		this.LineY0          = 0;
+		this.LineY1          = 0;
 		
 		this.complexFields = new AscWord.ParagraphComplexFieldStack();
+		this.contentControls = [];
 		
 		this.run = null;
 		
@@ -89,9 +93,10 @@
 		this.isStrikeout  = false;
 		this.isDStrikeout = false;
 		
-		this.form       = null;
-		this.formBorder = null;
-		this.combMax    = -1;
+		this.form            = null;
+		this.formBorderColor = null;
+		this.formBorderWidth = 0;
+		this.combMax         = -1;
 		
 		this.reviewAdd    = false;
 		this.reviewRem    = false;
@@ -104,6 +109,8 @@
 		
 		this.collPrChangeColor = null;
 		
+		this.annotationMarks = [];
+		
 		this.bidiFlow = new AscWord.BidiFlow(this);
 	}
 	ParagraphLineDrawState.prototype.init = function()
@@ -113,7 +120,10 @@
 		
 		this.logicDocument = this.GetLogicDocument();
 		if (this.logicDocument && this.logicDocument.IsDocumentEditor())
-			this.ulTrailSpace = this.logicDocument.IsUnderlineTrailSpace();
+		{
+			this.ulTrailSpace     = this.logicDocument.IsUnderlineTrailSpace();
+			this.activePermRanges = this.logicDocument.IsEditCommentsMode() || this.logicDocument.IsViewModeInEditor();
+		}
 	};
 	ParagraphLineDrawState.prototype.resetPage = function(page)
 	{
@@ -127,12 +137,14 @@
 		
 		this.complexFields.resetPage(this.Paragraph, page);
 	};
-	ParagraphLineDrawState.prototype.resetLine = function(Line, Baseline, UnderlineOffset)
+	ParagraphLineDrawState.prototype.resetLine = function(Line, Baseline, UnderlineOffset, lineY0, lineY1)
 	{
 		this.Line = Line;
 		
 		this.Baseline        = Baseline;
 		this.UnderlineOffset = UnderlineOffset;
+		this.LineY0          = lineY0;
+		this.LineY1          = lineY1;
 		
 		this.Strikeout.Clear();
 		this.DStrikeout.Clear();
@@ -173,14 +185,17 @@
 		if (para_Drawing === element.Type && !element.IsInline())
 			return;
 		
-		this.bidiFlow.add([element, run, inRunPos, misspell], element.getBidiType());
+		this.bidiFlow.add([element, run, inRunPos, misspell, this.annotationMarks], element.getBidiType());
+		
+		this.annotationMarks = [];
 	};
-	ParagraphLineDrawState.prototype.handleBidiFlow = function(data)
+	ParagraphLineDrawState.prototype.handleBidiFlow = function(data, direction)
 	{
 		let element  = data[0];
 		let run      = data[1];
 		let inRunPos = data[2];
 		let misspell = data[3];
+		let marks    = data[4];
 		
 		this.handleRun(run);
 		
@@ -193,7 +208,10 @@
 		}
 		
 		this.addCompositeInputLine(element, run, inRunPos);
-		
+		let oTextDrawerInfo;
+		if (this.Graphics.m_bIsTextDrawer) {
+			oTextDrawerInfo = {TextDrawer: {SplitType: this.Graphics.m_nCurrentSplitOptions, TextElement: element}};
+		}
 		let startX = this.X;
 		let endX   = this.X + element.GetWidthVisible();
 		switch (element.Type)
@@ -213,7 +231,7 @@
 			case para_Math_BreakOperator:
 			case para_Math_Ampersand:
 			case para_Math_Placeholder:
-				this.addLines(startX, endX);
+				this.addLines(startX, endX, undefined, oTextDrawerInfo);
 				break;
 			case para_Space:
 				if (this.paraLineRange)
@@ -225,22 +243,22 @@
 				if (this.Spaces > 0 || this.ulTrailSpace)
 				{
 					--this.Spaces;
-					this.addLines(startX, endX);
+					this.addLines(startX, endX, undefined, oTextDrawerInfo);
 				}
 				break;
 			case para_Drawing:
 				if (element.IsInline())
-					this.addLines(startX, endX, false);
+					this.addLines(startX, endX, false, oTextDrawerInfo);
 				break;
 			case para_End:
 				this.isUnderline  = false;
 				this.isStrikeout  = false;
 				this.isDStrikeout = false;
-				this.addLines(startX, endX);
+				this.addLines(startX, endX, undefined, oTextDrawerInfo);
 				break;
 			case para_FieldChar:
 				if (element.IsVisual())
-					this.addLines(startX, endX);
+					this.addLines(startX, endX, undefined, oTextDrawerInfo);
 				break;
 		}
 		
@@ -253,7 +271,20 @@
 		if (this.collPrChangeColor)
 			this.CollChange.Add(0, 0, startX, endX, 0, this.collPrChangeColor.r, this.collPrChangeColor.g, this.collPrChangeColor.b, {RunPr : this.textPr});
 		
+		if (marks)
+		{
+			let markX = direction === AscBidi.DIRECTION.L ? startX : endX;
+			for (let i = 0; i < marks.length; ++i)
+			{
+				marks[i].drawMark(markX, this.LineY0, this.LineY1 - this.LineY0, this.Graphics, direction === AscBidi.DIRECTION.R, this);
+			}
+		}
+		
 		this.X = endX;
+	};
+	ParagraphLineDrawState.prototype.handleAnnotationMark = function(mark)
+	{
+		this.annotationMarks.push(mark);
 	};
 	/**
 	 * Получаем количество орфографических ошибок в данном месте
@@ -283,6 +314,10 @@
 	{
 		return this.Paragraph.GetLogicDocument();
 	};
+	ParagraphLineDrawState.prototype.isActivePermRanges = function()
+	{
+		return this.activePermRanges;
+	};
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Private area
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,13 +338,16 @@
 		let combMax    = -1;
 		if (form)
 		{
-			if (form.IsFormRequired() && this.logicDocument.IsHighlightRequiredFields() && !this.Graphics.isPrintMode)
+			if (form.IsTextForm() && form.GetTextFormPr().IsComb())
+				combMax = form.GetTextFormPr().GetMaxCharacters();
+
+			if (!form.IsMainForm())
+				form = form.GetMainForm();
+			
+			if (form.IsFormRequired() && form.CheckOFormUserMaster() && this.logicDocument.IsHighlightRequiredFields() && !this.Graphics.isPrintMode)
 				formBorder = this.logicDocument.GetRequiredFieldsBorder();
 			else if (form.GetFormPr().GetBorder())
 				formBorder = form.GetFormPr().GetBorder();
-			
-			if (form.IsTextForm() && form.GetTextFormPr().IsComb())
-				combMax = form.GetTextFormPr().GetMaxCharacters();
 			
 			this.isFormPlaceholder = (form.IsPlaceHolder() && this.Graphics.isPrintMode);
 			
@@ -320,9 +358,33 @@
 				this.isFormPlaceholder = true;
 		}
 		
-		this.form       = form;
-		this.formBorder = formBorder;
-		this.combMax    = combMax;
+		this.form    = form;
+		this.combMax = combMax;
+		
+		this.formBorderWidth = 0;
+		this.formBorderColor = null;
+		
+		if (this.form && formBorder)
+		{
+			this.formBorderWidth = formBorder.GetWidth();
+			this.formBorderColor = AscWord.CDocumentColorA.fromObjectRgb(formBorder.GetColor());
+		}
+		else
+		{
+			// TODO: It's better to handle CC stack on the fly instead of getting it for each run
+			let contentControls = run.GetParentContentControls();
+			for (let i = contentControls.length - 1; i >= 0; --i)
+			{
+				let cc = contentControls[i];
+				if (cc instanceof AscWord.CInlineLevelSdt && cc.getBorderColor())
+				{
+					this.form            = cc;
+					this.formBorderWidth = 0;
+					this.formBorderColor = cc.getBorderColor();
+					break;
+				}
+			}
+		}
 		
 		this.yOffset = run.getYOffset();
 		
@@ -352,11 +414,11 @@
 	ParagraphLineDrawState.prototype.handleFormBorder = function(item, run, inRunPos)
 	{
 		let itemWidth = item.GetWidthVisible();
-		if (!this.formBorder || itemWidth <= 0.001)
+		if (!this.form || itemWidth <= 0.001 || !this.formBorderColor)
 			return;
 		
-		let borderW     = this.formBorder.GetWidth();
-		let borderColor = this.formBorder.GetColor();
+		let borderW     = this.formBorderWidth;
+		let borderColor = this.formBorderColor;
 		
 		let Y = this.Baseline;
 		let X = this.X;
@@ -381,32 +443,35 @@
 		if (item.RGapCount)
 		{
 			var nGapEnd = X + itemWidth;
-			this.FormBorder.Add(Y, Y, X, nGapEnd - item.RGapCount * item.RGapShift,
+			this.FormBorder.addWithAlpha(Y, Y, X, nGapEnd - item.RGapCount * item.RGapShift,
 				borderW,
 				borderColor.r,
 				borderColor.g,
 				borderColor.b,
+				borderColor.a,
 				additional
 			);
 			
 			for (var nGapIndex = 0; nGapIndex < item.RGapCount; ++nGapIndex)
 			{
-				this.FormBorder.Add(Y, Y, nGapEnd - (item.RGapCount - nGapIndex) * item.RGapShift, nGapEnd - (item.RGapCount - nGapIndex - 1) * item.RGapShift,
+				this.FormBorder.addWithAlpha(Y, Y, nGapEnd - (item.RGapCount - nGapIndex) * item.RGapShift, nGapEnd - (item.RGapCount - nGapIndex - 1) * item.RGapShift,
 					borderW,
 					borderColor.r,
 					borderColor.g,
 					borderColor.b,
+					borderColor.a,
 					additional
 				);
 			}
 		}
 		else
 		{
-			this.FormBorder.Add(Y, Y, X, X + itemWidth,
+			this.FormBorder.addWithAlpha(Y, Y, X, X + itemWidth,
 				borderW,
 				borderColor.r,
 				borderColor.g,
 				borderColor.b,
+				borderColor.a,
 				additional
 			);
 		}
@@ -518,7 +583,7 @@
 	 * @param endX {number}
 	 * @param drawStrikeout {boolean}
 	 */
-	ParagraphLineDrawState.prototype.addLines = function(startX, endX, drawStrikeout)
+	ParagraphLineDrawState.prototype.addLines = function(startX, endX, drawStrikeout, oTextDrawerInfo)
 	{
 		if (endX - startX < 0.001)
 			return;
@@ -528,33 +593,33 @@
 			if (this.reviewRem)
 			{
 				if (this.reviewMove)
-					this.DStrikeout.Add(startX, endX, this.reviewColor);
+					this.DStrikeout.Add(startX, endX, this.reviewColor, oTextDrawerInfo);
 				else
-					this.Strikeout.Add(startX, endX, this.reviewColor);
-				
+					this.Strikeout.Add(startX, endX, this.reviewColor, oTextDrawerInfo);
+
 				if (this.reviewRemAdd)
-					this.Underline.Add(startX, endX, this.reviewRemAddColor);
+					this.Underline.Add(startX, endX, this.reviewRemAddColor, oTextDrawerInfo);
 			}
 			else if (this.isDStrikeout)
 			{
-				this.DStrikeout.Add(startX, endX, this.color, undefined, this.textPr);
+				this.DStrikeout.Add(startX, endX, this.color, oTextDrawerInfo, this.textPr);
 			}
 			else if (this.isStrikeout)
 			{
-				this.Strikeout.Add(startX, endX, this.color, undefined, this.textPr);
+				this.Strikeout.Add(startX, endX, this.color, oTextDrawerInfo, this.textPr);
 			}
 		}
-		
+
 		if (this.reviewAdd)
 		{
 			if (this.reviewMove)
-				this.DUnderline.Add(startX, endX, this.reviewColor);
+				this.DUnderline.Add(startX, endX, this.reviewColor, oTextDrawerInfo);
 			else
-				this.Underline.Add(startX, endX, this.reviewColor);
+				this.Underline.Add(startX, endX, this.reviewColor, oTextDrawerInfo);
 		}
 		else if (this.isUnderline)
 		{
-			this.Underline.Add(startX, endX, this.color, undefined, this.textPr);
+			this.Underline.Add(startX, endX, this.color, oTextDrawerInfo, this.textPr);
 		}
 	};
 	ParagraphLineDrawState.prototype.addCompositeInputLine = function(element, run, inRunPos)

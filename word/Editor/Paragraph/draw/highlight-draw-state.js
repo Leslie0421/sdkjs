@@ -40,6 +40,7 @@
 	const FLAG_COMPLEX_FIELD = 0x0010;
 	const FLAG_COLLABORATION = 0x0020;
 	const FLAG_SHD           = 0x0040;
+	const FLAG_PERM_RANGE    = 0x0080;
 	
 	/**
 	 * Class for storing the current draw state of paragraph highlight (text/paragraph/field/etc. background)
@@ -67,12 +68,14 @@
 		this.MMFields = new CParaDrawingRangeLines();
 		this.CFields  = new CParaDrawingRangeLines();
 		this.HyperCF  = new CParaDrawingRangeLines();
+		this.Perm     = new CParaDrawingRangeLines();
 		
 		this.DrawComments       = true;
 		this.DrawSolvedComments = true;
 		this.haveCurrentComment = false;
 		this.currentCommentId   = null;
 		this.comments           = []; // current list of comments
+		this.permRanges         = {};
 		
 		this.hyperlinks = [];
 		
@@ -98,6 +101,8 @@
 		this.highlight = highlight_None;
 		this.shdColor  = null;
 		this.shd       = null;
+		
+		this.permColor = null;
 	}
 	ParagraphHighlightDrawState.prototype.init = function(paragraph, graphics)
 	{
@@ -113,6 +118,14 @@
 		this.DrawSolvedComments = commentManager && commentManager.isUseSolved();
 		this.DrawMMFields       = logicDocument && logicDocument.IsDocumentEditor() && logicDocument.isHighlightMailMergeFields();
 		this.currentCommentId   = commentManager ? commentManager.getCurrentCommentId() : -1;
+		
+		this.permColor = new AscWord.CDocumentColor(233, 233, 233, 255);
+		if (logicDocument && logicDocument.IsDocumentEditor())
+		{
+			let docApi = logicDocument.GetApi();
+			if (docApi.isRestrictionView() || docApi.isRestrictionComments())
+				this.permColor = new AscWord.CDocumentColor(255, 254, 213, 255);
+		}
 	};
 	ParagraphHighlightDrawState.prototype.resetPage = function(page)
 	{
@@ -124,6 +137,7 @@
 		
 		this.comments           = [];
 		this.haveCurrentComment = false;
+		this.permRanges         = [];
 		
 		let pageEndInfo = this.Paragraph.GetEndInfoByPage(page - 1);
 		if (pageEndInfo)
@@ -131,6 +145,11 @@
 			for (let index = 0, count = pageEndInfo.Comments.length; index < count; ++index)
 			{
 				this.addComment(pageEndInfo.Comments[index]);
+			}
+			
+			for (let index = 0, count = pageEndInfo.PermRanges.length; index < count; ++index)
+			{
+				this.addPermRange(pageEndInfo.PermRanges[index]);
 			}
 		}
 		this.complexFields.resetPage(this.Paragraph, page);
@@ -143,15 +162,6 @@
 	};
 	ParagraphHighlightDrawState.prototype.beginRange = function(range, X, spaceCount)
 	{
-		this.Range = range;
-		this.X = X;
-		this.checkNumbering();
-		
-		this.spaces = spaceCount;
-		this.bidiFlow.begin(this.Paragraph.isRtlDirection());
-		
-		this.InlineSdt = [];
-		
 		this.High.Clear();
 		this.Coll.Clear();
 		this.Find.Clear();
@@ -160,6 +170,18 @@
 		this.MMFields.Clear();
 		this.CFields.Clear();
 		this.HyperCF.Clear();
+		this.Perm.Clear();
+		
+		this.Range = range;
+		this.X = X;
+		
+		if (!this.Paragraph.isRtlDirection())
+			this.checkNumbering(false);
+		
+		this.spaces = spaceCount;
+		this.bidiFlow.begin(this.Paragraph.isRtlDirection());
+		
+		this.InlineSdt = [];
 		
 		this.run       = null;
 		this.highlight = highlight_None;
@@ -169,6 +191,9 @@
 	ParagraphHighlightDrawState.prototype.endRange = function()
 	{
 		this.bidiFlow.end();
+		
+		if (this.Paragraph.isRtlDirection())
+			this.checkNumbering(true);
 	};
 	ParagraphHighlightDrawState.prototype.AddInlineSdt = function(oSdt)
 	{
@@ -197,6 +222,26 @@
 		let index = this.comments.indexOf(commentId);
 		if (-1 !== index)
 			this.comments.splice(index, 1);
+	};
+	ParagraphHighlightDrawState.prototype.addPermRange = function(rangeId)
+	{
+		this.permRanges.push(rangeId);
+	};
+	ParagraphHighlightDrawState.prototype.removePermRange = function(rangeId)
+	{
+		if (!this.permRanges.length)
+			return;
+		
+		if (this.permRanges[this.permRanges.length - 1] === rangeId)
+		{
+			--this.permRanges.length;
+		}
+		else
+		{
+			let pos = this.permRanges.indexOf(rangeId);
+			if (-1 !== pos)
+				this.permRanges.splice(pos, 1);
+		}
 	};
 	ParagraphHighlightDrawState.prototype.increaseSearchCounter = function()
 	{
@@ -235,11 +280,16 @@
 		let collColor  = data[4];
 		let comments   = data[5];
 		let curComment = data[6];
+		let highlightAdditional;
 		
 		let w = element.GetWidthVisible();
 		
 		this.handleRun(run);
-		this.addHighlight(this.X, this.X + w, flags, hyperlink, collColor, comments, curComment);
+
+		if (this.Graphics.m_bIsTextDrawer) {
+			highlightAdditional = {TextDrawer: {TextElement: element, SplitType: this.Graphics.m_nCurrentSplitOptions}};
+		}
+		this.addHighlight(this.X, this.X + w, flags, hyperlink, collColor, comments, curComment, highlightAdditional);
 		
 		this.X += w;
 	};
@@ -322,13 +372,15 @@
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Private area
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	ParagraphHighlightDrawState.prototype.checkNumbering = function()
+	ParagraphHighlightDrawState.prototype.checkNumbering = function(isRtl)
 	{
 		let paraNumbering = this.Paragraph.Numbering;
 		if (!paraNumbering.checkRange(this.Range, this.Line))
 			return;
 		
 		let x = this.X;
+		let w = paraNumbering.WidthNum + paraNumbering.WidthSuff;
+		
 		this.X += paraNumbering.WidthVisible;
 		
 		let numPr = this.drawState.getParagraphCompiledPr().ParaPr.NumPr;
@@ -338,7 +390,7 @@
 			|| !numPr
 			|| !numPr.IsValid()
 			|| !paraParent
-			|| !paraParent.IsEmptyParagraphAfterTableInTableCell(this.Paragraph.GetIndex()))
+			|| paraParent.IsEmptyParagraphAfterTableInTableCell(this.Paragraph.GetIndex()))
 			return;
 		
 		let numManager = paraParent.GetNumbering();
@@ -346,13 +398,20 @@
 		let numJc      = numLvl.GetJc();
 		let numTextPr  = this.Paragraph.GetNumberingTextPr();
 		
-		if (AscCommon.align_Right === numJc)
-			x -= paraNumbering.WidthNum;
-		else if (AscCommon.align_Center === numJc)
-			x -= paraNumbering.WidthNum / 2;
+		if (!isRtl)
+		{
+			if (AscCommon.align_Right === numJc)
+				x -= paraNumbering.WidthNum;
+			else if (AscCommon.align_Center === numJc)
+				x -= paraNumbering.WidthNum / 2;
+		}
 		
 		if (highlight_None !== numTextPr.HighLight)
-			this.High.Add(this.Y0, this.Y1, x, x + paraNumbering.WidthNum + paraNumbering.WidthSuff, 0, numTextPr.HighLight.r, numTextPr.HighLight.g, numTextPr.HighLight.b, undefined, numTextPr);
+			this.High.Add(this.Y0, this.Y1, x, x + w, 0, numTextPr.HighLight.r, numTextPr.HighLight.g, numTextPr.HighLight.b, undefined, numTextPr);
+		
+		let shdColor = (numTextPr.Shd && !numTextPr.Shd.IsNil() ? numTextPr.Shd.GetSimpleColor(this.drawState.getTheme(), this.drawState.getColorMap()) : null);
+		if (shdColor)
+			this.Shd.Add(this.Y0, this.Y1, x, x + w, 0, shdColor.r, shdColor.g, shdColor.b);
 	};
 	/**
 	 * @param {string} commentId
@@ -400,7 +459,7 @@
 	/**
 	 *
 	 */
-	ParagraphHighlightDrawState.prototype.addHighlight = function(startX, endX, flags, hyperlink, collColor, comments, curComment)
+	ParagraphHighlightDrawState.prototype.addHighlight = function(startX, endX, flags, hyperlink, collColor, comments, curComment, highlightAdditional)
 	{
 		let startY = this.Y0;
 		let endY   = this.Y1;
@@ -418,13 +477,16 @@
 			this.Comm.Add(startY, endY, startX, endX, 0, 0, 0, 0, {Active : curComment, CommentId : comments});
 		
 		if ((flags & FLAG_HIGHLIGHT) && (this.highlight && highlight_None !== this.highlight))
-			this.High.Add(startY, endY, startX, endX, 0, this.highlight.r, this.highlight.g, this.highlight.b, undefined, this.highlight);
+			this.High.Add(startY, endY, startX, endX, 0, this.highlight.r, this.highlight.g, this.highlight.b, highlightAdditional, this.highlight);
 		
 		if (flags & FLAG_SEARCH)
 			this.Find.Add(startY, endY, startX, endX, 0, 0, 0, 0);
 		
 		if ((flags & FLAG_COLLABORATION) && collColor)
 			this.Coll.Add(startY, endY, startX, endX, 0, collColor.r, collColor.g, collColor.b);
+		
+		if (flags & FLAG_PERM_RANGE && this.permColor)
+			this.Perm.Add(startY, endY, startX, endX, 0, this.permColor.r, this.permColor.g, this.permColor.b);
 	};
 	ParagraphHighlightDrawState.prototype.pushHyperlink = function(hyperlink)
 	{
@@ -451,7 +513,7 @@
 	ParagraphHighlightDrawState.prototype.isComplexFieldHighlight = function()
 	{
 		return (this.complexFields.isComplexField()
-			&& !this.complexFields.isComplexFieldCode()
+			&& !this.complexFields.isHiddenComplexFieldPart()
 			&& this.complexFields.isCurrentComplexField()
 			&& !this.complexFields.isHyperlinkField());
 	};
@@ -462,6 +524,8 @@
 			flags |= FLAG_SEARCH;
 		if (this.isComplexFieldHighlight())
 			flags |= FLAG_COMPLEX_FIELD;
+		if (this.permRanges.length > 0)
+			flags |= FLAG_PERM_RANGE;
 		
 		if (element.Type !== para_End)
 			flags |= FLAG_SHD;

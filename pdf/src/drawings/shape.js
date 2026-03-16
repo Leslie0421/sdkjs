@@ -42,13 +42,45 @@
     
     CPdfShape.prototype.constructor = CPdfShape;
     CPdfShape.prototype = Object.create(AscFormat.CShape.prototype);
-    Object.assign(CPdfShape.prototype, AscPDF.PdfDrawingPrototype.prototype);
+    Object.assign(CPdfShape.prototype, AscPDF.CPdfDrawingPrototype.prototype);
     
-    CPdfShape.prototype.IsTextShape = function() {
+    CPdfShape.prototype.IsShape = function() {
         return true;
     };
+    CPdfShape.prototype.SetEditField = function(oForm) {
+        this.editField = oForm;
+    };
+    CPdfShape.prototype.IsEditFieldShape = function() {
+        return !!this.editField;
+    };
+    CPdfShape.prototype.GetEditField = function() {
+        return this.editField;
+    };
+    CPdfShape.prototype.hitInTextRect = function(x, y) {
+        if (this.IsEditFieldShape()) {
+            return false;
+        }
+        
+        return this.hitInTextRectWord(x, y);
+    };
+    CPdfShape.prototype.GetDocument = function() {
+        if (this.IsEditFieldShape()) {
+            return this.editField.GetDocument();
+        }
+        else {
+            return AscPDF.CPdfDrawingPrototype.prototype.GetDocument.call(this);
+        }
+    };
+    CPdfShape.prototype.GetPage = function() {
+        if (this.IsEditFieldShape()) {
+            return this.editField.GetPage();
+        }
+        else {
+            return AscPDF.CPdfDrawingPrototype.prototype.GetPage.call(this);
+        }
+    };
     CPdfShape.prototype.ShouldDrawImaginaryBorder = function(graphicsWord) {
-        let bDraw = !!(this.spPr && this.spPr.hasNoFill() && !(this.pen && this.pen.Fill && this.pen.Fill.fill && !(this.pen.Fill.fill instanceof AscFormat.CNoFill)));
+        let bDraw = !!(this.spPr && (!this.spPr.Fill || this.spPr.hasNoFill()) && !(this.pen && this.pen.Fill && this.pen.Fill.fill && !(this.pen.Fill.fill instanceof AscFormat.CNoFill)));
         bDraw = bDraw && this.IsFromScan();
         bDraw = bDraw && !Asc.editor.isRestrictionView();
         bDraw = bDraw && !graphicsWord.isThumbnails;
@@ -77,6 +109,10 @@
 		}
 
         if (this.group && this.group.IsAnnot()) {
+            return false;
+        }
+
+        if (this.IsEditFieldShape()) {
             return false;
         }
 
@@ -182,35 +218,40 @@
 			oContent.RecalculateCurPos();
 		}
     };
-    CPdfShape.prototype.GetAllFonts = function(fontMap) {
-        let oContent = this.GetDocContent();
-
-        fontMap = fontMap || {};
-
-        if (!oContent)
-            return fontMap;
-
-        let oPara;
-        for (let nPara = 0, nCount = oContent.GetElementsCount(); nPara < nCount; nPara++) {
-            oPara = oContent.GetElement(nPara);
-            oPara.Get_CompiledPr().TextPr.Document_Get_AllFontNames(fontMap);
-
-            let oRun;
-            for (let nRun = 0, nRunCount = oPara.GetElementsCount(); nRun < nRunCount; nRun++) {
-                oRun = oPara.GetElement(nRun);
-                oRun.Get_CompiledTextPr().Document_Get_AllFontNames(fontMap);
-            }
-        }
-        
-        delete fontMap["+mj-lt"];
-        delete fontMap["+mn-lt"];
-        delete fontMap["+mj-ea"];
-        delete fontMap["+mn-ea"];
-        delete fontMap["+mj-cs"];
-        delete fontMap["+mn-cs"];
-        
-        return fontMap;
-    };
+	CPdfShape.prototype.GetAllFonts = function(fontMap) {
+		fontMap = fontMap || {};
+		
+		let docContent = this.GetDocContent();
+		if (!docContent)
+			return fontMap;
+		
+		for (let i = 0, count = docContent.GetElementsCount(); i < count; ++i) {
+			let para = docContent.GetElement(i);
+			if (!para || !para.IsParagraph())
+				continue;
+			
+			para.Get_CompiledPr2(false).TextPr.Document_Get_AllFontNames(fontMap);
+			
+			if (para.Pr.Bullet)
+				para.Pr.Bullet.Get_AllFontNames(fontMap);
+			
+			if (para.Pr.DefaultRunPr)
+				para.Pr.DefaultRunPr.Document_Get_AllFontNames(fontMap);
+			
+			para.CheckRunContent(function(run) {
+				run.Get_CompiledPr(false).Document_Get_AllFontNames(fontMap);
+			});
+		}
+		
+		delete fontMap["+mj-lt"];
+		delete fontMap["+mn-lt"];
+		delete fontMap["+mj-ea"];
+		delete fontMap["+mn-ea"];
+		delete fontMap["+mj-cs"];
+		delete fontMap["+mn-cs"];
+		
+		return fontMap;
+	};
 
     CPdfShape.prototype.hitToAdjustment = function (x, y) {
         if (!AscFormat.canSelectDrawing(this)) {

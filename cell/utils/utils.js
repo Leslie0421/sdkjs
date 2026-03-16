@@ -436,6 +436,12 @@
 		Range.prototype.compareByLeftTop = function (a, b) {
 			return Range.prototype.compareCell(a.c1, a.r1, b.c1, b.r1);
 		};
+		Range.prototype.compareByRightTop = function (a, b) {
+			return Range.prototype.compareCell(a.c2, a.r1, b.c2, b.r1);
+		};
+		Range.prototype.compareByLeftBottom = function (a, b) {
+			return Range.prototype.compareCell(a.c1, a.r2, b.c1, b.r2);
+		};
 		Range.prototype.compareByRightBottom = function (a, b) {
 			return Range.prototype.compareCell(a.c2, a.r2, b.c2, b.r2);
 		};
@@ -1127,6 +1133,67 @@
 				res.push(new Range(this.c1, row + 1, this.c2, this.r2));
 			}
 			return res;
+		};
+		/**
+		 * Adjusts range coordinates based on removed rows or columns
+		 * @param {Range} deleteRange Range being deleted
+		 * @param {Boolean} isRow True if deleting rows, false if deleting columns
+		 * @returns {Range|null} Adjusted range or null if range should be deleted
+		 */
+		Range.prototype.adjustRange = function(deleteRange, isRow) {
+			if (!deleteRange) {
+				return null;
+			}
+			// Clone range to avoid modifying original
+			let newRange = this.clone();
+
+			if (isRow) {
+				// Handle row deletion
+				let deleteCount = deleteRange.r2 - deleteRange.r1 + 1;
+
+				// Range is fully within deleted rows - return null
+				if (this.r1 >= deleteRange.r1 && this.r2 <= deleteRange.r2) {
+					return null;
+				}
+
+				// Adjust range start row if after deleted section
+				if (this.r1 > deleteRange.r2) {
+					newRange.r1 = Math.max(0, this.r1 - deleteCount);
+					newRange.r2 = Math.max(0, this.r2 - deleteCount);
+				}
+				// Adjust range end row if crosses deleted section
+				else if (this.r2 > deleteRange.r2) {
+					newRange.r2 = Math.max(0, this.r2 - deleteCount);
+				}
+				// Adjust range end row if includes deleted section
+				else if (this.r2 >= deleteRange.r1) {
+					newRange.r2 = deleteRange.r1 - 1;
+				}
+			} else {
+				// Handle column deletion
+				let deleteCount = deleteRange.c2 - deleteRange.c1 + 1;
+
+				// Range is fully within deleted columns - return null
+				if (this.c1 >= deleteRange.c1 && this.c2 <= deleteRange.c2) {
+					return null;
+				}
+
+				// Adjust range start column if after deleted section
+				if (this.c1 > deleteRange.c2) {
+					newRange.c1 = Math.max(0, this.c1 - deleteCount);
+					newRange.c2 = Math.max(0, this.c2 - deleteCount);
+				}
+				// Adjust range end column if crosses deleted section
+				else if (this.c2 > deleteRange.c2) {
+					newRange.c2 = Math.max(0, this.c2 - deleteCount);
+				}
+				// Adjust range end column if includes deleted section
+				else if (this.c2 >= deleteRange.c1) {
+					newRange.c2 = deleteRange.c1 - 1;
+				}
+			}
+
+			return newRange;
 		};
 
 
@@ -2067,6 +2134,9 @@
 		}
 
 		function getFragmentsText(f) {
+			if (!f) {
+				return "";
+			}
 			return f.reduce(function (pv, cv) {
 				if (null === cv.getFragmentText()) {
 					cv.initText();
@@ -2076,6 +2146,9 @@
 		}
 
 		function getFragmentsLength(f) {
+			if (!f) {
+				return;
+			}
 			return f.length > 0 ? f.reduce(function (pv, cv) {
 				if (null === cv.getFragmentText()) {
 					cv.initText();
@@ -2085,18 +2158,27 @@
 		}
 
 		function getFragmentsCharCodes(f) {
+			if (!f) {
+				return;
+			}
 			return f.reduce(function (pv, cv) {
 				return pv.concat(cv.getCharCodes());
 			}, []);
 		}
 
 		function getFragmentsCharCodesLength(f) {
+			if (!f) {
+				return 0;
+			}
 			return f.length > 0 ? f.reduce(function (pv, cv) {
 				return pv + cv.getCharCodes().length;
 			}, 0) : 0;
 		}
 
 		function getFragmentsTextFromCode(f) {
+			if (!f) {
+				return "";
+			}
 			return f.reduce(function (pv, cv) {
 				if (null === cv.getFragmentText()) {
 					cv.initText();
@@ -2120,6 +2202,13 @@
 			AscCommonExcel.g_R1C1Mode = mode;
 			runFunction();
 			AscCommonExcel.g_R1C1Mode = oldMode;
+		}
+
+		function lockCustomFunctionRecalculate(mode, runFunction) {
+			var oldMode = AscCommonExcel.g_LockCustomFunctionRecalculate;
+			AscCommonExcel.g_LockCustomFunctionRecalculate = mode;
+			runFunction();
+			AscCommonExcel.g_LockCustomFunctionRecalculate = oldMode;
 		}
 
 		function checkFilteringMode(f, oThis, args) {
@@ -2303,31 +2392,32 @@
 			format.setSize(nSize);
 
 			var tm;
-			if (!opt_cf_preview) {
-				tm = sr.measureString(sStyleName);
-			} else {
-				var cellFlags = new AscCommonExcel.CellFlags();
-				cellFlags.textAlign = oStyle.xfs.align && oStyle.xfs.align.hor;
+			var cellFlags = new AscCommonExcel.CellFlags();
+			cellFlags.textAlign = oStyle.xfs.align && oStyle.xfs.align.hor;
 
-				var fragments = [];
-				var tempFragment = new AscCommonExcel.Fragment();
-				tempFragment.setFragmentText(sStyleName);
-				tempFragment.format = format;
-				fragments.push(tempFragment);
-				tm = sr.measureString(fragments, cellFlags, width);
-			}
+			var fragments = [];
+			var tempFragment = new AscCommonExcel.Fragment();
+			tempFragment.setFragmentText(sStyleName);
+			tempFragment.format = format;
+			fragments.push(tempFragment);
+			tm = sr.measureString(fragments, cellFlags, width);
 
-			var width_padding = 4;
-			if (oStyle.xfs && oStyle.xfs.align && oStyle.xfs.align.hor === AscCommon.align_Center) {
+			let textAlign = sr.getEffectiveAlign();
+			let width_padding = 4;
+			if (textAlign === AscCommon.align_Center) {
 				width_padding = Asc.round(0.5 * (width - tm.width));
+			}
+			else if(textAlign === AscCommon.align_Right) {
+				width_padding = Asc.round(width - tm.width - width_padding);
 			}
 
 			// Текст будем рисовать по центру (в Excel чуть по другому реализовано, у них постоянный отступ снизу)
 			var textY = Asc.round(0.5 * (height - tm.height));
 			if (!opt_cf_preview) {
-				ctx.setFont(format);
-				ctx.setFillStyle(oStyle.getFontColor() || new AscCommon.CColor(0, 0, 0));
-				ctx.fillText(sStyleName, width_padding, textY + tm.baseline);
+				let oldCtx = sr.drawingCtx;
+				sr.drawingCtx = ctx;
+				sr.render(ctx, width_padding, textY, tm.width, oStyle.getFontColor() || new AscCommon.CColor(0, 0, 0));
+				sr.drawingCtx = oldCtx;
 			} else {
 				sr.render(ctx, width_padding, textY, tm.width, oStyle.getFontColor() || new AscCommon.CColor(0, 0, 0));
 			}
@@ -2389,10 +2479,10 @@
 					let api = window.Asc.editor;
 					let wb = api && api.wb;
 					let ws = wb.getWorksheet();
-					if (ws && ws.getRightToLeft()) {
+					/*if (ws && ws.getRightToLeft()) {
 						oMatrix.sx = -1;
 						oMatrix.tx = (ws.getCtxWidth() * vector_koef) - oMatrix.tx;
-					}
+					}*/
 					graphics.transform3(oMatrix);
 					var shapeDrawer = new AscCommon.CShapeDrawer();
 					shapeDrawer.Graphics = graphics;
@@ -3219,6 +3309,10 @@
 			this.bChangeColorScheme = false;
 			this.bChangeActive = false;
 			this.activeSheet = null;
+			this.onSlicer = {};
+			this.onSlicerCache = {};
+			this.UpdateRigions = {};
+			this.snapshot = null;
 		}
 
 		/** @constructor */
@@ -3908,8 +4002,8 @@
 			}
 		};
 
-		cDate.prototype.getDateString = function (api) {
-			return api.asc_getLocaleExample(AscCommon.getShortDateFormat(), this.getExcelDate());
+		cDate.prototype.getDateString = function (api, bLocal) {
+			return api.asc_getLocaleExample(AscCommon.getShortDateFormat(), this.getExcelDate(bLocal));
 		};
 		cDate.prototype.getTimeString = function (api) {
 			return api.asc_getLocaleExample(AscCommon.getShortTimeFormat(), this.getExcelDateWithTime() - this.getTimezoneOffset() / (60 * 24));
@@ -3944,6 +4038,7 @@
 		window['AscCommonExcel'] = window['AscCommonExcel'] || {};
 		window['AscCommonExcel'].g_ActiveCell = null; // Active Cell for calculate (in R1C1 mode for relative cell)
 		window['AscCommonExcel'].g_R1C1Mode = false; // No calculate in R1C1 mode
+		window['AscCommonExcel'].g_LockCustomFunctionRecalculate = false;
 		window["AscCommonExcel"].recalcType = recalcType;
 		window["AscCommonExcel"].sizePxinPt = sizePxinPt;
 		window['AscCommonExcel'].c_sPerDay = c_sPerDay;
@@ -3988,6 +4083,7 @@
 		window["AscCommonExcel"].convertUnicodeToSimpleString = convertUnicodeToSimpleString;
 		window['AscCommonExcel'].executeInR1C1Mode = executeInR1C1Mode;
 		window['AscCommonExcel'].checkFilteringMode = checkFilteringMode;
+		window['AscCommonExcel'].lockCustomFunctionRecalculate = lockCustomFunctionRecalculate;
 		window["Asc"].getEndValueRange = getEndValueRange;
 		window["AscCommonExcel"].checkStylesNames = checkStylesNames;
 		window["AscCommonExcel"].generateCellStyles = generateCellStyles;

@@ -194,7 +194,6 @@
 	var oZipImages = null;
 	var sDownloadServiceLocalUrl = "../../../../downloadas";
 	var sUploadServiceLocalUrl = "../../../../upload";
-	var sUploadServiceLocalUrlOld = "../../../../uploadold";
 	var sSaveFileLocalUrl = "../../../../savefile";
 	var sDownloadFileLocalUrl = "../../../../downloadfile";
 	var nMaxRequestLength = 5242880;//5mb <requestLimits maxAllowedContentLength="30000000" /> default 30mb
@@ -392,6 +391,17 @@
 			for (var i in this.urls) {
 				if (0 == i.indexOf(this.mediaPrefix + filename + '.') && this.mediaPrefix + imageLocal !== i) {
 					res.push(this.urls[i]);
+				}
+			}
+			return res;
+		},
+		getImagesWithOtherExtension: function(imageLocal) {
+			var res = [];
+			var filename = GetFileName(imageLocal);
+			var prefix = this.mediaPrefix + filename + '.';
+			for (var i in this.urls) {
+				if (0 == i.indexOf(prefix) && !i.endsWith(imageLocal)) {
+					res.push(i.substring(this.mediaPrefix.length));
 				}
 			}
 			return res;
@@ -797,6 +807,8 @@
 					return AscCommon.c_oEditorId.Spreadsheet;
 				case "PPTY":
 					return AscCommon.c_oEditorId.Presentation;
+				case "VSDY":
+					return AscCommon.c_oEditorId.Visio;
 			}
 		}
 		return null;
@@ -815,27 +827,37 @@
 		let contentTypes = contentTypesBytes ? AscCommon.UTF8ArrayToString(contentTypesBytes, 0, contentTypesBytes.length) : "";
 		jsZlib.close();
 
-		if (-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml") ||
+		let isWord = -1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-word.document.macroEnabled.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document.oform") ||
-			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document.docxf")) {
-			return AscCommon.c_oEditorId.Word;
-		} else if (-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document.docxf");
+		let isExcel = -1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-excel.sheet.macroEnabled.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-excel.template.macroEnabled.main+xml") ||
-			-1 !== contentTypes.indexOf("application/vnd.ms-excel.sheet.binary.macroEnabled.main")) {
-			return AscCommon.c_oEditorId.Spreadsheet;
-		} else if (-1 !== contentTypes.indexOf(
-				"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-excel.sheet.binary.macroEnabled.main");
+		let isSlide = -1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.openxmlformats-officedocument.presentationml.template.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml") ||
 			-1 !== contentTypes.indexOf("application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml") ||
-			-1 !== contentTypes.indexOf("application/vnd.ms-powerpoint.template.macroEnabled.main+xml")) {
+			-1 !== contentTypes.indexOf("application/vnd.ms-powerpoint.template.macroEnabled.main+xml");
+		let isVisio = -1 !== contentTypes.indexOf("application/vnd.ms-visio.drawing.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-visio.stencil.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-visio.template.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-visio.drawing.macroEnabled.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-visio.stencil.macroEnabled.main+xml") ||
+			-1 !== contentTypes.indexOf("application/vnd.ms-visio.template.macroEnabled.main+xml");
+		if (isWord) {
+			return AscCommon.c_oEditorId.Word;
+		} else if (isExcel) {
+			return AscCommon.c_oEditorId.Spreadsheet;
+		} else if (isSlide) {
 			return AscCommon.c_oEditorId.Presentation;
+		} else if (isVisio) {
+			return AscCommon.c_oEditorId.Visio;
 		} else {
 			return null;
 		}
@@ -952,12 +974,6 @@
 	function sendCommand(editor, fCallback, rdata, dataContainer)
 	{
 		//json не должен превышать размера 2097152, иначе при его чтении будет exception
-		var docConnectionId = editor.CoAuthoringApi.getDocId();
-		if (docConnectionId && docConnectionId !== rdata["id"])
-		{
-			//на случай если поменялся documentId в Version History
-			rdata['docconnectionid'] = docConnectionId;
-		}
 		if (null == rdata["savetype"])
 		{
 			editor.CoAuthoringApi.openDocument(rdata);
@@ -1156,7 +1172,12 @@
 	function getFullImageSrc2(src)
 	{
 		if (window["NATIVE_EDITOR_ENJINE"])
+		{
+			let localUrl = g_oDocumentUrls.getImageUrl(src);
+			if (localUrl && localUrl.startsWith("blob:"))
+				return localUrl;
 			return src;
+		}
 
 		var start = src.slice(0, 6);
 		if (0 === start.indexOf('theme') && editor.ThemeLoader)
@@ -1462,6 +1483,7 @@
 		"uf": "#UNSUPPORTED_FUNCTION!",
 		"calc": "#CALC!",
 		"spill": "#SPILL!",
+		"busy": "#BUSY!",
 	};
 	var cErrorLocal = {};
 	let cCellFunctionLocal = {};
@@ -1488,14 +1510,14 @@
 
 	function build_rx_table_cur()
 	{
-		var loc_all                          = cStrucTableLocalColumns['a'],
+		let loc_all                          = cStrucTableLocalColumns['a'],
 			loc_headers                      = cStrucTableLocalColumns['h'],
 			loc_data                         = cStrucTableLocalColumns['d'],
 			loc_totals                       = cStrucTableLocalColumns['t'],
 			loc_this_row                     = cStrucTableLocalColumns['tr'],
 			structured_tables_headata        = new XRegExp('(?:\\[\\#' + loc_headers + '\\]\\' + FormulaSeparators.functionArgumentSeparator + '\\[\\#' + loc_data + '\\])'),
 			structured_tables_datals         = new XRegExp('(?:\\[\\#' + loc_data + '\\]\\' + FormulaSeparators.functionArgumentSeparator + '\\[\\#' + loc_totals + '\\])'),
-			structured_tables_userColumn     = new XRegExp('(?:\'\\[|\'\\]|[^[\\]])+'),
+			structured_tables_userColumn     = new XRegExp('\\s*\\[{0,1}(?:\'\\[|\'\\]|[^[\\]])+\\]{0,1}\\s*'),
 			structured_tables_reservedColumn = new XRegExp('\\#(?:' + loc_all + '|' + loc_headers + '|' + loc_totals + '|' + loc_data + /*'|' + loc_this_row + */')'),
 			structured_tables_thisRow        = new XRegExp('(?:\\#(?:' + loc_this_row +')|(?:\\@))');
 
@@ -1521,7 +1543,7 @@
 		let argsSeparator = FormulaSeparators.functionArgumentSeparator;
 		return XRegExp.build('^(?<tableName>{{tableName}})\\[(?<columnName1>{{columnName}})?\\]', {
 			"tableName":  new XRegExp("^(:?[" + str_namedRanges + "][" + str_namedRanges + "\\d.]*)"),
-			"columnName": XRegExp.build('(?<reservedColumn>{{reservedColumn}}|{{thisRow}})|(?<oneColumn>{{userColumn}})|(?<columnRange>{{userColumnRange}})|(?<hdtcc>{{hdtcc}})', {
+			"columnName": XRegExp.build('(?<hdtcc>{{hdtcc}})|(?<reservedColumn>{{reservedColumn}}|{{thisRow}})|(?<columnRange>{{userColumnRange}})|(?<oneColumn>{{userColumn}})', {
 				"userColumn":      structured_tables_userColumn,
 				"reservedColumn":  structured_tables_reservedColumn,
 				"thisRow": structured_tables_thisRow,
@@ -1569,7 +1591,8 @@
 			"getdata": "#GETTING_DATA",
 			"uf":      "#UNSUPPORTED_FUNCTION!",
 			"calc":    "#CALC!",
-			"spill":   "#SPILL!"
+			"spill":   "#SPILL!",
+			"busy":    "#BUSY!"
 		};
 		cErrorLocal['nil'] = local['nil'];
 		cErrorLocal['div'] = local['div'];
@@ -1582,6 +1605,7 @@
 		cErrorLocal['uf'] = local['uf'];
 		cErrorLocal['calc'] = local['calc'];
 		cErrorLocal['spill'] = local['spill'];
+		cErrorLocal['busy'] = local['busy'];
 
 		return new RegExp("^(" + cErrorLocal["nil"] + "|" +
 			cErrorLocal["div"] + "|" +
@@ -1593,7 +1617,8 @@
 			cErrorLocal["getdata"] + "|" +
 			cErrorLocal["uf"] + "|" +
 			cErrorLocal["calc"] + "|" +
-			cErrorLocal["spill"] + ")", "i")
+			cErrorLocal["spill"] + "|" +
+			cErrorLocal["busy"] + ")", "i")
 	}
 
 	function build_rx_cell_func(local)
@@ -1908,7 +1933,24 @@
 			case c_oAscFileType.OTP:
 				return 'otp';
 				break;
-
+			case c_oAscFileType.VSDX:
+				return 'vsdx';
+				break;
+			case c_oAscFileType.VSSX:
+				return 'vssx';
+				break;
+			case c_oAscFileType.VSTX:
+				return 'vstx';
+				break;
+			case c_oAscFileType.VSDM:
+				return 'vsdm';
+				break;
+			case c_oAscFileType.VSSM:
+				return 'vssm';
+				break;
+			case c_oAscFileType.VSTM:
+				return 'vstm';
+				break;
 			case c_oAscFileType.IMG:
 				return 'zip';
 				break;
@@ -2019,7 +2061,18 @@
 				return c_oAscFileType.FODP;
 			case 'otp':
 				return c_oAscFileType.OTP;
-
+			case 'vsdx':
+				return c_oAscFileType.VSDX;
+			case 'vssx':
+				return c_oAscFileType.VSSX;
+			case 'vstx':
+				return c_oAscFileType.VSTX;
+			case 'vsdm':
+				return c_oAscFileType.VSDM;
+			case 'vssm':
+				return c_oAscFileType.VSSM;
+			case 'vstm':
+				return c_oAscFileType.VSTM;
 			case 'xlsx':
 				return c_oAscFileType.XLSX;
 			case 'xls':
@@ -2086,6 +2139,8 @@
 				return c_oAscFileType.XLSY;
 			case 'pptt':
 				return c_oAscFileType.PPTY;
+			case 'vsdt':
+				return c_oAscFileType.VSDY;
 		}
 		return c_oAscFileType.UNKNOWN;
 	}
@@ -2135,7 +2190,7 @@
 
 							if (data["subType"] === "connector")
 							{
-								window.g_asc_plugins.externalConnectorMessage(data["data"]);
+								window.g_asc_plugins.externalConnectorMessage(data["data"], event.origin);
 								return;
 							}
 
@@ -2215,7 +2270,7 @@
 							callback(e);
 					}
 					else
-						callback(Asc.c_oAscError.ID.Unknown);
+					callback(Asc.c_oAscError.ID.Unknown);
 				}
 			});
 
@@ -2233,9 +2288,9 @@
 					Asc.editor.sendEvent("asc_onOpenFilePdfForm", fileName.click.bind(fileName), cancelFileDialog);
 				}
 				else 
-					fileName.click();
-			}
-			else
+			fileName.click();
+		}
+		else
 				fileName.click();
 		}
 		else
@@ -2246,48 +2301,7 @@
 	function ShowImageFileDialog(documentId, documentUserId, jwt, shardKey, wopiSrc, userSessionId, callback, callbackOld)
 	{
 		if (false === _ShowFileDialog(getAcceptByArray(c_oAscImageUploadProp.SupportedFormats), true, true, ValidateUploadImage, callback)) {
-			//todo remove this compatibility
-			var frameWindow = GetUploadIFrame();
-			let url = sUploadServiceLocalUrlOld + '/' + documentId;
-			let queryParams = [];
-			if (shardKey) {
-				queryParams.push(Asc.c_sShardKeyName + '=' + encodeURIComponent(shardKey));
-			}
-			if (wopiSrc) {
-				queryParams.push(Asc.c_sWopiSrcName + '=' + encodeURIComponent(wopiSrc));
-			}
-			if (userSessionId) {
-				queryParams.push(Asc.c_sUserSessionIdName + '=' + encodeURIComponent(userSessionId));
-			}
-			if (jwt) {
-				queryParams.push('token=' + encodeURIComponent(jwt));
-			}
-			if (queryParams.length > 0) {
-				url += '?' + queryParams.join('&');
-			}
-			var content = '<html><head></head><body><form action="' + url + '" method="POST" enctype="multipart/form-data"><input id="apiiuFile" name="apiiuFile" type="file" accept="image/*" size="1"><input id="apiiuSubmit" name="apiiuSubmit" type="submit" style="display:none;"></form></body></html>';
-			frameWindow.document.open();
-			frameWindow.document.write(content);
-			frameWindow.document.close();
-
-			var fileName = frameWindow.document.getElementById("apiiuFile");
-			var fileSubmit = frameWindow.document.getElementById("apiiuSubmit");
-
-			fileName.onchange = function (e)
-			{
-				if (e && e.target && e.target.files)
-				{
-					var nError = ValidateUploadImage(e.target.files);
-					if (c_oAscServerError.NoError != nError)
-					{
-						callbackOld(mapAscServerErrorToAscError(nError));
-						return;
-					}
-				}
-				callbackOld(Asc.c_oAscError.ID.No);
-				fileSubmit.click();
-			};
-			fileName.click();
+			callback(Asc.c_oAscError.ID.Unknown);
 		}
 	}
 	function ShowDocumentFileDialog(callback, isAllowMultiple) {
@@ -2914,7 +2928,7 @@
 		hostnameRe            = /^(((https?)|(ftps?)):\/\/)?([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+\.)+[\wа-яё\-]{2,}(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
 		localRe               = /^(((https?)|(ftps?)):\/\/)([\-\wа-яё]*:?[\-\wа-яё]*@)?(([\-\wа-яё]+)(:\d+)?(\/[%\-\wа-яё]*(\.[\wа-яё]{2,})?(([\wа-яё\-\.\?\\\/+@&#;:`'~=%!,\(\)]*)(\.[\wа-яё]{2,})?)*)*\/?)/i,
 		fileRe                = /^((file):\/\/)[^'`"%^{}<>].*/i,//reserved symbols from word 2010
-		rx_allowedProtocols      = /(^((https?|ftps?|file|tessa|smb):\/\/)|(mailto:)).*/i,
+		rx_allowedProtocols      = /(^((https?|ftps?|file|tessa|joplin|smb):\/\/)|(mailto:)).*/i,
 
 		rx_table              = build_rx_table(null),
 		rx_table_local        = build_rx_table(null);
@@ -2924,10 +2938,14 @@
 		//var regExpExceptExternalLink = /('?[a-zA-Z0-9\s\[\]\.]{1,99})?'?!?\$?[a-zA-Z]{1,3}\$?[0-9]{1,7}(:\$?[a-zA-Z]{1,3}\$?[0-9]{1,7})?/;
 
 		//'path/[name]Sheet1'!A1
-		var path, name, startLink, i;
+		let path, name, startLink, i, exclamationMarkIndex;
 		if (url && url.indexOf("[") !== -1) {
 			//todo check on other separators, exm -> SUM(A2 '[new.xlsx]Sheet1'!A1 '[new.xlsx]Sheet1'!A2)
 			for (let j = 0; j < url.length; j++) {
+				if (!exclamationMarkIndex && url[j] === "!") {
+					exclamationMarkIndex = j;
+				}
+				
 				if (url[j] === FormulaSeparators.functionArgumentSeparator || url[j] === FormulaSeparators.functionArgumentSeparatorDef || url[j] === ";")  {
 					url = url.substring(0, j);
 					break;
@@ -2936,7 +2954,7 @@
 
 
 			if (url && url[0] === "'"/*url.match(/('[^\[]*\[[^\]]+\]([^'])+'!)/g)*/) {
-				for (i = url.length - 1; i >= 0; i--) {
+				for (i = exclamationMarkIndex ? exclamationMarkIndex : url.length - 1; i >= 0; i--) {
 					if (url[i] === "!" && url[i - 1] === "'") {
 						startLink = true;
 						i--;
@@ -2974,6 +2992,74 @@
 		}
 
 		return null;
+	}
+
+	function isExternalShortLink (string) {
+		// short links that ms writes as [externalLink] + "!" + "Defname"
+		// strings come in "!"+"Defname" format only after external
+		if (string[0] !== "!") {
+			return null;
+		}
+
+		let secondPartOfString = string.slice(1);
+		let defname = XRegExp.exec(secondPartOfString, rx_name);
+
+		if (defname && defname["name"]) {
+			defname = defname["name"];
+		}
+
+		if (!defname || !AscCommon.rx_defName.test(defname)) {
+			return null;
+		}
+
+		return {
+			externalLink: "",
+			defname: defname,
+			fullString: "!" + defname,
+		}
+	}
+
+	function isExternalShortLinkLocal (string) {
+		// short links that user writes as "'externalLinkWithoutBrackets'" + "!" + "Defname"  -  "'DefTest.xlsx'!_s1"
+		// we split the string into two parts, where the separator is an exclamation point
+		if (!string) {
+			return null;
+		}
+
+		let shortLinkReg = /[\<\>\?\[\]\\\/\|\*\+\"\:\']/;	// reg contains special characters that are not allowed in the shortLink
+
+		let linkInQuotes;
+		let exclamationMarkIndex = string.indexOf("!");
+		let externalLink = exclamationMarkIndex !== -1 ? string.substring(0, exclamationMarkIndex) : null;
+		let secondPartOfString = exclamationMarkIndex !== -1 ? string.substring(exclamationMarkIndex + 1) : null;
+
+		let defname = null;
+		if (secondPartOfString && !parserHelp.isArea(secondPartOfString, 0) && !parserHelp.isRef(secondPartOfString, 0)) {
+			defname = XRegExp.exec(secondPartOfString, rx_name);
+			if (defname && defname["name"]) {
+				defname = defname["name"];
+			}
+		}
+
+		if (externalLink && externalLink[0] === "'" && externalLink[externalLink.length - 1] === "'") {
+			externalLink = externalLink.substring(1, externalLink.length - 1);
+			linkInQuotes = true;
+		}
+
+		if (!externalLink || !defname || shortLinkReg.test(externalLink) || !AscCommon.rx_defName.test(defname)) {
+			return null;
+		}
+
+		// external link without quotes is parsed using a regular parser for the name
+		if (!linkInQuotes && !rx_test_ws_name.test(externalLink)) {
+			return null;
+		}
+
+		return {
+			externalLink: externalLink,
+			defname: defname,
+			fullString: linkInQuotes ? ("'" + externalLink + "'" + "!" + defname) : (externalLink + "!" + defname)
+		}
 	}
 
 	function isValidFileUrl(url) {
@@ -3375,7 +3461,32 @@
 
 		return false;
 	};
-	parserHelper.prototype.is3DRef = function (formula, start_pos, support_digital_start)
+	/**
+	 * Checks if the provided formula is a 3D reference.
+	 *
+	 * A 3D reference in the context of formulas typically indicates a range of cells 
+	 * that can span multiple sheets in an Excel workbook. This function analyzes 
+	 * the formula to determine if it conforms to the format of a 3D reference.
+	 *
+	 * The function processes the formula starting from the specified position, 
+	 * handling external links, short links, and various formats of references.
+	 *
+	 * @param {string} formula - The formula to be checked for 3D reference.
+	 * @param {number} start_pos - The starting position in the formula for analysis.
+	 * @param {boolean} support_digital_start - Indicates whether the function 
+	 *     supports digital start references (e.g., "1Sheet").
+	 * @param {boolean} local - the flag that indicate is local context used or not, that may be used during 
+	 *     the analysis of the formula.
+	 * @returns {[boolean, (string|null), (string|null), (string|null), (number|Object|null), (string|null)]} 
+	 * Returns an array containing:
+	 * - A boolean indicating if the formula is a 3D reference.
+	 * - The name of the starting sheet or null if not applicable.
+	 * - The name of the ending sheet or null if not applicable.
+	 * - The external link if applicable, or null.
+	 * - The length of the external link if not applicable, or shortLink info object if it exists.
+	 * - The supposed defname or null.
+	 */
+	parserHelper.prototype.is3DRef = function (formula, start_pos, support_digital_start, local)
 	{
 		if (this instanceof parserHelper)
 		{
@@ -3396,8 +3507,14 @@
 			//необходимо вычленить имя файла и путь к нему, затем проверить путь
 			//если путь указан, то ссылка должна быть в одинарных кавычках, если указан просто название файла в [] - в мс это означает, что данный файл открыт, при его закрытии путь проставляется
 			//пока не реализовываем с открытыми файлами, работаем только с путями
+			//также ссылки типа [] + ! + Defname должны обрабатываться аналогично как [] + SheetName + ! + Defname
 			external = parseExternalLink(subSTR);
 			if (external) {
+				if (external.name && (external.name.indexOf("[") !== -1)) {
+					// if the link/path to the file inside brackets contains '[' then we return an error
+					return [false, null, null, external, externalLength];
+				}
+
 				externalLength = external.fullname.length;
 				subSTR = formula.substring(start_pos + externalLength);
 				const posQuote =  subSTR.indexOf("'");
@@ -3410,7 +3527,25 @@
 			}
 		}
 
-		var match  = XRegExp.exec(subSTR, rx_ref3D_quoted) || XRegExp.exec(subSTR, rx_ref3D_non_quoted);
+		/* current file check */
+		let currentFileName = window["Asc"]["editor"].DocInfo && window["Asc"]["editor"].DocInfo.get_Title();
+
+		/* shortlink return obj {fullstring, externalLink, defname} */
+		let shortLink = isExternalShortLink(subSTR) || (local && !external && isExternalShortLinkLocal(subSTR));
+
+		if (shortLink) {
+			if ((shortLink.externalLink && shortLink.externalLink === currentFileName) || external === "0") {
+				external = null;
+				shortLink.currentFile = true;
+			}
+
+			this.pCurrPos += shortLink.fullString.length + externalLength;
+			this.operand_str = shortLink.defname;
+			return [true, null, null, external, shortLink];
+		}
+
+		let match = XRegExp.exec(subSTR, rx_ref3D_quoted) || XRegExp.exec(subSTR, rx_ref3D_non_quoted);
+		
 		if(!match && support_digital_start) {
 			match = XRegExp.exec(subSTR, rx_ref3D_non_quoted_2);
 		}
@@ -3419,7 +3554,15 @@
 		{
 			this.pCurrPos += match[0].length + externalLength;
 			this.operand_str = match[1];
-			return [true, match["name_from"] ? match["name_from"].replace(/''/g, "'") : null, match["name_to"] ? match["name_to"].replace(/''/g, "'") : null, external];
+
+			let currentFileDefname;
+			if (external && external === currentFileName) {
+				let exclamationMarkIndex = subSTR.lastIndexOf("!");
+				let defname = exclamationMarkIndex !== -1 ? subSTR.slice(exclamationMarkIndex + 1) : null;
+				currentFileDefname = defname ? defname : null;
+			}
+
+			return [true, match["name_from"] ? match["name_from"].replace(/''/g, "'") : null, match["name_to"] ? match["name_to"].replace(/''/g, "'") : null, external, null, currentFileDefname];
 		}
 		return [false, null, null, external, externalLength];
 	};
@@ -3753,23 +3896,112 @@
 			return true;
 		}
 	};
-	parserHelper.prototype.isTable = function (formula, start_pos, local)
+	parserHelper.prototype.isTable = function (formula, start_pos, local, parserFormula)
 	{
 		if (this instanceof parserHelper)
 		{
 			this._reset();
 		}
+		let subSTR = formula.substring(start_pos);
+		/*
+			short notation can be used inside table cells
+			short entry - an entry without table name, but with the same syntax 
+		*/
+		let tableIntersection;
+		if (local && subSTR[0] === "[" && parserFormula.parent && parserFormula.ws && parserFormula.ws.TableParts) {
+			let col = parserFormula.parent.nCol;
+			let row = parserFormula.parent.nRow;
+			// go through each existing table and check intersection by col row
+			for (let i = 0; i < parserFormula.ws.TableParts.length; i++) {
+				let table = parserFormula.ws.TableParts[i];
+				let tableRef = table.Ref;
+				if (!tableRef.contains(col, row)) {
+					continue;
+				}
+				tableIntersection = table;
+				break;
+			}
 
-		let subSTR = formula.substring(start_pos),
-		match = XRegExp.exec(subSTR, local ? rx_table_local : rx_table);
+			if (tableIntersection) {
+				// add the table name to the beginning of the line for correct checking further  
+				subSTR = tableIntersection.DisplayName + subSTR;
+			}
+		}
 
-		if (match != null && match["tableName"])
-		{
-			this.operand_str = match[0];
-			this.pCurrPos += match[0].length;
+		const match = XRegExp.exec(subSTR, local ? rx_table_local : rx_table);
+
+		if (match != null && match["tableName"]) {
+			let colNameToInsert = match["columnName1"] ? match["columnName1"] : "";
+			this.operand_str = tableIntersection ? "[" + colNameToInsert + "]" : match[0];
+			this.pCurrPos += tableIntersection ? colNameToInsert.length + 2 : match[0].length;
 			return match;
 		}
 
+		return false;
+	};
+	parserHelper.prototype.isPivot = function (formula, start_pos, local, opt_namesList)
+	{
+		if (this instanceof parserHelper)
+		{
+			this._reset();
+		}
+		const subSTR = formula.substring(start_pos);
+		const fullPatterns = [];
+		for (let i = 0; i < opt_namesList[0].length; i += 1) {
+			for (let j = 0; j < opt_namesList[1].length; j += 1) {
+				fullPatterns.push('^(' + XRegExp.escape(opt_namesList[0][i]) + ')\\s*\\[\\s*(' + XRegExp.escape(opt_namesList[1][j]) + ')\\s*\\]');
+			}
+		}
+		const fullRegs = fullPatterns.map(function(pattern) {
+			return new RegExp(pattern, 'i');
+		});
+		for (let i = 0; i < fullRegs.length; i += 1) {
+			const match = fullRegs[i].exec(subSTR);
+			if (match !== null) {
+				this.operand_str = match[0];
+				this.pCurrPos += match[0].length;
+				return [match[1], match[2]];
+			}
+		}
+		const shortPatterns = opt_namesList[1].map(function(name) {
+			return '^(' + XRegExp.escape(name) + ')(?:\\W|$)';
+		});
+		const shortRegs = shortPatterns.map(function(pattern) {
+			return new RegExp(pattern, 'i');
+		});
+		for (let i = 0; i < shortRegs.length; i += 1) {
+			const match = shortRegs[i].exec(subSTR);
+			if (match !== null) {
+				this.operand_str = match[1];
+				this.pCurrPos += match[1].length;
+				return [null, match[2] ? match[2] : match[1]];
+			}
+		}
+		return false;
+	};
+	parserHelper.prototype.isPivotRaw = function (formula, start_pos, local)
+	{
+		if (this instanceof parserHelper)
+		{
+			this._reset();
+		}
+		const subSTR = formula.substring(start_pos);
+		const reg = XRegExp.build('(?x) ^({{fieldName}})\\[({{itemName}})\\]', {
+			'fieldName': XRegExp.build('{{simple}}|{{quotes}}', {
+				'simple': '[\\p{L}_][\\p{L}\\p{N}_]*',
+				'quotes': "\\'.+?\\'(?!\\')",
+			}),
+			'itemName': XRegExp.build('{{simple}}|{{quotes}}', {
+				'simple': '[\\p{L}\\p{N}_]+',
+				'quotes': "\\'.+?\\'(?!\\')",
+			})
+		});
+		const match = reg.exec(subSTR);
+		if (match !== null && match[1] && match[2]) {
+			this.operand_str = match[0];
+			this.pCurrPos += match[0].length;
+			return [match[1], match[2]];
+		}
 		return false;
 	};
 // Парсим ссылку на диапазон в листе
@@ -3812,8 +4044,11 @@
 		}
 	};
 // Возвращает экранируемое название листа
-	parserHelper.prototype.getEscapeSheetName = function (sheet)
+	parserHelper.prototype.getEscapeSheetName = function (sheet, shortLink)
 	{
+		if (shortLink) {
+			return rx_test_ws_name.test(sheet) ? sheet : sheet.replace(/'/g, "''");
+		}
 		return rx_test_ws_name.test(sheet) ? sheet : "'" + sheet.replace(/'/g, "''") + "'";
 	};
 	/**
@@ -3891,6 +4126,12 @@
 		else
 		{
 			range = AscCommonExcel.g_oRangeCache.getAscRange(dataRange);
+			if (!range && model && cDialogType.FormatTable === dialogType && AscCommon.rx_defName.test(dataRange)) {
+				let aRanges = AscCommonExcel.getRangeByName(dataRange, model.getActiveWs());
+				if (aRanges && aRanges.length === 1) {
+					range = aRanges[0] && aRanges[0].bbox;
+				}
+			}
 		}
 
 		if (!range && cDialogType.DataValidation !== dialogType && cDialogType.ConditionalFormattingRule !== dialogType && cDialogType.GoalSeek_Cell !== dialogType &&
@@ -4005,6 +4246,18 @@
 					sheetModel = model.getActiveWs();
 				}
 				return AscCommonExcel.CGoalSeek.prototype.isValidDataRef(sheetModel, range, dialogType);
+			} else if (cDialogType.Solver_ObjectiveCell) {
+				result = parserHelp.parse3DRef(dataRange);
+				if (result) {
+					sheetModel = model.getWorksheetByName(result.sheet);
+					if (sheetModel) {
+						range = AscCommonExcel.g_oRangeCache.getAscRange(result.range);
+					}
+				}
+				if (!sheetModel) {
+					sheetModel = model.getActiveWs();
+				}
+				return AscCommonExcel.CSolver.prototype.isValidDataRef(sheetModel, range, dialogType);
 			}
 		}
 
@@ -4112,6 +4365,19 @@
 			}
 		}
 		return null;
+	};
+	parserHelper.prototype.escapeTableCharacters = function (string, doEscape) {
+		if (!string) {
+			return "";
+		}
+		
+		// make escape for the special character inside the string
+		if (doEscape) {
+			return string.replace(/(['#@\[\]])/g, "'$1");
+		}
+
+		// return only the character from the capture group(without escaping)
+		return string.replace(/'(['#@\[\]])/g, "$1");
 	};
 
 	var parserHelp = new parserHelper();
@@ -4264,6 +4530,8 @@
 		this.m_nOFormLoadCounter = 0;
 		this.m_nOFormEditCounter = 0;
 		
+		this.m_nPdfNewFormCounter = 0;
+
 		this.m_nTurnOffCounter = 0;
 	}
 
@@ -4291,6 +4559,10 @@
 	{
 		this.m_bLoad = bValue;
 	};
+	CIdCounter.prototype.IsLoad = function()
+	{
+		return this.m_bLoad;
+	};
 	CIdCounter.prototype.Clear = function ()
 	{
 		this.m_sUserId = null;
@@ -4300,6 +4572,8 @@
 
 		this.m_nOFormLoadCounter = 0;
 		this.m_nOFormEditCounter = 0;
+
+		this.m_nPdfNewFormCounter = 0;
 	};
 	CIdCounter.prototype.GetNewIdForOForm = function()
 	{
@@ -4307,6 +4581,10 @@
 			return ("_oform_" + (++this.m_nOFormLoadCounter));
 		else
 			return ("" + this.m_sUserId + "_oform_" + (++this.m_nOFormEditCounter));
+	};
+	CIdCounter.prototype.GetNewIdForPdfForm = function()
+	{
+		return ++this.m_nPdfNewFormCounter;
 	};
 
 	function CLock()
@@ -4327,7 +4605,7 @@
 		this.Type = NewType;
 
 		var oApi = editor;
-		var oLogicDocument = oApi.WordControl.m_oLogicDocument;
+		var oLogicDocument = oApi && oApi.WordControl && oApi.WordControl.m_oLogicDocument;
 		if (false != Redraw && oLogicDocument)
 		{
 			// TODO: переделать перерисовку тут
@@ -4368,7 +4646,7 @@
 				oLogicDocument.Document_UpdateInterfaceState(false);
 			}
 		}
-		let oCustomProperties = oApi.getCustomProperties && oApi.getCustomProperties();
+		let oCustomProperties = oApi && oApi.getCustomProperties && oApi.getCustomProperties();
 		if(oCustomProperties && oCustomProperties.Lock === this)
 		{
 			oApi.sendEvent("asc_onCustomPropertiesLocked", this.Is_Locked());
@@ -10608,8 +10886,12 @@
 	
 	function ExecuteNoHistory(f, oLogicDocument, oThis, args)
 	{
+		// TODO: Заменить на нормальное обращение Asc.editor.getLogicDocument
+		if (!oLogicDocument && editor && editor.WordControl)
+			oLogicDocument = editor.WordControl.m_oLogicDocument;
+		
+		
 		// TODO: Надо перевести все редакторы на StartNoHistoryMode/EndNoHistoryMode
-
 		let oState = null, isTableId = false;
 		if (oLogicDocument && oLogicDocument.IsDocumentEditor && oLogicDocument.IsDocumentEditor())
 		{
@@ -10657,6 +10939,20 @@
 		return result;
 	}
 	
+	function executeNoPreDelete(f, logicDocument, t, args)
+	{
+		if (!logicDocument
+			|| !logicDocument.IsDocumentEditor
+			|| !logicDocument.IsDocumentEditor())
+			return f.apply(t, args);
+		
+		let preventPreDelete = logicDocument.PreventPreDelete;
+		logicDocument.PreventPreDelete = true;
+		let result = f.apply(t, args);
+		logicDocument.PreventPreDelete = preventPreDelete;
+		return result;
+	}
+	
 	function ExecuteEditorAction(actionPr, f, logicDocument, t, args)
 	{
 		if (!logicDocument
@@ -10680,6 +10976,44 @@
 		change.Redo();
 	}
 
+	function mockLogicDoc(doc){
+		doc.Get_PageLimits = function(PageAbs) {
+			return {X: 0, Y: 0, XLimit: Page_Width, YLimit: Page_Height};
+		};
+		doc.Get_PageFields = function (PageAbs, isInHdrFtr) {
+			return {X: 0, Y: 0, XLimit: 2000, YLimit: 2000};
+		};
+
+		doc.IsTrackRevisions = function() {
+			return false;
+		};
+
+		doc.IsDocumentEditor = function() {
+			return false;
+		};
+		doc.Spelling = {
+			AddParagraphToCheck: function(Para) {}
+		};
+
+		doc.IsSplitPageBreakAndParaMark = function () {
+			return false;
+		};
+		doc.IsDoNotExpandShiftReturn = function () {
+			return false;
+		};
+
+		doc.GetApi = function() {
+			return Asc.editor;
+		};
+
+		doc.GetDrawingDocument = function() {
+			return Asc.editor.getDrawingDocument();
+		};
+
+		doc.SearchEngine = {
+			Selection: []
+		};
+	}
 	/**
 	 * Функция сравнивает две строки (они могут быть не заданы)
 	 * @param s1 {?string}
@@ -10712,7 +11046,7 @@
 		for (var oIterator = sWord.getUnicodeIterator(); oIterator.check(); oIterator.next())
 		{
 			var nCharCode = oIterator.value();
-			if (IsHangul(nCharCode) || IsCJKIdeographs(nCharCode))
+			if (IsHangul(nCharCode) || IsCJKIdeographs(nCharCode) || IsComplexScript(nCharCode))
 				return false;
 
 			if (0x73 === nCharCode)
@@ -10779,6 +11113,13 @@
 			return new CColor(0, 0, 0, 255);
 
 		return true === isDark ? res.Dark : res.Light;
+	}
+	function setUserColorById(userId, light, dark)
+	{
+		g_oUserColorById[userId] = {
+			Light : new CColor(light.r, light.g, light.b, 255),
+			Dark : new CColor(dark.r, dark.g, dark.b, 255),
+		};
 	}
 	function getUserColorById(userId, userName, isDark, isNumericValue)
 	{
@@ -11246,6 +11587,10 @@
 		loadScript('../../../../sdkjs/common/Charts/ChartStyles.js', onSuccess, onError);
 	}
 
+	function loadPathBoolean(onSuccess, onError) {
+		loadScript('../../../../sdkjs/common/Drawings/Format/path-boolean-min.js', onSuccess, onError);
+	}
+
 	function getAltGr(e)
 	{
 		if (true === e["altGraphKey"])
@@ -11422,10 +11767,19 @@
 
 	function isEastAsianScript(value)
 	{
+		// CJK Symbols and Punctuation (3000–303F)
+		// Hiragana (3040-309F)
+		// Katakana (30A0–30FF)
 		// Bopomofo (3100–312F)
+		// Hangul Compatibility Jamo (3130–318F)
+		// Kanbun (3190–319F)
 		// Bopomofo Extended (31A0–31BF)
-		// CJK Unified Ideographs (4E00–9FEA)
+		// CJK Strokes (31C0–31EF)
+		// Katakana Phonetic Extensions (31F0–31FF)
+		// Enclosed CJK Letters and Months (3200-32FF)
+		// CJK Compatibility (3300-33FF)
 		// CJK Unified Ideographs Extension A (3400–4DB5)
+		// CJK Unified Ideographs (4E00–9FEA)
 		// CJK Unified Ideographs Extension B (20000–2A6D6)
 		// CJK Unified Ideographs Extension C (2A700–2B734)
 		// CJK Unified Ideographs Extension D (2B740–2B81D)
@@ -11435,20 +11789,14 @@
 		// CJK Compatibility Ideographs Supplement (2F800–2FA1F)
 		// Kangxi Radicals (2F00–2FDF)
 		// CJK Radicals Supplement (2E80–2EFF)
-		// CJK Strokes (31C0–31EF)
 		// Ideographic Description Characters (2FF0–2FFF)
 		// Hangul Jamo (1100–11FF)
 		// Hangul Jamo Extended-A (A960–A97F)
 		// Hangul Jamo Extended-B (D7B0–D7FF)
-		// Hangul Compatibility Jamo (3130–318F)
 		// Halfwidth and Fullwidth Forms (FF00–FFEF)
 		// Hangul Syllables (AC00–D7AF)
-		// Hiragana (3040–309F)
 		// Kana Extended-A (1B100–1B12F)
 		// Kana Supplement (1B000–1B0FF)
-		// Kanbun (3190–319F)
-		// Katakana (30A0–30FF)
-		// Katakana Phonetic Extensions (31F0–31FF)
 		// Lisu (A4D0–A4FF)
 		// Miao (16F00–16F9F)
 		// Nushu (1B170–1B2FF)
@@ -11456,11 +11804,9 @@
 		// Tangut Components (18800–18AFF)
 		// Yi Syllables (A000–A48F)
 		// Yi Radicals (A490–A4CF)
-
-		return ((0x3100 <= value && value <= 0x312F)
-			|| (0x31A0 <= value && value <= 0x31BF)
+		
+		return ((0x3000 <= value && value <= 0x4DB5)
 			|| (0x4E00 <= value && value <= 0x9FEA)
-			|| (0x3400 <= value && value <= 0x4DB5)
 			|| (0x20000 <= value && value <= 0x2A6D6)
 			|| (0x2A700 <= value && value <= 0x2B734)
 			|| (0x2B740 <= value && value <= 0x2B81D)
@@ -11470,20 +11816,14 @@
 			|| (0x2F800 <= value && value <= 0x2FA1F)
 			|| (0x2F00 <= value && value <= 0x2FDF)
 			|| (0x2E80 <= value && value <= 0x2EFF)
-			|| (0x31C0 <= value && value <= 0x31EF)
 			|| (0x2FF0 <= value && value <= 0x2FFF)
 			|| (0x1100 <= value && value <= 0x11FF)
 			|| (0xA960 <= value && value <= 0xA97F)
 			|| (0xD7B0 <= value && value <= 0xD7FF)
-			|| (0x3130 <= value && value <= 0x318F)
 			|| (0xFF00 <= value && value <= 0xFFEF)
 			|| (0xAC00 <= value && value <= 0xD7AF)
-			|| (0x3040 <= value && value <= 0x309F)
 			|| (0x1B100 <= value && value <= 0x1B12F)
 			|| (0x1B000 <= value && value <= 0x1B0FF)
-			|| (0x3190 <= value && value <= 0x319F)
-			|| (0x30A0 <= value && value <= 0x30FF)
-			|| (0x31F0 <= value && value <= 0x31FF)
 			|| (0xA4D0 <= value && value <= 0xA4FF)
 			|| (0x16F00 <= value && value <= 0x16F9F)
 			|| (0x1B170 <= value && value <= 0x1B2FF)
@@ -13725,7 +14065,12 @@
 		var textQualifier = options.asc_getTextQualifier();
 		var matrix = [];
 		//var rows = text.match(/[^\r\n]+/g);
-		var rows = text.split(/\r?\n/);
+		var rows;
+		if (delimiterChar === '\n') {
+			rows = [text];
+		} else {
+			rows = text.split(/\r?\n/);
+		}
 		for (var i = 0; i < rows.length; ++i) {
 			var row = rows[i];
 			if(" " === delimiterChar && bTrimSpaces) {
@@ -14631,8 +14976,348 @@
 	function getArrayRandomElement(aArray) {
 		return aArray[Math.random() * aArray.length | 0];
 	}
+
+	function consoleLog(val) {
+		// console.log(val);
+		const showMessages = false;
+
+		if (!showMessages) {
+			return;
+		}
+
+		// see v8 arguments leak - performance loss
+		// console.log.apply(console, arguments);
+
+		for (let i = 0; i < arguments.length; i++) {
+			console.log(arguments[i]);
+		}
+	}
+
+
+	const LRI = '\u2066'; // LEFT-TO-RIGHT ISOLATE
+	const RLI = '\u2067'; // RIGHT-TO-LEFT ISOLATE
+	const PDI = '\u2069'; // POP DIRECTIONAL ISOLATE
+
+	function getLTRString(str) {
+		if (str.startsWith(LRI) && str.endsWith(PDI)) {
+			return str;
+		}
+
+		if (str.startsWith(RLI)) {
+			str = str.slice(1);
+		}
+		if (str.startsWith(LRI)) {
+			str = str.slice(1);
+		}
+		if (str.endsWith(PDI)) {
+			str = str.slice(0, -1);
+		}
+
+		return LRI + str + PDI;
+	}
+
+	function getRTLString(str) {
+		if (str.startsWith(RLI) && str.endsWith(PDI)) {
+			return str;
+		}
+
+		if (str.startsWith(LRI)) {
+			str = str.slice(1);
+		}
+		if (str.startsWith(RLI)) {
+			str = str.slice(1);
+		}
+		if (str.endsWith(PDI)) {
+			str = str.slice(0, -1);
+		}
+
+		return RLI + str + PDI;
+	}
+
+	function stripDirectionMarks(str) {
+		while (
+			str.startsWith('\u200E') ||
+			str.startsWith('\u200F') ||
+			str.startsWith(LRI) ||
+			str.startsWith(RLI)
+			) {
+			str = str.slice(1);
+		}
+
+		while (
+			str.endsWith('\u200E') ||
+			str.endsWith('\u200F') ||
+			str.endsWith(PDI)
+			) {
+			str = str.slice(0, -1);
+		}
+
+		return str;
+	}
+
+	function getCharStrongDir(char) {
+		let type = AscBidi.getType(char);
+		if (type & AscBidi.FLAG.STRONG) {
+			if (type & AscBidi.FLAG.RTL) {
+				return AscBidi.DIRECTION_FLAG.RTL;
+			} else {
+				return AscBidi.DIRECTION_FLAG.LTR;
+			}
+		}
+		return null;
+	}
+
+	function applyElementDirection(element) {
+		if (!element)
+			return;
+		if (AscCommon.AscBrowser.isIE) {
+			element.addEventListener('input', function () {
+				const text = element.textContent || element.innerText || '';
+				let dir = 'ltr';
+				for (let iter = text.getUnicodeIterator(); iter.check(); iter.next()) {
+					let dir = AscCommon.getCharStrongDir(iter.value());
+					if (dir !== null) {
+						if (dir === AscBidi.TYPE.R) {
+							dir = 'rtl';
+						}
+						break;
+					}
+				}
+				element.dir = dir;
+			});
+		}
+		else {
+			element.dir = 'auto';
+		}
+	}
+
+
+	function getFirstStrongDirection(text) {
+		if(!text) return null;
+		for (let iter = text.getUnicodeIterator(); iter.check(); iter.next()) {
+			let cp = iter.value();
+			let dir = getCharStrongDir(cp);
+			if (dir !== null) {
+				return dir;
+			}
+		}
+		return null;
+	}
+
+	function getGradientPoints(min_x, min_y, max_x, max_y, _angle, scale) {
+		let points = { x0 : 0, y0 : 0, x1 : 0, y1 : 0 };
+
+		let fAE = AscFormat.fApproxEqual;
+		if (fAE(min_x, max_x) && fAE(min_y, max_y)) {
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = min_x;
+			points.y1 = min_y;
+			return points;
+		}
+
+		if (fAE(min_x, max_x)) {
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = min_x;
+			points.y1 = max_y;
+			return points;
+		}
+
+		if (fAE(min_y, max_y)) {
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = max_x;
+			points.y1 = min_y;
+			return points;
+		}
+
+		let angle = _angle / 60000;
+		while (angle < 0)
+			angle += 360;
+		while (angle >= 360)
+			angle -= 360;
+
+		if (Math.abs(angle) < 1) {
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = max_x;
+			points.y1 = min_y;
+
+			return points;
+		}
+		else if (Math.abs(angle - 90) < 1) {
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = min_x;
+			points.y1 = max_y;
+
+			return points;
+		}
+		else if (Math.abs(angle - 180) < 1) {
+			points.x0 = max_x;
+			points.y0 = min_y;
+			points.x1 = min_x;
+			points.y1 = min_y;
+
+			return points;
+		}
+		else if (Math.abs(angle - 270) < 1) {
+			points.x0 = min_x;
+			points.y0 = max_y;
+			points.x1 = min_x;
+			points.y1 = min_y;
+
+			return points;
+		}
+
+		let grad_a = AscCommon.deg2rad(angle);
+		if (!scale) {
+			if (angle > 0 && angle < 90) {
+				let p = this.getNormalPoint(min_x, min_y, grad_a, max_x, max_y);
+
+				points.x0 = min_x;
+				points.y0 = min_y;
+				points.x1 = p.X;
+				points.y1 = p.Y;
+
+				return points;
+			}
+			if (angle > 90 && angle < 180) {
+				let p = this.getNormalPoint(max_x, min_y, grad_a, min_x, max_y);
+
+				points.x0 = max_x;
+				points.y0 = min_y;
+				points.x1 = p.X;
+				points.y1 = p.Y;
+
+				return points;
+			}
+			if (angle > 180 && angle < 270) {
+				let p = this.getNormalPoint(max_x, max_y, grad_a, min_x, min_y);
+
+				points.x0 = max_x;
+				points.y0 = max_y;
+				points.x1 = p.X;
+				points.y1 = p.Y;
+
+				return points;
+			}
+			if (angle > 270 && angle < 360) {
+				let p = this.getNormalPoint(min_x, max_y, grad_a, max_x, min_y);
+
+				points.x0 = min_x;
+				points.y0 = max_y;
+				points.x1 = p.X;
+				points.y1 = p.Y;
+
+				return points;
+			}
+			// никогда сюда не зайдем
+			return points;
+		}
+
+		// scale == true
+		let _grad_45 = (Math.PI / 2) - Math.atan2(max_y - min_y, max_x - min_x);
+		let _grad_90_45 = (Math.PI / 2) - _grad_45;
+		if (angle > 0 && angle < 90) {
+			if (angle <= 45)
+			{
+				grad_a = (_grad_45 * angle / 45);
+			}
+			else
+			{
+				grad_a = _grad_45 + _grad_90_45 * (angle - 45) / 45;
+			}
+
+			let p = this.getNormalPoint(min_x, min_y, grad_a, max_x, max_y);
+
+			points.x0 = min_x;
+			points.y0 = min_y;
+			points.x1 = p.X;
+			points.y1 = p.Y;
+
+			return points;
+		}
+		if (angle > 90 && angle < 180) {
+			if (angle <= 135) {
+				grad_a = Math.PI / 2 + _grad_90_45 * (angle - 90) / 45;
+			}
+			else {
+				grad_a = Math.PI / 2 + _grad_90_45 + _grad_45 * (angle - 135) / 45;
+			}
+
+			let p = this.getNormalPoint(max_x, min_y, grad_a, min_x, max_y);
+
+			points.x0 = max_x;
+			points.y0 = min_y;
+			points.x1 = p.X;
+			points.y1 = p.Y;
+
+			return points;
+		}
+		if (angle > 180 && angle < 270) {
+			if (angle <= 225)
+			{
+				grad_a = Math.PI + _grad_45 * (angle - 180) / 45;
+			}
+			else
+			{
+				grad_a = Math.PI + _grad_45 + _grad_90_45 * (angle - 225) / 45;
+			}
+
+			let p = this.getNormalPoint(max_x, max_y, grad_a, min_x, min_y);
+
+			points.x0 = max_x;
+			points.y0 = max_y;
+			points.x1 = p.X;
+			points.y1 = p.Y;
+
+			return points;
+		}
+		if (angle > 270 && angle < 360) {
+			if (angle <= 315)
+			{
+				grad_a = 3 * Math.PI / 2 + _grad_90_45 * (angle - 270) / 45;
+			}
+			else
+			{
+				grad_a = 3 * Math.PI / 2 + _grad_90_45 + _grad_45 * (angle - 315) / 45;
+			}
+
+			let p = this.getNormalPoint(min_x, max_y, grad_a, max_x, min_y);
+
+			points.x0 = min_x;
+			points.y0 = max_y;
+			points.x1 = p.X;
+			points.y1 = p.Y;
+
+			return points;
+		}
+		// никогда сюда не зайдем
+		return points;
+	}
+
+	function getNormalPoint(x0, y0, angle, x1, y1) {
+		// точка - пересечение прямой, проходящей через точку (x0, y0) под углом angle и
+		// перпендикуляра к первой прямой, проведенной из точки (x1, y1)
+		let ex1 = Math.cos(angle);
+		let ey1 = Math.sin(angle);
+
+		let ex2 = -ey1;
+		let ey2 = ex1;
+
+		let a = ex1 / ey1;
+		let b = ex2 / ey2;
+
+		let x = ((a * b * y1 - a * b * y0) - (a * x1 - b * x0)) / (b - a);
+		let y = (x - x0) / a + y0;
+
+		return { X : x, Y : y };
+	}
 	//------------------------------------------------------------export---------------------------------------------------
 	window['AscCommon'] = window['AscCommon'] || {};
+	window["AscCommon"].consoleLog = consoleLog;
 	window["AscCommon"].getSockJs = getSockJs;
 	window["AscCommon"].getSocketIO = getSocketIO;
 	window["AscCommon"].getBaseUrl = getBaseUrl;
@@ -14679,6 +15364,7 @@
 	window["AscCommon"].getUrlType = getUrlType;
 	window["AscCommon"].prepareUrl = prepareUrl;
 	window["AscCommon"].getUserColorById = getUserColorById;
+	window["AscCommon"].setUserColorById = setUserColorById;
 	window["AscCommon"].isNullOrEmptyString = isNullOrEmptyString;
 	window["AscCommon"].unleakString = unleakString;
 	window["AscCommon"].readValAttr = readValAttr;
@@ -14692,6 +15378,14 @@
 	window["AscCommon"].checkOOXMLSignature = checkOOXMLSignature;
 	window["AscCommon"].checkNativeViewerSignature = checkNativeViewerSignature;
 	window["AscCommon"].getEditorBySignature = getEditorBySignature;
+	window["AscCommon"].getLTRString = getLTRString;
+	window["AscCommon"].getRTLString = getRTLString;
+	window["AscCommon"].stripDirectionMarks = stripDirectionMarks;
+	window["AscCommon"].getCharStrongDir = getCharStrongDir;
+	window["AscCommon"].applyElementDirection = applyElementDirection;
+	window["AscCommon"].getFirstStrongDirection = getFirstStrongDirection;
+	window["AscCommon"].getGradientPoints = getGradientPoints;
+	window["AscCommon"].getNormalPoint = getNormalPoint;
 
 	window["AscCommon"].DocumentUrls = DocumentUrls;
 	window["AscCommon"].OpenFileResult = OpenFileResult;
@@ -14720,15 +15414,18 @@
 	window["AscCommon"].IsAscFontSupport = IsAscFontSupport;
 	window["AscCommon"].ExecuteNoHistory = ExecuteNoHistory;
 	window["AscCommon"].executeNoRevisions = executeNoRevisions;
+	window["AscCommon"].executeNoPreDelete = executeNoPreDelete;
 	window["AscCommon"].ExecuteEditorAction = ExecuteEditorAction;
 	window["AscCommon"].AddAndExecuteChange = AddAndExecuteChange;
 	window["AscCommon"].CompareStrings = CompareStrings;
 	window["AscCommon"].IsSupportAscFeature = IsSupportAscFeature;
 	window["AscCommon"].IsSupportOFormFeature = IsSupportOFormFeature;
+	window["AscCommon"].mockLogicDoc = mockLogicDoc;
 
 	window["AscCommon"].loadSdk = loadSdk;
     window["AscCommon"].loadScript = loadScript;
     window["AscCommon"].loadChartStyles = loadChartStyles;
+    window["AscCommon"].loadPathBoolean = loadPathBoolean;
 	window["AscCommon"].getAltGr = getAltGr;
 	window["AscCommon"].getColorSchemeByName = getColorSchemeByName;
 	window["AscCommon"].getColorSchemeByIdx = getColorSchemeByIdx;
@@ -14858,6 +15555,7 @@
 	window["AscCommon"].trimMinMaxValue = trimMinMaxValue;
 	window["AscCommon"].cStrucTableReservedWords = cStrucTableReservedWords;
 	window["AscCommon"].getArrayRandomElement = getArrayRandomElement;
+	window["AscCommon"].rx_error = rx_error;
 })(window);
 
 window["asc_initAdvancedOptions"] = function(_code, _file_hash, _docInfo, csv_data)
@@ -15069,6 +15767,9 @@ window["buildCryptoFile_End"] = function(url, error, hash, password)
 					break;
 				case AscCommon.c_oEditorId.Spreadsheet:
 					ext = ".xlsx";
+					break;
+				case AscCommon.c_oEditorId.Visio:
+					ext = ".vsdx";
 					break;
 				default:
 					break;

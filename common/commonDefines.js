@@ -443,6 +443,8 @@ window.AscCommon.g_cIsBeta = "false";
  */
 	function(window, undefined)
 {
+	window['Asc'] = window['Asc'] || {};
+	
 	var g_cCharDelimiter      = String.fromCharCode(5);
 	var g_cGeneralFormat      = 'General';
 	var FONT_THUMBNAIL_HEIGHT = (window["AscDesktopEditor"] && window["AscDesktopEditor"]["GetFontThumbnailHeight"]) ? window["AscDesktopEditor"]["GetFontThumbnailHeight"]() : 28;
@@ -507,6 +509,7 @@ window.AscCommon.g_cIsBeta = "false";
 		XLSX_FLAT  : 0x010b,
 		XLSX_PACKAGE  : 0x010c,
 		XLSY : 0x1002,
+		CANVAS_SPREADSHEET : 0x2002,
 
 		// PowerPoint
 		PPTX : 0x0081,
@@ -521,6 +524,18 @@ window.AscCommon.g_cIsBeta = "false";
 		OTP  : 0x008a,
 		PPTX_PACKAGE  : 0x008b,
 		PPTY : 0x1003,
+		CANVAS_PRESENTATION : 0x2003,
+
+		//Draw
+		VSDX : 0x4001,
+		VSSX : 0x4002,
+		VSTX : 0x4003,
+		VSDM : 0x4004,
+		VSSM : 0x4005,
+		VSTM : 0x4006,
+
+		VSDY : 0x1004,
+		CANVAS_DIAGRAM : 0x2005,
 
 		//image
 		IMG  : 0x0400,
@@ -568,7 +583,8 @@ window.AscCommon.g_cIsBeta = "false";
 		ForceSaveTimeout  : 17,
 		Waiting	: 18,
 		Submit : 19,
-		Disconnect :20
+		Disconnect :20,
+		RefreshFile: 21
 	};
 
 	var c_oAscAdvancedOptionsID = {
@@ -681,21 +697,25 @@ window.AscCommon.g_cIsBeta = "false";
 	};
 
 	var c_oAscTypeSelectElement = {
-		Paragraph      : 0,
-		Table          : 1,
-		Image          : 2,
-		Header         : 3,
-		Hyperlink      : 4,
-		SpellCheck     : 5,
-		Shape          : 6,
-		Slide          : 7,
-		Chart          : 8,
-		Math           : 9,
-		MailMerge      : 10,
-		ContentControl : 11,
-		Animation      : 12,
-		Text           : 13, // viewer
-		Annot          : 14
+		Paragraph         : 0,
+		Table             : 1,
+		Image             : 2,
+		Header            : 3,
+		Hyperlink         : 4,
+		SpellCheck        : 5,
+		Shape             : 6,
+		Slide             : 7,
+		Chart             : 8,
+		Math              : 9,
+		MailMerge         : 10,
+		ContentControl    : 11,
+		Animation         : 12,
+		UnProtectedRegion : 13,
+		// viewer
+		Text              : 14,
+		Annot             : 15,
+		Field			  : 16,
+		PdfPage           : 17
 	};
 
 	var c_oAscLineDrawingRule = {
@@ -1070,7 +1090,7 @@ window.AscCommon.g_cIsBeta = "false";
 
 	var ST_ChildOrderType = {
 		b: 0,
-		t: 1	
+		t: 1
 	}
 
 	var ST_AlgorithmType = {
@@ -1097,7 +1117,7 @@ window.AscCommon.g_cIsBeta = "false";
 		equ:  1,
 		gte:  2,
 		lte:  3
-	} 
+	}
 
 	var ST_ElementType = {
 		all:      0,
@@ -1938,7 +1958,33 @@ window.AscCommon.g_cIsBeta = "false";
 		sysDash       : 7,
 		sysDashDot    : 8,
 		sysDashDotDot : 9,
-		sysDot        : 10
+		sysDot        : 10,
+		// visio types
+		vsdxTransparent		: 11, // 0 visio value
+		vsdxSolid			: 12,
+		vsdxDash			: 13,
+		vsdxDot				: 14,
+		vsdxDashDot			: 15,
+		vsdxDashDotDot		: 16,
+		vsdxDashDashDot		: 17,
+		vsdxLongDashShortDash   		: 18,
+		vsdxLongDashShortDashShortDash  : 19,
+		vsdxHalfDash  			: 20,
+		vsdxHalfDot				: 21,
+		vsdxHalfDashDot			: 22,
+		vsdxHalfDashDotDot		: 23,
+		vsdxHalfDashDashDot   	: 24,
+		vsdxHalfLongDashShortDash   		 : 25,
+		vsdxHalfLongDashShortDashShortDash   : 26,
+		vsdxDoubleDash   		: 27,
+		vsdxDoubleDot   		: 28,
+		vsdxDoubleDashDot   	: 29,
+		vsdxDoubleDashDotDot   	: 30,
+		vsdxDoubleDashDashDot   : 31,
+		vsdxDoubleLongDashShortDash   			: 32,
+		vsdxDoubleLongDashShortDashShortDash    : 33,
+		vsdxHalfHalfDash   		: 34,
+
 	};
 
 
@@ -2438,9 +2484,9 @@ window.AscCommon.g_cIsBeta = "false";
 		pasteOnlyFormula: 1,
 		formulaNumberFormat: 2,
 		formulaAllFormatting: 3,
-		formulaWithoutBorders: 4, 
+		formulaWithoutBorders: 4,
 		formulaColumnWidth: 5,
-		mergeConditionalFormating: 6, 
+		mergeConditionalFormating: 6,
 		pasteOnlyValues: 7,
 		valueNumberFormat: 8,
 		valueAllFormating: 9,
@@ -3162,6 +3208,7 @@ window.AscCommon.g_cIsBeta = "false";
 
 		TOC          : 10,
 		Complex      : 11,
+		Signature    : 12,
 		
 		toString : function(type)
 		{
@@ -3183,6 +3230,8 @@ window.AscCommon.g_cIsBeta = "false";
 					return "toc";
 				case c_oAscContentControlSpecificType.Complex:
 					return "complex";
+				case c_oAscContentControlSpecificType.Signature:
+					return "signature";
 			}
 			
 			return "unknown";
@@ -3207,6 +3256,8 @@ window.AscCommon.g_cIsBeta = "false";
 					return c_oAscContentControlSpecificType.TOC;
 				case "complex":
 					return c_oAscContentControlSpecificType.Complex;
+				case "signature":
+					return c_oAscContentControlSpecificType.Signature;
 			}
 			
 			return c_oAscContentControlSpecificType.None;
@@ -3631,10 +3682,10 @@ window.AscCommon.g_cIsBeta = "false";
 	var availableIdeographLanguages = ['zh-CN', 'vi-VN', 'ko-KR', 'ja-JP', 'zh-Hans', 'zh-TW', 'zh-CN', 'zh-HK', 'zh-SG',
 		'zh-MO', 'zh-Hant', 'zh'];
 	var availableBidiLanguages = [];
-	var document_compatibility_mode_Word11 = 11;
+	var document_compatibility_mode_Word11 = 11; // 2003 (doc)
 	var document_compatibility_mode_Word12 = 12;
-	var document_compatibility_mode_Word14 = 14;
-	var document_compatibility_mode_Word15 = 15;
+	var document_compatibility_mode_Word14 = 14; // 2010
+	var document_compatibility_mode_Word15 = 15; // 2013/2015/2019
 
 	var document_compatibility_mode_Current = document_compatibility_mode_Word12;
 
@@ -3672,6 +3723,12 @@ window.AscCommon.g_cIsBeta = "false";
 			SzScreen16x9: 14,
 			SzScreen4x3: 15,
 			SzWidescreen: 16
+	};
+
+	const thumbnailsPositionMap = {
+		left: 0,
+		right: 1,
+		bottom: 2,
 	};
 
 	var c_oAscPictureFormScaleFlag = {
@@ -3774,8 +3831,46 @@ window.AscCommon.g_cIsBeta = "false";
 		Shape: "Shape",
 		OleObject: "OleObject"
 	};
+	
+	// 17.18.21 ST_EdGrp
+	const ST_EdGrp = {
+		administrators : 0,
+		contributors   : 1,
+		current        : 2,
+		editors        : 3,
+		everyone       : 4,
+		none           : 5,
+		owners         : 6
+	};
+	
+	window['Asc']['ST_EdGrp'] = window['Asc'].ST_EdGrp = ST_EdGrp;
+	ST_EdGrp['administrators'] = ST_EdGrp.administrators;
+	ST_EdGrp['contributors']   = ST_EdGrp.contributors;
+	ST_EdGrp['current']        = ST_EdGrp.current;
+	ST_EdGrp['editors']        = ST_EdGrp.editors;
+	ST_EdGrp['everyone']       = ST_EdGrp.everyone;
+	ST_EdGrp['none']           = ST_EdGrp.none;
 
-
+	// 17.18.13 ST_DisplacedByCustomXml
+	const ST_DisplacedByCustomXml = {
+		next : 0,
+		prev : 1
+	};
+	window['Asc']['ST_DisplacedByCustomXml'] = window['Asc'].ST_DisplacedByCustomXml = ST_DisplacedByCustomXml;
+	ST_DisplacedByCustomXml['next'] = ST_DisplacedByCustomXml.next;
+	ST_DisplacedByCustomXml['prev'] = ST_DisplacedByCustomXml.prev;
+	
+	const c_oNumeralType = {
+		arabic  : 0,
+		hindi   : 1,
+		context : 2
+	};
+	window['Asc']['c_oNumeralType'] = window['Asc'].c_oNumeralType = c_oNumeralType;
+	c_oNumeralType["arabic"]  = c_oNumeralType.arabic;
+	c_oNumeralType["hindi"]   = c_oNumeralType.hindi;
+	c_oNumeralType["context"] = c_oNumeralType.context;
+	
+	
 	var c_oAscDateTimeFormat = {};
 	c_oAscDateTimeFormat[lcid_arSA] = [
 		"dd/MM/yyyy",
@@ -4246,6 +4341,9 @@ window.AscCommon.g_cIsBeta = "false";
 		"dd.MM.yyyy",
 		"dddd, d MMMM yyyy 'г.'",
 		"d MMMM yyyy 'г.'",
+		"'«'d'»' MMMM yyyy 'года'",
+		"d MMMM yyyy 'года'",
+		"d MMMM yyyy",
 		"dd.MM.yy",
 		"yyyy-MM-dd",
 		"d-MMM-yy",
@@ -4394,6 +4492,25 @@ window.AscCommon.g_cIsBeta = "false";
 		"HH:mm",
 		"HH:mm:ss"
 	];
+	c_oAscDateTimeFormat[lcid_sqAL]     = [
+		"d.M.yyyy",
+		"dddd, d MMMM yyyy",
+		"d MMMM yyyy",
+		"d.M.yy",
+		"yyyy-MM-dd",
+		"d-MMM-yy",
+		"d/M/yyyy",
+		"d MMM. yy",
+		"d/M/yy",
+		"MMMM yy",
+		"MMM-yy",
+		"d.M.yyyy h:mm am/pm",
+		"d.M.yyyy h:mm:ss am/pm",
+		"h:mm am/pm",
+		"h:mm:ss am/pm",
+		"HH:mm",
+		"HH:mm:ss"
+	];
 	c_oAscDateTimeFormat[lcid_trTR]     = [
 		"d.MM.yyyy",
 		"d MMMM yyyy dddd",
@@ -4487,7 +4604,6 @@ window.AscCommon.g_cIsBeta = "false";
 
 	//------------------------------------------------------------export--------------------------------------------------
 	var prot;
-	window['Asc']                          = window['Asc'] || {};
 	window['Asc']['FONT_THUMBNAIL_HEIGHT'] = FONT_THUMBNAIL_HEIGHT;
 	window['Asc']['c_oAscMaxColumnWidth']  = window['Asc'].c_oAscMaxColumnWidth = c_oAscMaxColumnWidth;
 	window['Asc']['c_oAscMaxRowHeight'] = window['Asc'].c_oAscMaxRowHeight = c_oAscMaxRowHeight;
@@ -4548,6 +4664,7 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['XLSX_FLAT']            = prot.XLSX_FLAT;
 	prot['XLSX_PACKAGE']         = prot.XLSX_PACKAGE;
 	prot['XLSY']                 = prot.XLSY;
+	prot['CANVAS_SPREADSHEET']   = prot.CANVAS_SPREADSHEET;
 	prot['PPTX']                 = prot.PPTX;
 	prot['PPT']                  = prot.PPT;
 	prot['ODP']                  = prot.ODP;
@@ -4559,6 +4676,13 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['FODP']                 = prot.FODP;
 	prot['OTP']                  = prot.OTP;
 	prot['PPTX_PACKAGE']         = prot.PPTX_PACKAGE;
+	prot['CANVAS_PRESENTATION']  = prot.CANVAS_PRESENTATION;
+
+	prot['VSDX']        		 = prot.VSDX;
+	prot['VSSX']        		 = prot.VSSX;
+	prot['VSTX']        		 = prot.VSTX;
+	prot['VSDM']        		 = prot.VSDM;
+	prot['VSTM']        		 = prot.VSTM;
 
 	prot['JPG']                  = prot.JPG;
 	prot['TIFF']                 = prot.TIFF;
@@ -4604,6 +4728,7 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['Waiting']                          = prot.Waiting;
 	prot['Submit']                           = prot.Submit;
 	prot['Disconnect']                       = prot.Disconnect;
+	prot['RefreshFile']                      = prot.RefreshFile;
 	window['Asc']['c_oAscAdvancedOptionsID'] = window['Asc'].c_oAscAdvancedOptionsID = c_oAscAdvancedOptionsID;
 	prot                                         = c_oAscAdvancedOptionsID;
 	prot['CSV']                                  = prot.CSV;
@@ -4639,22 +4764,27 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['BringForward']                     = prot.BringForward;
 	prot['SendBackward']                     = prot.SendBackward;
 	window['Asc']['c_oAscTypeSelectElement'] = window['Asc'].c_oAscTypeSelectElement = c_oAscTypeSelectElement;
-	prot                              = c_oAscTypeSelectElement;
-	prot['Paragraph']                 = prot.Paragraph;
-	prot['Table']                     = prot.Table;
-	prot['Image']                     = prot.Image;
-	prot['Header']                    = prot.Header;
-	prot['Hyperlink']                 = prot.Hyperlink;
-	prot['SpellCheck']                = prot.SpellCheck;
-	prot['Shape']                     = prot.Shape;
-	prot['Slide']                     = prot.Slide;
-	prot['Chart']                     = prot.Chart;
-	prot['Math']                      = prot.Math;
-	prot['MailMerge']                 = prot.MailMerge;
-	prot['ContentControl']            = prot.ContentControl;
-	prot['Animation']                 = prot.Animation;
-	prot['Text']                      = prot.Text;
-	prot['Annot']                     = prot.Annot;
+	
+	prot                      = c_oAscTypeSelectElement;
+	prot['Paragraph']         = prot.Paragraph;
+	prot['Table']             = prot.Table;
+	prot['Image']             = prot.Image;
+	prot['Header']            = prot.Header;
+	prot['Hyperlink']         = prot.Hyperlink;
+	prot['SpellCheck']        = prot.SpellCheck;
+	prot['Shape']             = prot.Shape;
+	prot['Slide']             = prot.Slide;
+	prot['Chart']             = prot.Chart;
+	prot['Math']              = prot.Math;
+	prot['MailMerge']         = prot.MailMerge;
+	prot['ContentControl']    = prot.ContentControl;
+	prot['Animation']         = prot.Animation;
+	prot['UnProtectedRegion'] = prot.UnProtectedRegion;
+	prot['Text']              = prot.Text;
+	prot['Annot']             = prot.Annot;
+	prot['Field']             = prot.Field;
+	prot['PdfPage']           = prot.PdfPage;
+	
 	window['Asc']['linerule_AtLeast'] = window['Asc'].linerule_AtLeast = linerule_AtLeast;
 	window['Asc']['linerule_Auto'] = window['Asc'].linerule_Auto = linerule_Auto;
 	window['Asc']['linerule_Exact'] = window['Asc'].linerule_Exact = linerule_Exact;
@@ -5738,6 +5868,7 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['DateTime']     = c_oAscContentControlSpecificType.DateTime;
 	prot['TOC']          = c_oAscContentControlSpecificType.TOC;
 	prot['Complex']      = c_oAscContentControlSpecificType.Complex;
+	prot['Signature']    = c_oAscContentControlSpecificType.Signature;
 
 	window['Asc']['c_oAscDefNameType'] = window['Asc'].c_oAscDefNameType = c_oAscDefNameType;
 	prot = c_oAscDefNameType;
@@ -5789,6 +5920,11 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['SzScreen16x9'] = prot.SzScreen16x9;
 	prot['SzScreen4x3'] = prot.SzScreen4x3;
 	prot['SzWidescreen'] = prot.SzWidescreen;
+
+	prot = window['AscCommon']['thumbnailsPositionMap'] = window['AscCommon'].thumbnailsPositionMap = thumbnailsPositionMap;
+	prot['left']   = prot.left;
+	prot['right']  = prot.right;
+	prot['bottom'] = prot.bottom;
 
 	prot = window['Asc']['c_oAscPictureFormScaleFlag'] = window['Asc'].c_oAscPictureFormScaleFlag = c_oAscPictureFormScaleFlag;
 	prot['Always']  = prot.Always;

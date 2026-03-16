@@ -111,9 +111,35 @@
 		};
 
 		CImageShape.prototype.setBlipFill = function (pr) {
-			AscCommon.History.Add(new AscDFH.CChangesDrawingsObjectNoId(this, AscDFH.historyitem_ImageShapeSetBlipFill, this.blipFill, pr));
+			if(!Asc.editor.evalCommand) {
+				AscCommon.History.Add(new AscDFH.CChangesImageIdStart(this));
+				const prNoRaster = pr && pr.createDuplicateNoRaster();
+				const currentNoRaster = this.blipFill && this.blipFill.createDuplicateNoRaster();
+				AscCommon.History.Add(new AscDFH.CChangesDrawingsObjectNoId(this, AscDFH.historyitem_ImageShapeSetBlipFill, currentNoRaster, prNoRaster));
+				const rasterChunks = createRasterImageHistoryChunks(this, this.blipFill ? this.blipFill.RasterImageId : "", pr.RasterImageId, 1048576);
+				for (let chunkIdx = 0; chunkIdx < rasterChunks.length; ++chunkIdx) {
+					let chunk = rasterChunks[chunkIdx];
+					AscCommon.History.Add(chunk);
+				}
+				AscCommon.History.Add(new AscDFH.CChangesImageIdEnd(this));
+			}
+
 			this.blipFill = pr;
 		};
+
+		function createRasterImageHistoryChunks(obj, oldStr, newStr, chunkSize) {
+			const changes = [];
+			const total = Math.ceil(Math.max(newStr.length, oldStr.length) / chunkSize);
+
+			for (let i = 0; i < total; i++) {
+				const newChunk = newStr.substr(i * chunkSize, chunkSize);
+				const oldChunk = oldStr.substr(i * chunkSize, chunkSize);
+				const change = new AscDFH.CChangesDrawingsImageRasterImageIdPart(obj, newChunk, oldChunk);
+				changes.push(change);
+			}
+
+			return changes;
+		}
 
 		CImageShape.prototype.setParent = function (pr) {
 			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_ImageShapeSetParent, this.parent, pr));
@@ -172,6 +198,19 @@
 			if (isRealObject(this.blipFill))
 				return this.blipFill.RasterImageId;
 			return null;
+		};
+		CImageShape.prototype.getTransparent = function () {
+			if (isRealObject(this.blipFill)) {
+				return this.blipFill.getTransparent();
+			}
+			return null;
+		};
+		CImageShape.prototype.setTransparent = function (v) {
+			if(this.blipFill) {
+				let oNewBlipFill = this.blipFill.createDuplicate();
+				oNewBlipFill.setTransparent(v);
+				this.setBlipFill(oNewBlipFill);
+			}
 		};
 
 		CImageShape.prototype.getSnapArrays = function (snapX, snapY) {
@@ -578,14 +617,14 @@
 			var oldBrush = this.brush;
 			var oldPen = this.pen;
 
-			if (this.getObjectType() === AscDFH.historyitem_type_OleObject) {
+			if (this.getObjectType() === AscDFH.historyitem_type_OleObject && !graphics.isBoundsChecker()) {
 				var sImageId = this.blipFill && this.blipFill.RasterImageId;
 				if (sImageId) {
 					var oApi = editor || window['Asc']['editor'];
 					if (oApi) {
 						sImageId = AscCommon.getFullImageSrc2(sImageId);
 						var _img = oApi.ImageLoader.map_image_index[sImageId];
-						if ((_img && _img.Status === AscFonts.ImageLoadStatus.Loading) || (_img && _img.Image) || graphics.isBoundsChecker() || graphics.isPdf()) {
+						if ((_img && _img.Status === AscFonts.ImageLoadStatus.Loading) || (_img && _img.Image) || window["NATIVE_EDITOR_ENJINE"]) {
 							this.brush = CreateBrushFromBlipFill(this.blipFill);
 							this.pen = null;
 						} else {
@@ -655,6 +694,26 @@
 			}
 			this.spPr.setLn(stroke);
 		};
+		CImageShape.prototype.changeFill = function (unifill) {
+
+			if (this.recalcInfo.recalculateBrush) {
+				this.recalculateBrush();
+			}
+			var unifill2 = AscFormat.CorrectUniFill(unifill, this.brush, this.getEditorType());
+			unifill2.convertToPPTXMods();
+			this.setFill(unifill2);
+		};
+		CImageShape.prototype.setFill = function (fill) {
+
+			this.spPr.setFill(fill);
+		};
+
+		CImageShape.prototype.hasCrop = function () {
+			if(this.blipFill && this.blipFill.srcRect || this.isShapeCrop()) {
+				return true;
+			}
+			return false;
+		};
 
 
 		CImageShape.prototype.drawAdjustments = function (drawingDocument) {
@@ -720,9 +779,6 @@
 				return false;
 			}
 			return true;
-		};
-
-		CImageShape.prototype.Load_LinkData = function (linkData) {
 		};
 
 		CImageShape.prototype.getTypeName = function () {
@@ -874,7 +930,33 @@
 		CImageShape.prototype.getText = function() {
 			return null;
 		};
+		CImageShape.prototype.canFill = function () {
+			return true;
+		};
+		CImageShape.prototype.getCropHeightCoefficient = function() {
+			const oSrcRect = this.blipFill && this.blipFill.srcRect;
+			if (oSrcRect) {
+				return (oSrcRect.b - oSrcRect.t) / 100;
+			}
+			return 1;
+		};
+		CImageShape.prototype.getCropWidthCoefficient = function() {
+			const oSrcRect = this.blipFill && this.blipFill.srcRect;
+			if (oSrcRect) {
+				return (oSrcRect.r - oSrcRect.l) / 100;
+			}
+			return 1;
+		};
 
+		CImageShape.prototype.isShapeCrop = function() {
+			if (this.spPr && this.spPr.geometry) {
+				const sPresetType = this.spPr.geometry.preset;
+				if (sPresetType === 'rect') {
+					return false;
+				}
+			}
+			return true;
+		};
 
 		function CreateBrushFromBlipFill(oBlipFill) {
 			if (!oBlipFill) {
@@ -882,14 +964,10 @@
 			}
 			var oBrush = new AscFormat.CUniFill();
 			oBrush.fill = oBlipFill;
-			if (Array.isArray(oBlipFill.Effects)) {
-				for (var nEffect = 0; nEffect < oBlipFill.Effects.length; ++nEffect) {
-					var oEffect = oBlipFill.Effects[nEffect];
-					if (oEffect && oEffect instanceof AscFormat.CAlphaModFix && AscFormat.isRealNumber(oEffect.amt)) {
-						oBrush.setTransparent(255 * oEffect.amt / 100000);
-						break;
-					}
-				}
+
+			let nTransparent = oBlipFill.getTransparent();
+			if(AscFormat.isRealNumber(nTransparent)) {
+				oBrush.setTransparent(nTransparent);
 			}
 			return oBrush;
 		}

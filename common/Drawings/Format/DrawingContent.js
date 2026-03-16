@@ -163,6 +163,50 @@
         return dHeight;
     };
 
+    // function to find the maximum width of the text inside the rect, as each line contains different widths  
+    CDrawingDocContent.prototype.GetSummaryWidth =function () {
+        // width of single line label 
+        let width = 20000;
+        if (!this.Content || !Array.isArray(this.Content )) {
+            return width;
+        }
+        const lines = this.Content[0].Lines;
+        if (lines && Array.isArray(lines)) {
+            for (let i = 0; i < lines.length; i++) {
+                const newWidth = lines[i] && lines[i].Ranges && Array.isArray(lines[i].Ranges) && lines[i].Ranges.length > 0 ? lines[i].Ranges[0].W : null;
+                if (newWidth !== null && (i === 0 || width < newWidth)) {
+                    width = newWidth;
+                }
+            }
+        }
+
+        return width;
+    };
+
+    // function to find the width of the unfolded 2d array, simply add width of each line
+    CDrawingDocContent.prototype.getUnfoldedWidth = function (nLines) {
+        // width of single line label 
+        if (!this.Content || !Array.isArray(this.Content )) {
+            return 20000;
+        }
+        let width = 0;
+        const boxError = 0.1;
+        const lines = this.Content[0].Lines;
+        if (lines && Array.isArray(lines)) {
+            for (let i = 0; i < nLines; i++) {
+                if (lines.length < i) {
+                    break;
+                }
+                const newWidth = lines[i] && lines[i].Ranges && Array.isArray(lines[i].Ranges) && lines[i].Ranges.length > 0 ? lines[i].Ranges[0].W : null;
+                if (newWidth !== null) {
+                    width += newWidth;
+                }
+            }
+        }
+        
+        return width + boxError;
+    };
+
     CDrawingDocContent.prototype.Get_ColumnsCount = function(){
         var nColumnCount = 1;
         if(this.Parent.getBodyPr){
@@ -533,12 +577,14 @@
         return false;
     };
 
-    CDrawingDocContent.prototype.DrawSelectionOnPage = function(PageIndex){
+    CDrawingDocContent.prototype.DrawSelectionOnPage = function(PageIndex, clipInfo){
         var CurPage = PageIndex;
         if (CurPage < 0 || CurPage >= this.Pages.length)
             return;
         var Pos_start = this.Pages[CurPage].Pos;
         var Pos_end   = this.Pages[CurPage].EndPos;
+		
+		clipInfo = this.IntersectClip(clipInfo, PageIndex);
 
         if (true === this.Selection.Use)
         {
@@ -561,7 +607,7 @@
                     for (var Index = Start; Index <= End; Index++)
                     {
                         var ElementPageIndex = this.private_GetElementPageIndex(Index, CurPage, 0, 1);
-                        this.Content[Index].DrawSelectionOnPage(ElementPageIndex);
+                        this.Content[Index].DrawSelectionOnPage(ElementPageIndex, clipInfo);
                     }
                 }
                 else{
@@ -586,7 +632,7 @@
                         for (var Index = Start; Index <= End; ++Index)
                         {
                             var ElementPage = this.private_GetElementPageIndex(Index, 0, ColumnIndex, ColumnsCount);
-                            this.Content[Index].DrawSelectionOnPage(ElementPage);
+                            this.Content[Index].DrawSelectionOnPage(ElementPage, clipInfo);
                         }
 
                     }
@@ -827,6 +873,21 @@
             return Asc.editor.private_GetLogicDocument();
         return null;
     };
+		CDrawingDocContent.prototype.Remove = function (Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord) {
+			const res = CDocumentContent.prototype.Remove.call(this, Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord);
+			const oShape = this.Is_DrawingShape(true);
+			if (oShape) {
+				oShape.onRemoveContent();
+			}
+			return res;
+		}
+		CDrawingDocContent.prototype.getCharContentLength = function () {
+			let nContentLength = 0;
+			this.CheckRunContent(function (oRun) {
+				nContentLength += oRun.Content.length;
+			});
+			return nContentLength;
+		};
     // TODO: сделать по-нормальному!!!
     function CDocument_prototype_private_GetElementPageIndexByXY(ElementPos, X, Y, PageIndex)
     {

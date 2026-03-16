@@ -155,6 +155,29 @@ CFieldInstructionFORMULA.prototype.SetComplexField = function(oComplexField){
 		}
 	}
 };
+CFieldInstructionFORMULA.prototype.GetResultString = function()
+{
+	if (!this.ResultStr)
+		return this.ResultStr;
+	
+	return this.applyNumericFormat(this.ResultStr);
+};
+CFieldInstructionFORMULA.prototype.applyNumericFormat = function(strValue)
+{
+	if (!this.haveNumericFormat())
+		return strValue;
+	
+	let numValue = parseFloat(strValue);
+	if (isNaN(numValue))
+		return strValue;
+	
+	numValue = Math.trunc(numValue + 0.5);
+	let textPr = null;
+	if (this.ComplexField && this.ComplexField.BeginChar && this.ComplexField.BeginChar.GetRun())
+		textPr = this.ComplexField.BeginChar.GetRun().getCompiledPr();
+	
+	return "" + AscCommon.IntToNumberFormat(numValue, this.getNumericFormat(), {lang: textPr && textPr.Lang, isFromField: true, isSkipFractPart: true});
+};
 
 /**
  * PAGE field
@@ -1596,6 +1619,10 @@ CFieldInstructionParser.prototype.private_ReadFORMULA = function()
 			{
 				bNumFormat = true;
 			}
+			else
+			{
+				this.private_ReadGeneralFormatSwitch();
+			}
 		}
 		else
 		{
@@ -1771,6 +1798,7 @@ CFieldInstructionParser.prototype.private_ReadREF = function(sBookmarkName)
 			this.Result.SetBookmarkName(arrArguments[0]);
 		}
 	}
+	
 	while (this.private_ReadNext())
 	{
 		if (this.private_IsSwitch())
@@ -1813,6 +1841,10 @@ CFieldInstructionParser.prototype.private_ReadREF = function(sBookmarkName)
 			{
 				this.Result.SetIsPosition(true);
 			}
+		}
+		else if ("" === this.Result.GetBookmarkName())
+		{
+			this.Result.SetBookmarkName(this.Buffer);
 		}
 	}
 };

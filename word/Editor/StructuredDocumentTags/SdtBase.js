@@ -49,7 +49,7 @@ CSdtBase.prototype.GetPlaceholderText = function()
 	if (oDocPart)
 	{
 		var oFirstParagraph = oDocPart.GetFirstParagraph();
-		return oFirstParagraph.GetText({ParaEndToSpace : false});
+		return oFirstParagraph.GetText({ParaSeparator : ""});
 	}
 
 	return String.fromCharCode(nbsp_charcode, nbsp_charcode, nbsp_charcode, nbsp_charcode);
@@ -109,6 +109,13 @@ CSdtBase.prototype.SetPlaceholderText = function(sText)
 	else
 		oDocPart.AddText(sText);
 
+	if (this.Pr && this.Pr.TextPr)
+	{
+		oDocPart.SelectAll();
+		oParagraph = oDocPart.GetFirstParagraph();
+		oParagraph.ApplyTextPr(this.Pr.TextPr.Copy());
+	}
+	
 	oDocPart.RemoveSelection();
 
 	var isPlaceHolder = this.IsPlaceHolder();
@@ -215,6 +222,7 @@ CSdtBase.prototype.SetFormPr = function(oFormPr)
 		change.Redo();
 
 		this.private_OnAddFormPr();
+		this.OnChangePr();
 	}
 };
 CSdtBase.prototype.private_CheckKeyValueBeforeSet = function(formPr)
@@ -391,6 +399,30 @@ CSdtBase.prototype.IsRadioButton = function()
 	return !!(this.IsCheckBox() && this.Pr.CheckBox && this.Pr.CheckBox.GroupKey);
 };
 /**
+ * Проверяем является ли данный контейнер специальным для поля со списком
+ * @returns {boolean}
+ */
+CSdtBase.prototype.IsComboBox = function()
+{
+	return (undefined !== this.Pr.ComboBox);
+};
+/**
+ * Проверяем является ли данный контейнер специальным для выпадающего списка
+ * @returns {boolean}
+ */
+CSdtBase.prototype.IsDropDownList = function()
+{
+	return (undefined !== this.Pr.DropDown);
+};
+/**
+ * Проверяем является ли данный контейнер специальным для даты
+ * @returns {boolean}
+ */
+CSdtBase.prototype.IsDatePicker = function()
+{
+	return (undefined !== this.Pr.Date);
+};
+/**
  * Является ли данный контейнер специальной текстовой формой
  * @returns {boolean}
  */
@@ -488,17 +520,6 @@ CSdtBase.prototype.IsCurrent = function()
 CSdtBase.prototype.SetCurrent = function(isCurrent)
 {
 	this.Current = isCurrent;
-	
-	if (this.IsForm() && this.IsFixedForm())
-	{
-		let logicDocument   = this.GetLogicDocument();
-		let drawingDocument = logicDocument ? logicDocument.GetDrawingDocument() : null;
-		if (drawingDocument && !logicDocument.IsFillingOFormMode())
-		{
-			drawingDocument.OnDrawContentControl(null, AscCommon.ContentControlTrack.In);
-			drawingDocument.OnDrawContentControl(null, AscCommon.ContentControlTrack.Hover);
-		}
-	}
 };
 /**
  * Специальная функция, которая обновляет текстовые настройки у плейсхолдера для форм
@@ -1024,7 +1045,11 @@ CSdtBase.prototype.GetFieldMaster = function()
  */
 CSdtBase.prototype.GetFormRole = function()
 {
-	let fieldMaster = this.GetFieldMaster();
+	let mainForm = this.GetMainForm();
+	if (!mainForm)
+		mainForm = this;
+	
+	let fieldMaster = mainForm.GetFieldMaster();
 	let userMaster  = fieldMaster ? fieldMaster.getFirstUser() : null;
 	return userMaster ? userMaster.getRole() : "";
 };
@@ -1036,6 +1061,32 @@ CSdtBase.prototype.SetFormRole = function(roleName)
 	let formPr = this.GetFormPr().Copy();
 	formPr.SetRole(roleName);
 	this.SetFormPr(formPr);
+};
+CSdtBase.prototype.GetRoleColor = function()
+{
+	let logicDocument = this.GetLogicDocument();
+	
+	if (!logicDocument || !this.IsForm())
+		return null;
+	
+	let formPr = this.GetFormPr();
+	if (!this.IsMainForm())
+	{
+		let mainForm = this.GetMainForm();
+		if (!mainForm)
+			return null;
+		
+		formPr = mainForm.GetFormPr();
+	}
+	
+	if (!formPr)
+		return null;
+	
+	let fieldMaster = formPr.GetFieldMaster();
+	let userMaster  = fieldMaster ? fieldMaster.getFirstUser() : null;
+	let userColor   = userMaster ? userMaster.getColor() : null;
+	
+	return userColor ? userColor : null;
 };
 CSdtBase.prototype.SetFieldMaster = function(fieldMaster)
 {
@@ -1131,12 +1182,183 @@ CSdtBase.prototype.IsHideContentControlTrack = function()
 	
 	return Asc.c_oAscSdtAppearance.Hidden === this.GetAppearance();
 };
-
-// TODO: Temporary for building purpose. Remove when actual class is added
-(function()
+CSdtBase.prototype.setDataBinding = function(dataBinding)
 {
-	function DataBinding()
+	AscCommon.History.Add(new CChangesSdtPrDataBinding(this, this.Pr.DataBinding, dataBinding));
+	this.Pr.DataBinding = dataBinding;
+};
+CSdtBase.prototype.getDataBinding = function()
+{
+	return this.Pr.DataBinding;
+};
+/**
+ * Проверяем, есть ли привязанные данные, и если есть заполняем ими содержимое контрола
+ */
+CSdtBase.prototype.checkDataBinding = function()
+{
+	let logicDocument = this.GetLogicDocument();
+	if (!logicDocument || !this.Pr.DataBinding)
+		return false;
+	
+	let customXmlManager = logicDocument.getCustomXmlManager();
+	if (!customXmlManager || !customXmlManager.isSupported())
+		return false;
+	
+	let content = customXmlManager.getContentByDataBinding(this.Pr.DataBinding, this);
+	if (!content)
+		return false
+
+	if (content.attribute)
+		content = content.content.attributes[content.attribute]
+	else
+		content = content.getText();
+
+
+	if (this.IsPicture())
 	{
+		let allDrawings = this.GetAllDrawingObjects();
+		if (!allDrawings.length)
+			return false;
+
+		let drawing = allDrawings[0];
+
+		let imageData = !content.startsWith("data:image/png;base64,") ? "data:image/jpeg;base64," + content : content;
+		let editor = logicDocument.GetApi();
+		editor.ImageLoader.LoadImagesWithCallback([imageData], function(){}, 0, true);
+		
+		let w = drawing.getXfrmExtX();
+		let h = drawing.getXfrmExtY();
+		
+		let imageShape = logicDocument.DrawingObjects.createImage(imageData, 0, 0, w, h);
+		imageShape.setParent(drawing);
+		drawing.Set_GraphicObject(imageShape);
 	}
-	AscWord.DataBinding = DataBinding;
-})();
+	else if (this.IsCheckBox())
+	{
+		if (content === "true" || content === "1")
+		{
+			let checkBoxPr = this.Pr.CheckBox.Copy();
+			checkBoxPr.SetChecked(true);
+			this.SetCheckBoxPr(checkBoxPr)
+			this.private_UpdateCheckBoxContent();
+		}
+		else if (content === "false" || content === "0")
+		{
+			let checkBoxPr = this.Pr.CheckBox.Copy();
+			checkBoxPr.SetChecked(false);
+			this.SetCheckBoxPr(checkBoxPr)
+			this.private_UpdateCheckBoxContent()
+		}
+	}
+	else if (this.IsDatePicker())
+	{
+		let date = new Date(content);
+		if (isNaN(date))
+		{
+			if (typeof content === "string")
+				this.SetInnerText(content);
+		}
+		else
+		{
+			let datePr = this.Pr.Date.Copy();
+			datePr.SetFullDate(content);
+			this.SetDatePickerPr(datePr);
+			this.private_UpdateDatePickerContent();
+		}
+	}
+	else if (this.IsDropDownList() || this.IsComboBox() || ((this instanceof CBlockLevelSdt && this.Pr.Text === true) || (this instanceof CInlineLevelSdt)))
+	{
+		if (typeof content === "string")
+			this.SetInnerText(content);
+	}
+	else if (this.canFillWithComplexDataBindingContent())
+	{
+		let customXmlManager	= logicDocument.getCustomXmlManager();
+		let arrContent			= customXmlManager.proceedLinearXMl(content);
+		let str					= "";
+
+		arrContent.forEach(function(content){str += content.GetText()})
+		let strContent			= str.trim();
+
+		if (strContent === "" && content.length > 0)
+			this.SetInnerText(content);
+		else
+			this.fillContentWithDataBinding(arrContent);
+	}
+
+	return true;
+};
+CSdtBase.prototype.canFillWithComplexDataBindingContent = function()
+{
+	return false;
+};
+CSdtBase.prototype.fillContentWithDataBinding = function(content)
+{
+
+};
+CSdtBase.prototype.updateDataBinding = function()
+{
+	let logicDocument = this.GetLogicDocument();
+	let dataBinding = this.Pr.DataBinding;
+	if (!dataBinding || !logicDocument || !logicDocument.IsDocumentEditor())
+		return;
+	
+	let customXmlManager = logicDocument.getCustomXmlManager();
+	customXmlManager.updateDataBinding(this);
+};
+/**
+ * @returns {?AscWord.CDocumentColorA}
+ */
+CSdtBase.prototype.getShdColor = function()
+{
+	return this.Pr.ShdColor;
+};
+/**
+ * @param color {?AscWord.CDocumentColorA}
+ */
+CSdtBase.prototype.setShdColor = function(color)
+{
+	if (!color)
+		color = undefined;
+	
+	if ((!color && !this.Pr.ShdColor) || (color && this.Pr.ShdColor && color.isEqual(this.Pr.ShdColor)))
+		return;
+	
+	AscCommon.AddAndExecuteChange(new CChangesSdtPrShdColor(this, this.Pr.ShdColor, color));
+};
+/**
+ * @return {?AscWord.CDocumentColorA}
+ */
+CSdtBase.prototype.getBorderColor = function()
+{
+	return this.Pr.BorderColor;
+};
+/**
+ * @param color {?AscWord.CDocumentColorA}
+ */
+CSdtBase.prototype.setBorderColor = function(color)
+{
+	if (!color)
+		color = undefined;
+	
+	if ((!color && !this.Pr.BorderColor) || (color && this.Pr.BorderColor && color.isEqual(this.Pr.BorderColor)))
+		return;
+		
+	AscCommon.AddAndExecuteChange(new CChangesSdtPrBorderColor(this, this.Pr.BorderColor, color));
+};
+/**
+ * @param padding {number}
+ */
+CSdtBase.prototype.drawContentControlsTrackIn = function(padding)
+{
+	return this.DrawContentControlsTrack(AscCommon.ContentControlTrack.In, undefined, undefined, undefined, undefined, padding);
+};
+CSdtBase.prototype.OnChangePr = function()
+{
+	if (this.IsForm())
+	{
+		let logicDocument = this.GetLogicDocument();
+		if (logicDocument && logicDocument.IsDocumentEditor())
+			logicDocument.OnChangeFormPr(this);
+	}
+};

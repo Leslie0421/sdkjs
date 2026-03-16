@@ -372,6 +372,34 @@ CLimit.prototype.GetTextOfElement = function(oMathText)
 	return oMathText;
 };
 
+CLimit.fromMathML = function(reader, type, content) {
+	let props = new CMathLimitPr();
+	props.content = content ? content : content;
+	props.type = type;
+
+	let mContents = [];
+	let depth = reader.GetDepth();
+	while (reader.ReadNextSiblingNode(depth))
+	{
+		mContents.push(AscWord.ParaMath.readMathMLContent(reader));
+	}
+
+	if (mContents.length)
+	{
+		if (mContents.length >= 2)
+		{
+			props.content[0] = mContents[0];
+			props.content[1] = mContents[1];
+		}
+		else
+		{
+			props.content[0] = mContents[0];
+		}
+	}
+
+	return new CLimit(props);
+};
+
 /**
  *
  * @param CMathMenuLimit
@@ -512,21 +540,21 @@ CMathFunc.prototype.GetTextOfElement = function(oMathText)
 
 	if (oMathText.IsLaTeX())
 	{
-		let oArgPos					= oMathText.Add(oArgument, true, 2);
-
 		let oFuncNameContent		= oFuncName.GetTextOfElement(true);
 		let strFunc					= oFuncNameContent.GetText();
 
 		//find content before "_", "^", "below" and "above";
 		strFunc = strFunc.split("_")[0].split('^')[0].split('\\below')[0].split('\\above')[0];
 
-		let oSlashesTextForName		= new AscMath.MathText("\\", oMathText.GetStyleFromFirst());
+		let oSlashesTextForName		= new AscMath.MathText("\\", oFuncNameContent.GetFirstStyle());
 		let oFirstPosInNameContent	= oFuncNameContent.GetFirstPos();
 
 		if (AscMath.functionNames.includes(strFunc) || AscMath.LimitFunctions.includes(strFunc))
 			oFuncNameContent.AddBefore(oFirstPosInNameContent, oSlashesTextForName);
 
-		oMathText.AddBefore(oArgPos, oFuncNameContent);
+		oMathText.Add(oFuncNameContent, true, 0);
+		oMathText.SetGlobalStyle(oFuncName);
+		oMathText.Add(oArgument, true, 2);
 	}
 	else
 	{

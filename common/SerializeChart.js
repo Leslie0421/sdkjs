@@ -4461,7 +4461,7 @@ BinaryChartWriter.prototype.WriteCT_BarSer = function (oVal) {
     }
 
 	for (let nIdx = 0; nIdx < oVal.errBars.length; ++nIdx) {
-		this.bs.WriteItem(c_oserct_bubbleserERRBARS, function () {
+		this.bs.WriteItem(c_oserct_barserERRBARS, function () {
 			oThis.WriteCT_ErrBars(oVal.errBars[nIdx]);
 		});
 	}
@@ -4751,7 +4751,7 @@ BinaryChartWriter.prototype.WriteCT_ScatterSer = function (oVal) {
         });
     }
 	for (let nIdx = 0; nIdx < oVal.errBars.length; ++nIdx) {
-		this.bs.WriteItem(c_oserct_bubbleserERRBARS, function () {
+		this.bs.WriteItem(c_oserct_scatterserERRBARS, function () {
 			oThis.WriteCT_ErrBars(oVal.errBars[nIdx]);
 		});
 	}
@@ -5067,7 +5067,7 @@ BinaryChartWriter.prototype.WriteCT_LineSer = function (oVal) {
         });
     }
 	for (let nIdx = 0; nIdx < oVal.errBars.length; ++nIdx) {
-		this.bs.WriteItem(c_oserct_bubbleserERRBARS, function () {
+		this.bs.WriteItem(c_oserct_lineserERRBARS, function () {
 			oThis.WriteCT_ErrBars(oVal.errBars[nIdx]);
 		});
 	}
@@ -5374,7 +5374,7 @@ BinaryChartWriter.prototype.WriteCT_AreaSer = function (oVal) {
     }
 
 	for (let nIdx = 0; nIdx < oVal.errBars.length; ++nIdx) {
-		this.bs.WriteItem(c_oserct_bubbleserERRBARS, function () {
+		this.bs.WriteItem(c_oserct_areaserERRBARS, function () {
 			oThis.WriteCT_ErrBars(oVal.errBars[nIdx]);
 		});
 	}
@@ -6752,9 +6752,9 @@ BinaryChartWriter.prototype.WriteCT_TickMarks = function (oVal) {
 };
 BinaryChartWriter.prototype.WriteCT_Gridlines = function (oVal) {
     var oThis = this;
-    if(oVal.spPr !== null) {
+    if(oVal !== null) {
         this.bs.WriteItem(c_oserct_chartExGridlinesSPPR, function() {
-            oThis.WriteSpPr(oVal.spPr);
+            oThis.WriteSpPr(oVal);
         });
     }
 };
@@ -11358,7 +11358,11 @@ BinaryChartReader.prototype.ReadCT_BarSer = function (type, length, val) {
         res = this.bcr.Read1(length, function (t, l) {
             return oThis.ReadCT_Trendline(t, l, oNewVal);
         });
-        val.setTrendline(oNewVal);
+		let tlType = oNewVal.trendlineType;
+		let isAllowedType = (tlType !== TRENDLINE_TYPE_EXP && tlType !== TRENDLINE_TYPE_POLY)
+		if (isAllowedType) {
+			val.setTrendline(oNewVal);
+		}
     }
     else if (c_oserct_barserERRBARS === type) {
         var oNewVal = new AscFormat.CErrBars();
@@ -13396,19 +13400,19 @@ BinaryChartReader.prototype.ReadCT_Axis = function (type, length, val) {
     }
     else if (c_oserct_chartExAxisMAJORGRID === type)
     {
-        var oNewVal = new AscFormat.CGridlines();
+		let oNewVal = { spPr: null };
         res = this.bcr.Read1(length, function (t, l) {
             return oThis.ReadCT_Gridlines(t, l, oNewVal);
         });
-        val.setMajorGridlines(oNewVal);
+        val.setMajorGridlines(oNewVal.spPr || new AscFormat.CSpPr());
     }
     else if (c_oserct_chartExAxisMINORGRID === type)
     {
-        var oNewVal = new AscFormat.CGridlines();
-        res = this.bcr.Read1(length, function (t, l) {
-            return oThis.ReadCT_Gridlines(t, l, oNewVal);
-        });
-        val.setMinorGridlines(oNewVal);
+		let oNewVal = { spPr: null };
+		res = this.bcr.Read1(length, function (t, l) {
+			return oThis.ReadCT_Gridlines(t, l, oNewVal);
+		});
+		val.setMinorGridlines(oNewVal.spPr || new AscFormat.CSpPr());
     }
     else if (c_oserct_chartExAxisTICKLABELS === type)
     {
@@ -13485,11 +13489,14 @@ BinaryChartReader.prototype.ReadCT_ChartEx = function (type, length, val) {
                 const start = (oNewVal.axId.length > 1) ? i : i + 1;
                 axis.initializeAxPos(start);
             }
-            if (oNewVal.axId.length === 2) {
+            if (oNewVal.axId.length === 3) {
                 oNewVal.axId[0].setCrossAx(oNewVal.axId[1]);
                 oNewVal.axId[1].setCrossAx(oNewVal.axId[0]);
-            }
-            if (oNewVal.axId.length === 1) {
+                oNewVal.axId[2].setCrossAx(oNewVal.axId[0]);
+            } else if (oNewVal.axId.length === 2) {
+                oNewVal.axId[0].setCrossAx(oNewVal.axId[1]);
+                oNewVal.axId[1].setCrossAx(oNewVal.axId[0]);
+            } else if (oNewVal.axId.length === 1) {
                 oNewVal.axId[0].setCrossAx(oNewVal.axId[0]);
             }
         }
@@ -14366,7 +14373,7 @@ BinaryChartReader.prototype.ReadCT_Gridlines = function (type, length, val) {
     var oNewVal;
     if (c_oserct_chartExGridlinesSPPR === type)
     {
-        val.setSpPr(this.ReadSpPr(length));
+        val.spPr = this.ReadSpPr(length);
     }
     else
     {

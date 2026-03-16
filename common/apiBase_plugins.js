@@ -195,7 +195,7 @@
      * @param {OLEProperties} data - The OLE object properties.
     * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/AddOleObject.js
 	 */
-    Api.prototype["pluginMethod_AddOleObject"] = function(data) { return this.asc_addOleObject(data); };
+    Api.prototype["pluginMethod_AddOleObject"] = function(data) { return this.asc_addOleObject(data, true); };
 
     /**
      * Edits an OLE object in the document.
@@ -307,7 +307,7 @@
 		if (!AscCommon.g_clipboardBase)
 			return null;
 
-		if (!this.canEdit() || this.isPdfEditor())
+		if (!this.canEdit())
 			return null;
 
 		let _elem = document.getElementById("pmpastehtml");
@@ -321,7 +321,7 @@
 
 		if (this.editorId === AscCommon.c_oEditorId.Word || this.editorId === AscCommon.c_oEditorId.Presentation) {
 			let textPr = this.get_TextProps();
-			if (textPr) {
+			if (textPr && textPr.TextPr) {
 				if (undefined !== textPr.TextPr.FontSize)
 					_elem.style.fontSize = textPr.TextPr.FontSize + "pt";
 
@@ -352,6 +352,7 @@
 		let b_old_save_format = AscCommon.g_clipboardBase.bSaveFormat;
 		AscCommon.g_clipboardBase.bSaveFormat = false;
 		let _t = this;
+
 		this.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.HtmlElement, _elem, undefined, undefined, undefined,
 			function () {
 				_t.decrementCounterLongAction();
@@ -379,11 +380,21 @@
 	 */
     Api.prototype["pluginMethod_PasteText"] = function(text)
     {
-        if (!AscCommon.g_clipboardBase)
+        if (!AscCommon.g_clipboardBase || !window.g_asc_plugins || !text)
             return null;
 
-        this.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Text, text);
-    };
+		var _t = this;
+		function onPasteAsync() {
+			_t.decrementCounterLongAction();
+			window.g_asc_plugins.onPluginMethodReturn(true);
+		}
+
+		window.g_asc_plugins.setPluginMethodReturnAsync();
+		this.incrementCounterLongAction();
+		this.executeGroupActions(function(){
+			_t.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Text, text, undefined, undefined, undefined, onPasteAsync);
+		});
+	};
 
     /**
      * An object containing the data about all the macros from the document.
@@ -444,7 +455,10 @@
 	 */
     Api.prototype["pluginMethod_StartAction"] = function(type, description)
     {
-        this.sync_StartAction((type == "Block") ? Asc.c_oAscAsyncActionType.BlockInteraction : Asc.c_oAscAsyncActionType.Information, description);
+		if ("GroupActions" === type)
+			this.startGroupActions();
+		else
+			this.sync_StartAction((type === "Block") ? Asc.c_oAscAsyncActionType.BlockInteraction : Asc.c_oAscAsyncActionType.Information, description);
     };
 
     /**
@@ -459,7 +473,17 @@
 	 */
     Api.prototype["pluginMethod_EndAction"] = function(type, description, status)
     {
-        this.sync_EndAction((type == "Block") ? Asc.c_oAscAsyncActionType.BlockInteraction : Asc.c_oAscAsyncActionType.Information, description);
+		if ("GroupActions" === type)
+		{
+			if (status)
+				this.cancelGroupActions();
+			else
+				this.endGroupActions();
+			
+			return;
+		}
+		
+        this.sync_EndAction((type === "Block") ? Asc.c_oAscAsyncActionType.BlockInteraction : Asc.c_oAscAsyncActionType.Information, description);
 
         if (window["AscDesktopEditor"] && status != null && status != "")
         {
@@ -584,7 +608,7 @@
     /**
 	 * An object containing the watermark properties.
      * @typedef {Object} watermark_on_draw
-     * @property {float} transparent The watermark transparency degree.
+     * @property {number} transparent The watermark transparency degree.
      * @property {string} type The {@link /docbuilder/global#ShapeType shape type} which specifies the preset shape geometry for the current watermark.
 	 * @property {number} width The watermark width measured in millimeters.
 	 * @property {number} height The watermark height measured in millimeters.
@@ -838,11 +862,22 @@
     };
 
 	/**
-	 * Set options for all plugins. This method can be used only in connectors.
+	 * The plugin options.
+     * @typedef {Object} PluginOptions
+     * @property {object} all The parameters which will be set for all plugins ({ "all" : { key, value } }).
+     * @property {object} plugin_guid The parameters which will be set for a specific plugin. The plugin must be specified with the plugin GUID of the asc.{UUID} type ({ "plugin_guid" : { keyForSpecificPlugin : valueForSpecificPlugin } }).
+     * @see office-js-api/Examples/Plugins/{Editor}/Enumeration/PluginOptions.js
+	 */
+	
+	/**
+	 * Configures plugins from an external source. The settings can be set for all plugins or for a specific plugin.
+	 * For example, this method can be used to pass an authorization token to the plugin. This method can be used only with the connector class.
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @alias SetPluginsOptions
-	 * @param {object} options - Object with properties ({ all : { key, value }, plugin_giud : { keyForSpecificPlugin : valueForSpecificPlugin } }
+	 * @param {PluginOptions} options - Plugin options.
+	 * @since 8.1.1
+	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/SetPluginsOptions.js
 	 */
 	Api.prototype["pluginMethod_SetPluginsOptions"] = function(options)
 	{
@@ -1115,15 +1150,13 @@
      * @typeofeditors ["CDE", "CPE", "CSE"]
      * @alias GetSelectedText
      * @param {object} prop - The resulting string display properties.
-     * @param {boolean} prop.NewLine - Defines if the resulting string will include line boundaries or not (they will be replaced with '\r').
-     * @param {boolean} prop.NewLineParagraph - Defines if the resulting string will include paragraph line boundaries or not.
      * @param {boolean} prop.Numbering - Defines if the resulting string will include numbering or not.
      * @param {boolean} prop.Math - Defines if the resulting string will include mathematical expressions or not.
-     * @param {string} prop.TableCellSeparator - Defines how the table cell separator will be specified in the resulting string.
-     * @param {string} prop.TableRowSeparator - Defines how the table row separator will be specified in the resulting string.
-     * @param {string} prop.ParaSeparator - Defines how the paragraph separator will be specified in the resulting string.
-     * @param {string} prop.TabSymbol - Defines how the tab will be specified in the resulting string.
-     * @param {string} prop.NewLineSeparator - Defines how the line separator will be specified in the resulting string (this property has the priority over *NewLine*).
+     * @param {string} [prop.TableCellSeparator='\t'] - Defines how the table cell separator will be specified in the resulting string. Any symbol can be used. The default separator is "\t".
+     * @param {string} [prop.TableRowSeparator='\r\n'] - Defines how the table row separator will be specified in the resulting string. Any symbol can be used. The default separator is "\r\n".
+     * @param {string} [prop.ParaSeparator='\r\n'] - Defines how the paragraph separator will be specified in the resulting string. Any symbol can be used. The default separator is "\r\n".
+     * @param {string} [prop.TabSymbol='\t'] - Defines how the tab will be specified in the resulting string. Any symbol can be used. The default symbol is "\t".
+     * @param {string} [prop.NewLineSeparator='\r'] - Defines how the line separator will be specified in the resulting string. Any symbol can be used. The default separator is "\r".
 	 * @return {string} - Selected text.
      * @since 7.1.0
      * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/GetSelectedText.js
@@ -1135,8 +1168,6 @@
         {
             properties =
             {
-                NewLine : (prop.hasOwnProperty("NewLine")) ? prop["NewLine"] : true,
-                NewLineParagraph : (prop.hasOwnProperty("NewLineParagraph")) ? prop["NewLineParagraph"] : true,
                 Numbering : (prop.hasOwnProperty("Numbering")) ? prop["Numbering"] : true,
                 Math : (prop.hasOwnProperty("Math")) ? prop["Math"] : true,
                 TableCellSeparator: prop["TableCellSeparator"],
@@ -1150,22 +1181,39 @@
         {
             properties =
             {
-                NewLine : true,
-                NewLineParagraph : true,
                 Numbering : true
             }
         }
 
         return this.asc_GetSelectedText(false, properties);
     };
+	/**
+	 * Returns the selected content in the specified format.
+	 * @memberof Api
+	 * @typeofeditors ["CDE", "CPE", "CSE"]
+	 * @alias GetSelectedContent
+	 * @param {object} prop  - The returned content properties.
+	 * @param {"text" | "html"} [prop.type="text"] - The format type of the returned content (text or HTML).
+	 * @returns {string} - The selected content.
+	 * @since 8.3.1
+	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/GetSelectedContent.js
+	 */
+	Api.prototype["pluginMethod_GetSelectedContent"] = function(prop)
+	{
+		let type = AscCommon.c_oAscClipboardDataFormat.Text;
+		if (prop && "html" === prop["type"])
+			type = AscCommon.c_oAscClipboardDataFormat.Html;
+			
+		return this.getSelectedContent(type);
+	};
     /**
      * Replaces each paragraph (or text in cell) in the select with the corresponding text from an array of strings.
      * @memberof Api
      * @typeofeditors ["CDE", "CSE", "CPE"]
      * @alias ReplaceTextSmart
-     * @param {Array} arrString - An array of replacement strings.
-     * @param {string} [sParaTab=" "] - A character which is used to specify the tab in the source text.
-     * @param {string} [sParaNewLine=" "] - A character which is used to specify the line break character in the source text.
+     * @param {string[]} arrString - An array of replacement strings.
+	 * @param {string} [sParaTab="\t"] - A character which is used to specify the tab in the source text. Any symbol can be used. The default separator is "\t".
+     * @param {string} [sParaNewLine="\r\n"] - A character which is used to specify the line break character in the source text. Any symbol can be used. The default separator is "\r\n".
      * @returns {boolean} - Always returns true.
      * @since 7.1.0
      * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/ReplaceTextSmart.js
@@ -1216,6 +1264,10 @@
 	Api.prototype["pluginMethod_GetFileToDownload"] = function(format)
 	{
 		window.g_asc_plugins && window.g_asc_plugins.setPluginMethodReturnAsync();
+		
+		if (format && typeof(format) === "string")
+			format = format.toUpperCase();
+		
 		let dwnldF = Asc.c_oAscFileType[format] || Asc.c_oAscFileType[this.DocInfo.Format.toUpperCase()];
 		let opts = new Asc.asc_CDownloadOptions(dwnldF);
 		let _t = this;
@@ -1342,6 +1394,11 @@
 			// UPD: done. Ничего не изменять в менеджере плагинов, если guid пуст
 
             let result = window["AscDesktopEditor"]["PluginInstall"](JSON.stringify(config));
+
+			if (result && window.g_asc_plugins.isRunned(config["guid"]))
+			{
+				window.g_asc_plugins.close(config["guid"]);
+			}
 			
 			return {
 				"type" : loadFuncName,
@@ -1372,7 +1429,7 @@
 		};
 	}
 
-	Api.prototype.getUsedBackgroundPlugins = function()
+	Api.prototype.getUsedBackgroundPlugins = function(noCheckBundled)
 	{
 		let services = [];
 		try
@@ -1385,13 +1442,71 @@
 		{
 			services = [];
 		}
+
+		if (window.g_asc_plugins && noCheckBundled !== true)
+		{
+			let allPlugins = window.g_asc_plugins.plugins;
+			let unbundledPlugins = this.getUnbundledPlugins();
+			let bundledBackground = Object.create(null);
+
+			for (let i = 0, len = allPlugins.length; i < len; i++)
+			{
+				let item = allPlugins[i];
+				if (item.isBackground() && !unbundledPlugins[item.guid])
+					bundledBackground[item.guid] = true;
+			}
+
+			for (let i = 0, len = services.length; i < len; i++)
+			{
+				if (bundledBackground[services[i]])
+					delete bundledBackground[services[i]];
+			}
+
+			for (let i in bundledBackground)
+			{
+				services.push(i);
+			}
+		}
+
 		return services;
 	};
 	Api.prototype["getUsedBackgroundPlugins"] = Api.prototype.getUsedBackgroundPlugins;
 
 	Api.prototype.setUsedBackgroundPlugins = function(services)
 	{
-		window.localStorage.setItem("asc_plugins_background", JSON.stringify(services));
+		try
+		{
+			window.localStorage.setItem("asc_plugins_background", JSON.stringify(services));
+		}
+		catch (e)
+		{
+		}
+	};
+
+	Api.prototype.getStoppedBackgroundPlugins = function()
+	{
+		let services = [];
+		try
+		{
+			services = JSON.parse(window.localStorage.getItem("asc_plugins_background_stopped"));
+			if (!services)
+				services = [];
+		}
+		catch (e)
+		{
+			services = [];
+		}
+		return services;
+	};
+	Api.prototype.setStoppedBackgroundPlugins = function(services)
+	{
+		try
+		{
+			window.localStorage.setItem("asc_plugins_background_stopped", JSON.stringify(services));
+		}
+		catch (e)
+		{
+		}
 	};
 
 	Api.prototype.checkInstalledPlugins = function()
@@ -1462,6 +1577,72 @@
 			}, 10);
 
 		}
+	};
+
+	// return user-changed plugins guids
+	Api.prototype.getUnbundledPlugins = function()
+	{
+		let changed = Object.create(null);
+
+		let localStorageItems = getLocalStorageItem("asc_plugins_installed");
+		if (localStorageItems)
+		{
+			for (let item in localStorageItems)
+			{
+				if (localStorageItems[item]["guid"])
+					changed[localStorageItems[item]["guid"]] = true;
+			}
+		}
+
+		localStorageItems = getLocalStorageItem("asc_plugins_removed");
+		if (localStorageItems)
+		{
+			for (let item in localStorageItems)
+			{
+				if (localStorageItems[item]["guid"])
+					changed[localStorageItems[item]["guid"]] = true;
+			}
+		}
+
+		if (window["Asc"]["extensionPlugins"] && window["Asc"]["extensionPlugins"].length)
+		{
+			let arrayExtensions = window["Asc"]["extensionPlugins"];
+			for (let i = 0, len = arrayExtensions.length; i < len; i++)
+			{
+				if (arrayExtensions[i]["guid"])
+					changed[arrayExtensions[i]["guid"]] = true;
+			}
+		}
+
+		let backgroundUsed = this.getUsedBackgroundPlugins(true);
+		for (let i = 0, len = backgroundUsed.length; i < len; i++)
+		{
+			changed[backgroundUsed[i]] = true;
+		}
+		backgroundUsed = this.getStoppedBackgroundPlugins();
+		for (let i = 0, len = backgroundUsed.length; i < len; i++)
+		{
+			changed[backgroundUsed[i]] = true;
+		}
+
+		if (window["UpdateInstallPlugins"] && window["AscDesktopEditor"])
+		{
+			try
+			{
+				let plugins = JSON.parse(window["AscDesktopEditor"]["GetInstallPlugins"]());
+				let userPlugins = plugins[1] || [];
+
+				for (var i = 0, len = userPlugins.length; i < len; i++)
+				{
+					changed[userPlugins[i]["guid"]] = true;
+				}
+			}
+			catch (e)
+			{
+			}
+		}
+
+		return changed;
 	};
 
     /**
@@ -1628,10 +1809,10 @@
 		};
 	};
 	/**
-    * Installs a plugin by the URL to the plugin config.
+    * Installs a plugin using the specified plugin config.
      * @memberof Api
      * @typeofeditors ["CDE", "CSE", "CPE"]
-     * @param {object} [config] - The plugin config for installing.
+     * @param {object} [config] - The plugin {@link https://api.onlyoffice.com/docs/plugin-and-macros/structure/configuration/ config}.
      * @alias InstallPlugin
      * @returns {object} - An object with the result information.
      * @since 7.2.0
@@ -1642,10 +1823,10 @@
 		return installPlugin(config, "Installed");
 	};
 	/**
-    * Updates a plugin by the URL to the plugin config.
+    * Updates a plugin using the specified plugin config.
      * @memberof Api
      * @typeofeditors ["CDE", "CSE", "CPE"]
-     * @param {object} [config] - The plugin config for updating.
+     * @param {object} [config] - The plugin {@link https://api.onlyoffice.com/docs/plugin-and-macros/structure/configuration/ config}.
      * @alias UpdatePlugin
      * @returns {object} - An object with the result information.
      * @since 7.3.0
@@ -1656,16 +1837,6 @@
 		return installPlugin(config, "Updated");
 	};
 
-	/**
-	 * Installs a plugin by the URL to the plugin config.
-	 * @memberof Api
-	 * @typeofeditors ["CDE", "CSE", "CPE"]
-	 * @param {string} configUrl - The URL to the plugin *config.json* for installing.
-	 * @alias InstallDeveloperPlugin
-	 * @returns {boolean} - Returns true if the plugin is installed.
-	 * @since 7.4.0
-	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/InstallDeveloperPlugin.js
-	 */
 	Api.prototype["installDeveloperPlugin"] = function(configUrl)
 	{
 		try
@@ -1853,6 +2024,7 @@
 
 	/**
 	 * Adds an item to the context menu.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @alias AddContextMenuItem
@@ -1866,9 +2038,9 @@
 		if (items["items"]) correctItemsWithData(items["items"], baseUrl);
 		this.onPluginAddContextMenuItem(items);
 	};
-
 	/**
 	 * Updates an item in the context menu with the specified items.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @alias UpdateContextMenuItem
@@ -1882,7 +2054,25 @@
 		if (items["items"]) correctItemsWithData(items["items"], baseUrl);
 		this.onPluginUpdateContextMenuItem([items]);
 	};
-
+	
+	/**
+	 * Adds a button to the specified content controls track.
+	 * @undocumented
+	 * @memberof Api
+	 * @typeofeditors ["CDE"]
+	 * @alias AddContentControlButtons
+	 * @param buttons
+	 * @since 9.0.0
+	 */
+	Api.prototype["pluginMethod_AddContentControlButtons"] = function(buttons)
+	{
+		if (AscCommon.c_oEditorId.Word !== this.getEditorId() || !buttons)
+			return;
+		
+		buttons["baseUrl"] = this.pluginsManager.pluginsMap[buttons["guid"]].baseUrl;
+		this.WordControl.m_oLogicDocument.DrawingDocument.contentControls.addPluginButtons(buttons);
+	};
+	
 	/**
 	 * The possible values of the base which the relative vertical position of the toolbar menu item will be calculated from.
 	 * @typedef {("button" | "...")} ToolbarMenuItemType
@@ -1923,8 +2113,19 @@
 	 * @see office-js-api/Examples/Plugins/{Editor}/Enumeration/ToolbarMenuMainItem.js
 	 */
 
+	function correctToolbarItems(api, items)
+	{
+		let baseUrl = api.pluginsManager.pluginsMap[items["guid"]].baseUrl;
+		for (let i = 0, len = items["tabs"].length; i < len; i++)
+		{
+			if (items["tabs"][i]["items"])
+				correctItemsWithData(items["tabs"][i]["items"], baseUrl);
+		}
+	}
+
 	/**
 	 * Adds an item to the toolbar menu.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @alias AddToolbarMenuItem
@@ -1934,18 +2135,29 @@
 	 */
 	Api.prototype["pluginMethod_AddToolbarMenuItem"] = function(items)
 	{
-		let baseUrl = this.pluginsManager.pluginsMap[items["guid"]].baseUrl;
-		for (let i = 0, len = items["tabs"].length; i < len; i++)
-		{
-			if (items["tabs"][i]["items"])
-				correctItemsWithData(items["tabs"][i]["items"], baseUrl);
-		}
-
+		correctToolbarItems(this, items);
 		this.sendEvent("onPluginToolbarMenu", [items]);
 	};
 
 	/**
+	 * Updates the toolbar menu item.
+	 * @undocumented
+	 * @memberof Api
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @alias UpdateToolbarMenuItem
+	 * @param {ToolbarMenuMainItem[]} items - An array containing the main toolbar menu items.
+	 * @since 8.1.0
+	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/UpdateToolbarMenuItem.js
+	 */
+	Api.prototype["pluginMethod_UpdateToolbarMenuItem"] = function(items)
+	{
+		correctToolbarItems(this, items);
+		this.sendEvent("onPluginUpdateToolbarMenu", [items]);
+	};
+
+	/**
 	 * Shows the plugin modal window.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {string} frameId - The frame ID.
@@ -1962,25 +2174,87 @@
 		let baseUrl = this.pluginsManager.pluginsMap[guid].baseUrl;
 		correctItemIcons(variation["icons"], baseUrl);
 
+		if (variation["isTargeted"])
+		{
+			let w = 300;
+			let h = 100;
+			if (variation["size"])
+			{
+				w = variation["size"][0];
+				h = variation["size"][1];
+			}
+
+			let offsets = this.getTargetOnBodyCoords();
+			if (w > offsets.W)
+				w = offsets.W;
+			if (h > offsets.H)
+				h = offsets.H;
+
+			let offsetToFrame = 10;
+			let r = offsets.X + offsetToFrame + w;
+			let t = offsets.Y - offsetToFrame - h;
+			let b = offsets.Y + offsets.TargetH + offsetToFrame + h;
+
+			let x = offsets.X + offsetToFrame;
+			if (r > offsets.W)
+				x += (offsets.W - r);
+
+			let y = 0;
+			if (b < offsets.H)
+			{
+				y = offsets.Y + offsets.TargetH + offsetToFrame;
+			}
+			else if (t > 0)
+			{
+				y = t;
+			}
+			else
+			{
+				y = offsets.Y + offsets.TargetH + offsetToFrame;
+				h += (offsets.H - b);
+			}
+
+			if (y > offsets.H)
+				y = offsets.H - h;
+			if (y < offsets.editorY)
+				y = offsets.editorY;
+			if (x < offsets.editorX)
+				x = offsets.editorX;
+
+			variation["size"] = [w, h];
+			variation["positionX"] = x;
+			variation["positionY"] = y;
+		}
+
 		this.sendEvent("asc_onPluginWindowShow", frameId, variation);
 	};
 
 	/**
 	 * Activates (moves forward) the plugin window/panel.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {string} frameId - The frame ID.
+	 * @param {boolean} isFocus - The focus will be made on the window.
 	 * @alias ActivateWindow
 	 * @since 8.1.0
 	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/ActivateWindow.js
 	 */
-	Api.prototype["pluginMethod_ActivateWindow"] = function(frameId)
+	Api.prototype["pluginMethod_ActivateWindow"] = function(frameId, isFocus)
 	{
 		this.sendEvent("asc_onPluginWindowActivate", frameId);
+
+		if (isFocus)
+		{
+			let frame = document.getElementById(frameId);
+			if (frame)
+				frame.focus();
+		}
 	};
 
 	/**
 	 * Closes the plugin modal window.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {string} frameId - The frame ID.
@@ -1995,6 +2269,7 @@
 
 	/**
 	 * Sends a message to the plugin modal window.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {string} windowID - The frame ID.
@@ -2011,6 +2286,7 @@
 
 	/**
 	 * Resizes the plugin modal window.
+	 * @undocumented
 	 * @memberof Api
 	 * @typeofeditors ["CDE", "CSE", "CPE"]
 	 * @param {string} frameId - The frame ID.
@@ -2060,6 +2336,103 @@
 	{
 		this.sendEvent("asc_onPluginWindowMouseMove", frameId, x, y);
 	};
+
+	/**
+	 * Shows an error/warning message.
+	 * @memberof Api
+	 * @typeofeditors ["CDE", "CSE", "CPE", "PDF"]
+	 * @param {string} error - The error text.
+	 * @param {number} level - -1 or 0 for error or warning.
+	 * @alias ShowError
+	 * @since 8.3.0
+	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/ShowError.js
+	 */
+	Api.prototype["pluginMethod_ShowError"] = function(error, level)
+	{
+		this.sendEvent("asc_onError", error, level);
+	};
+
+	/**
+	 * Callback from dockChangedEvents.
+	 * @undocumented
+	 * @memberof Api
+	 * @typeofeditors ["CDE", "CSE", "CPE", "PDF"]
+	 * @param {string} windowID - The frame ID.
+	 * @alias OnWindowDockChangedCallback
+	 * @since 8.2.2
+	 */
+	Api.prototype["pluginMethod_OnWindowDockChangedCallback"] = function(windowID)
+	{
+		let key = window.g_asc_plugins.getCurrentPluginGuid() + "_" + windowID;
+		if (window.g_asc_plugins.dockCallbacks[key])
+		{
+			window.g_asc_plugins.dockCallbacks[key]();
+			delete window.g_asc_plugins.dockCallbacks[key];
+		}
+	};
+
+	/**
+	 * Catch AI event from plugin.
+	 * @memberof Api
+	 * @undocumented
+	 * @typeofeditors ["CDE", "CSE", "CPE", "PDF"]
+	 * @alias onAIRequest
+	 * @param {object} data - Data.
+	 * @since 9.0.0
+	 */
+	Api.prototype["pluginMethod_onAIRequest"] = function(data)
+	{
+		let curItem = this.aiResolvers[0];
+		this.aiResolvers.shift();
+
+		if (this.aiResolvers.length > 0)
+			this._AI();
+
+		curItem.resolve(data);
+	};
+
+	/**
+	 * Returns the local path to the image.
+	 * @memberof Api
+	 * @undocumented
+	 * @typeofeditors ["CDE", "CSE", "CPE", "PDF"]
+	 * @alias getLocalImagePath
+	 * @param {object} data - Data.
+	 * @since 9.0.0
+	 */
+	Api.prototype["pluginMethod_getLocalImagePath"] = function(url)
+	{
+		window.g_asc_plugins.setPluginMethodReturnAsync();
+		AscCommon.sendImgUrls(this, [url], function(data) {
+			let ret = {
+				"error" : true,
+				"url" : "",
+				"path" : ""
+			};
+
+			if (data[0] && data[0].path != null && data[0].url !== "error")
+			{
+				ret["error"] = false;
+				ret["url"] = AscCommon.g_oDocumentUrls.imagePath2Local(data[0].path);
+				ret["path"] = data[0].path;
+			}
+
+			window.g_asc_plugins.onPluginMethodReturn(ret);
+		});
+	};
+
+	/**
+	 * Returns focus to the editor.
+	 * @memberof Api
+	 * @typeofeditors ["CDE", "CSE", "CPE"]
+	 * @alias FocusEditor
+	 */
+	Api.prototype["pluginMethod_FocusEditor"] = function()
+	{
+		if (AscCommon.g_inputContext && AscCommon.g_inputContext.HtmlArea)
+			AscCommon.g_inputContext.HtmlArea.focus();
+	};
+
 })(window);
 
 

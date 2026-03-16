@@ -39,6 +39,8 @@ function CSdtPr()
 	this.Tag   = undefined;
 	this.Label = undefined;
 	this.Lock  = undefined;
+	
+	this.DataBinding = undefined;
 
 	this.DocPartObj = {
 		Gallery  : undefined,
@@ -70,6 +72,9 @@ function CSdtPr()
 	this.ComplexFormPr = undefined;
 
 	this.OForm         = undefined;
+	
+	this.BorderColor = undefined;
+	this.ShdColor    = undefined;
 }
 
 CSdtPr.prototype.Copy = function()
@@ -83,6 +88,12 @@ CSdtPr.prototype.Copy = function()
 	oPr.Lock       = this.Lock;
 	oPr.Appearance = this.Appearance;
 	oPr.Color      = (this.Color ? this.Color.Copy() : undefined);
+	
+	oPr.BorderColor = this.BorderColor ? this.BorderColor.Copy() : undefined;
+	oPr.ShdColor    = this.ShdColor ? this.ShdColor.Copy() : undefined;
+
+	if (this.DataBinding)
+		oPr.DataBinding = this.DataBinding.copy();
 
 	if (this.CheckBox)
 		oPr.CheckBox = this.CheckBox.Copy();
@@ -263,7 +274,25 @@ CSdtPr.prototype.Write_ToBinary = function(Writer)
 		this.ComplexFormPr.WriteToBinary(Writer);
 		Flags |= (1 << 22);
 	}
-
+	
+	if (this.DataBinding)
+	{
+		this.DataBinding.toBinary(Writer);
+		Flags |= (1 << 23);
+	}
+	
+	if (this.BorderColor)
+	{
+		this.BorderColor.toBinary(Writer);
+		Flags |= (1 << 24);
+	}
+	
+	if (this.ShdColor)
+	{
+		this.ShdColor.toBinary(Writer);
+		Flags |= (1 << 25);
+	}
+	
 	var EndPos = Writer.GetCurPosition();
 	Writer.Seek(StartPos);
 	Writer.WriteLong(Flags);
@@ -368,6 +397,15 @@ CSdtPr.prototype.Read_FromBinary = function(Reader)
 		this.ComplexFormPr = new AscWord.CSdtComplexFormPr();
 		this.ComplexFormPr.ReadFromBinary(Reader);
 	}
+	
+	if (Flags & (1 << 23))
+		this.DataBinding = AscWord.DataBinding.fromBinary(Reader);
+	
+	if (Flags & (1 << 24))
+		this.BorderColor = AscWord.CDocumentColorA.fromBinary(Reader);
+	
+	if (Flags & (1 << 25))
+		this.ShdColor = AscWord.CDocumentColorA.fromBinary(Reader);
 };
 CSdtPr.prototype.IsBuiltInDocPart = function()
 {
@@ -379,7 +417,7 @@ CSdtPr.prototype.IsBuiltInDocPart = function()
 CSdtPr.prototype.GetDocPartGallery = function()
 {
 	return this.DocPartObj ? this.DocPartObj.Gallery : undefined;
-}
+};
 
 function CContentControlPr(nType)
 {
@@ -392,6 +430,7 @@ function CContentControlPr(nType)
 	this.CCType     = undefined !== nType ? nType : c_oAscSdtLevelType.Inline;
 	
 	this.Temporary  = undefined;
+	this.DataBinding = undefined;
 	
 	// section property
 	this.SectionBreak = undefined;
@@ -420,6 +459,9 @@ function CContentControlPr(nType)
 	this.PlaceholderText = undefined;
 	
 	this.FormPr = undefined;
+	
+	this.BorderColor = undefined;
+	this.ShdColor    = undefined;
 }
 CContentControlPr.prototype.GetEventObject = function()
 {
@@ -455,6 +497,15 @@ CContentControlPr.prototype.FillFromObject = function(oPr)
 
 	if (undefined !== oPr.PlaceholderText)
 		this.PlaceholderText = oPr.PlaceholderText;
+	
+	if (undefined !== oPr.ShdColor)
+		this.ShdColor = AscWord.CDocumentColorA.fromObjectRgba(oPr.ShdColor);
+	
+	if (undefined !== oPr.BorderColor)
+		this.BorderColor = AscWord.CDocumentColorA.fromObjectRgba(oPr.BorderColor);
+
+	if (undefined !== oPr.DataBinding)
+		this.DataBinding = AscWord.DataBinding.fromObject(oPr.DataBinding);
 };
 CContentControlPr.prototype.FillFromContentControl = function(oContentControl)
 {
@@ -471,6 +522,9 @@ CContentControlPr.prototype.FillFromContentControl = function(oContentControl)
 	this.Appearance = oContentControl.GetAppearance();
 	this.Color      = oContentControl.GetColor();
 	this.Temporary  = oContentControl.IsContentControlTemporary();
+
+	if (oContentControl.Pr.DataBinding)
+		this.DataBinding = oContentControl.GetDataBinding();
 
 	if (oContentControl.IsCheckBox())
 	{
@@ -514,6 +568,12 @@ CContentControlPr.prototype.FillFromContentControl = function(oContentControl)
 		if (oContentControl.IsSignatureForm())
 			this.FormPr.SetRequired(true);
 	}
+	
+	if (oContentControl.getShdColor())
+		this.ShdColor = oContentControl.getShdColor().getAscColor();
+	
+	if (oContentControl.getBorderColor())
+		this.BorderColor = oContentControl.getBorderColor().getAscColor();
 };
 CContentControlPr.prototype.SetToContentControl = function(oContentControl)
 {
@@ -594,8 +654,9 @@ CContentControlPr.prototype.SetToContentControl = function(oContentControl)
 
 	if (undefined !== this.TextFormPr && oContentControl.IsInlineLevel())
 	{
-		let isCombChanged = (!oContentControl.Pr.TextForm || this.TextFormPr.Comb !== oContentControl.Pr.TextForm.Comb);
-		let isMaxChanged  = (!oContentControl.Pr.TextForm || this.TextFormPr.MaxCharacters !== oContentControl.Pr.TextForm.MaxCharacters);
+		let isCombChanged   = (!oContentControl.Pr.TextForm || this.TextFormPr.Comb !== oContentControl.Pr.TextForm.Comb);
+		let isMaxChanged    = (!oContentControl.Pr.TextForm || this.TextFormPr.MaxCharacters !== oContentControl.Pr.TextForm.MaxCharacters);
+		let isFormatChanged = (!oContentControl.Pr.TextForm || !this.TextFormPr.Format.IsEqual(oContentControl.Pr.TextForm.Format));
 
 		if (oContentControl.IsFixedForm() && isCombChanged)
 			oContentControl.UpdateFixedFormCombWidthByFormSize(this.TextFormPr);
@@ -612,6 +673,13 @@ CContentControlPr.prototype.SetToContentControl = function(oContentControl)
 
 		if (!this.TextFormPr.MultiLine)
 			oContentControl.CorrectSingleLineFormContent();
+		
+		if (isFormatChanged
+			&& !oContentControl.IsPlaceHolder()
+			&& !oContentControl.Pr.TextForm.CheckFormat(oContentControl.GetInnerText(), true))
+		{
+			oContentControl.ClearContentControlExt();
+		}
 	}
 
 	if (undefined !== this.PlaceholderText)
@@ -627,6 +695,12 @@ CContentControlPr.prototype.SetToContentControl = function(oContentControl)
 
 	if (undefined !== this.ComplexFormPr)
 		oContentControl.SetComplexFormPr(this.ComplexFormPr);
+	
+	if (this.ShdColor)
+		oContentControl.setShdColor(AscWord.CDocumentColorA.fromObjectRgba(this.ShdColor));
+	
+	if (this.BorderColor)
+		oContentControl.setBorderColor(AscWord.CDocumentColorA.fromObjectRgba(this.BorderColor));
 };
 CContentControlPr.prototype.SetFormPrToContentControl = function(contentControl)
 {
@@ -695,14 +769,23 @@ CContentControlPr.prototype.OnSetKeyToForm = function(newKey, form)
 	
 	let formManager = logicDocument.GetFormsManager();
 	let allForms = formManager.GetAllFormsByKey(newKey, form.GetSpecificType());
+	let firstForm = null;
 	for (let iForm = 0, nForms = allForms.length; iForm < nForms; ++iForm)
 	{
 		if (allForms[iForm] === form)
 			continue;
 		
+		firstForm = allForms[iForm];
+		
 		// Напрямую у formManager не вызываем, т.к. еще может быть не выставлен ключ у текущей формы
 		logicDocument.OnChangeForm(allForms[iForm]);
 		break;
+	}
+	
+	if (firstForm)
+	{
+		form.SyncFormPrWithSameKey(firstForm);
+		this.FormPr.SetRequired(firstForm.IsFormRequired());
 	}
 	
 	let role = formManager.GetRoleByKey(newKey, form.GetSpecificType());

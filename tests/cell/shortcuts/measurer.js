@@ -74,6 +74,10 @@
 		{
 			HB_String.push(u);
 		};
+		AscFonts.GetGraphemeWidth = function()
+		{
+			return CharWidth;
+		};
 		AscFonts.CTextShaper.prototype.FlushWord = function()
 		{
 			AscFonts.HB_EndString();
@@ -124,6 +128,11 @@
 			}
 
 			AscFonts.HB_StartString();
+		};
+		AscFonts.FontPickerByCharacter.checkText = function(text, t, callback)
+		{
+			if (callback)
+				callback.call(t);
 		};
 		g_oTextMeasurer.SetFontInternal = function()
 		{

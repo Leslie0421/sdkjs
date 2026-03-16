@@ -43,7 +43,7 @@
     
     CPdfGraphicFrame.prototype.constructor = CPdfGraphicFrame;
     CPdfGraphicFrame.prototype = Object.create(AscFormat.CGraphicFrame.prototype);
-    Object.assign(CPdfGraphicFrame.prototype, AscPDF.PdfDrawingPrototype.prototype);
+    Object.assign(CPdfGraphicFrame.prototype, AscPDF.CPdfDrawingPrototype.prototype);
 
     CPdfGraphicFrame.prototype.IsGraphicFrame = function() {
         return true;
@@ -159,6 +159,35 @@
         this.recalculate();
         this.updateTransformMatrix();
         this.SetNeedRecalc(false);
+    };
+    CPdfGraphicFrame.prototype.MoveCursorToCell = function(bNext) {
+        this.graphicObject.MoveCursorToCell(bNext);
+    };
+    CPdfGraphicFrame.prototype.checkExtentsByDocContent = function() {
+        this.Recalculate();
+        let oXfrm = this.getXfrm();
+        if (Math.abs(oXfrm.extY - this.extY) > 0.001) {
+            let nRot = this.GetRot();
+            let oldExtX = oXfrm.extX;
+            let oldExtY = oXfrm.extY;
+            let oldOffX = oXfrm.offX;
+            let oldOffY = oXfrm.offY;
+
+            let deltaX = -(oldExtX - this.extX) / 2;
+            let deltaY = -(oldExtY - this.extY) / 2;
+
+            let _sin = Math.sin(nRot);
+            let _cos = Math.cos(nRot);
+
+            let newOffX = oldOffX + (deltaX*_cos - deltaY*_sin) - deltaX;
+            let newOffY = oldOffY + (deltaX*_sin + deltaY*_cos) - deltaY;
+
+            oXfrm.setOffX(newOffX);
+            oXfrm.setOffY(newOffY);
+
+            oXfrm.setExtX(this.extX);
+            oXfrm.setExtY(this.extY);
+        }
     };
     CPdfGraphicFrame.prototype.SetNeedRecalc = function(bRecalc, bSkipAddToRedraw) {
         if (bRecalc == false) {

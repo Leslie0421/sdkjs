@@ -52,7 +52,10 @@
 		Set_RulerState_Paragraph : function(){},
 		Set_RulerState_End : function(){},
 		Update_MathTrack : function(){},
-		OnDrawContentControl : function(){},
+		startCollectContentControlTracks : function(){},
+		endCollectContentControlTracks : function(){},
+		addContentControlTrack : function(obj, state, geom){},
+		removeContentControlTrackHover : function(){},
 		Update_FieldTrack : function(){},
 		SetTargetColor : function(){},
 		SetTargetSize : function(){},
@@ -68,7 +71,8 @@
 		Start_CollaborationEditing : function() {},
 		End_CollaborationEditing : function() {},
 		ConvertCoordsToCursorWR : function() {return {X : 0, Y : 0};},
-		Set_RulerState_Table : function() {}
+		Set_RulerState_Table : function() {},
+		scrollToTarget : function() {}
 	};
 
 	drawingDocument.CanvasHit = document.createElement('canvas');
@@ -151,6 +155,10 @@
 	{
 		return AscTest.GetLogicDocument().DrawingObjects;
 	};
+	editor.pre_Paste = function(_fonts, _images, callback)
+	{
+		callback(true);
+	};
 	editor._addRemoveSpaceBeforeAfterParagraph = AscCommon.DocumentEditorApi.prototype._addRemoveSpaceBeforeAfterParagraph.bind(editor);
 	editor.asc_addSpaceBeforeParagraph = AscCommon.DocumentEditorApi.prototype.asc_addSpaceBeforeParagraph.bind(editor);
 	editor.asc_addSpaceAfterParagraph = AscCommon.DocumentEditorApi.prototype.asc_addSpaceAfterParagraph.bind(editor);
@@ -159,6 +167,7 @@
 	editor.asc_haveSpaceBeforeParagraph = AscCommon.DocumentEditorApi.prototype.asc_haveSpaceBeforeParagraph.bind(editor);
 	editor.asc_haveSpaceAfterParagraph = AscCommon.DocumentEditorApi.prototype.asc_haveSpaceAfterParagraph.bind(editor);
 	editor.initCollaborativeEditing = AscCommon.DocumentEditorApi.prototype.initCollaborativeEditing.bind(editor);
+	editor.asc_PasteData = AscCommon.DocumentEditorApi.prototype.asc_PasteData.bind(editor);
 	
 	//--------------------------------------------------------export----------------------------------------------------
 	AscTest.DrawingDocument = drawingDocument;

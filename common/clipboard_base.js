@@ -54,7 +54,9 @@
 		Text        : 1,
 		Html        : 2,
 		Internal    : 4,
-		HtmlElement : 8
+		HtmlElement : 8,
+		Rtf         : 16,
+		Image       : 32
 	};
 	var c_oClipboardPastedFrom       = {
 		Word        : 0,
@@ -143,7 +145,10 @@
                 return;
 			}
 
-			return this.Api.asc_CheckCopy(this, formats);
+			let res = this.Api.asc_CheckCopy(this, formats);
+			this.SendCopyEvent();
+
+			return res;
 		},
 
 		_private_oncopy : function(e)
@@ -246,8 +251,6 @@
 				if (!_clipboard || !_clipboard.getData)
 					return false;
 
-				//window['AscCommon'].g_clipboardBase.rtf = this.ClosureParams.getData("text/rtf");
-
 				var isDisableRawPaste = false;
 				if (true === AscCommon["isDisableRawPaste"])
 				{
@@ -255,14 +258,43 @@
 					delete AscCommon["isDisableRawPaste"];
 				}
 
+				let checkImages = function (callback) {
+					let items = _clipboard.items;
+					if (null != items && 0 !== items.length && !isDisableRawPaste) {
+						for (var i = 0; i < items.length; ++i) {
+							if (items[i].kind === 'file' && items[i].type.indexOf('image/') !== -1) {
+								callback(items[i]);
+							}
+						}
+					}
+				};
+
 				var _text_format = this.ClosureParams.getData("text/plain");
 				var _internal = isDisableRawPaste ? "" : this.ClosureParams.getData("text/x-custom");
 				if (_internal && _internal != "" && _internal.indexOf("asc_internalData2;") == 0)
 				{
+					let _images = [];
+					checkImages(function (_item) {
+						if (_item && _item.getAsFile) {
+							_images.push(_item.getAsFile());
+						}
+					});
+					AscCommon.g_specialPasteHelper.specialPasteData.images = _images.length ? _images : null;
+
 					this.Api.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Internal, _internal.substr("asc_internalData2;".length), null, _text_format);
 					g_clipboardBase.Paste_End();
 					return false;
 				}
+
+
+				//while commented rtf paste. reading RTF with pictures takes a very long time.
+				// var _rtf_format = this.ClosureParams.getData("text/rtf");
+				// if (_rtf_format)
+				// {
+				// 	this.Api.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Rtf, _rtf_format);
+				// 	g_clipboardBase.Paste_End();
+				// 	return false;
+				// }
 
 				var _html_format = isDisableRawPaste ? "" : this.ClosureParams.getData("text/html");
 				if (_html_format && _html_format != "")
@@ -271,12 +303,28 @@
 					if (-1 != nIndex)
 						_html_format = _html_format.substring(0, nIndex + "</html>".length);
 
+					let _images = [];
+					checkImages(function (_item) {
+						if (_item && _item.getAsFile) {
+							_images.push(_item.getAsFile());
+						}
+					});
+					AscCommon.g_specialPasteHelper.specialPasteData.images = _images.length ? _images : null;
+
 					this.CommonIframe_PasteStart(_html_format, _text_format);
 					return false;
 				}
 
 				if (_text_format && _text_format != "")
 				{
+					let _images = [];
+					checkImages(function (_item) {
+						if (_item && _item.getAsFile) {
+							_images.push(_item.getAsFile());
+						}
+					});
+					AscCommon.g_specialPasteHelper.specialPasteData.images = _images.length ? _images : null;
+
 					this.Api.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Text, _text_format);
 					g_clipboardBase.Paste_End();
 					return false;
@@ -457,11 +505,23 @@
 			{
 				document.oncopy           = function(e)
 				{
-					return g_clipboardBase._private_oncopy(e)
+					if (g_clipboardBase.isUseNewCopy()) {
+						if (g_clipboardBase.Api.asc_IsFocus(true) && !g_clipboardBase._isUseMobileNewCopy()) {
+							e.preventDefault();
+						}
+						return g_clipboardBase.Copy_New();
+					} else {
+						return g_clipboardBase._private_oncopy(e)
+					}
 				};
 				document.oncut            = function(e)
 				{
-					return g_clipboardBase._private_oncut(e)
+					if (g_clipboardBase.isUseNewCopy()) {
+						e.preventDefault();
+						return g_clipboardBase.Copy_New(true);
+					} else {
+						return g_clipboardBase._private_oncut(e)
+					}
 				};
 				document.onpaste          = function(e)
 				{
@@ -469,11 +529,15 @@
 				};
 				document["onbeforecopy"]  = function(e)
 				{
-					return g_clipboardBase._private_onbeforecopy(e);
+					if (!g_clipboardBase.isUseNewCopy()) {
+						return g_clipboardBase._private_onbeforecopy(e);
+					}
 				};
 				document["onbeforecut"]   = function(e)
 				{
-					return g_clipboardBase._private_onbeforecopy(e);
+					if (!g_clipboardBase.isUseNewCopy()) {
+						return g_clipboardBase._private_onbeforecopy(e);
+					}
 				};
 				document["onbeforepaste"] = function(e)
 				{
@@ -529,7 +593,7 @@
 						var _cut                    = false;
 						if (isCtrl && !isShift && (keyCode == 67 || keyCode == 88)) // copy
 							bIsBeforeCopyCutEmulate = true;
-						if (!isCtrl && isShift && keyCode == 45) // cut
+						if (!isCtrl && isShift && (keyCode == 45 || keyCode == 46)) // cut
 						{
 							bIsBeforeCopyCutEmulate = true;
 							_cut                    = true;
@@ -556,7 +620,7 @@
 					if (g_clipboardBase.IsPasteOnlyInEditable)
 					{
 						var bIsBeforePasteEmulate = false;
-						if (isCtrl && !isShift && keyCode == 86)
+						if (isCtrl && keyCode == 86)
 							bIsBeforePasteEmulate = true;
 						if (!isCtrl && isShift && keyCode == 45)
 							bIsBeforePasteEmulate = true;
@@ -874,9 +938,7 @@
 
 		pushData : function(_format, _data)
 		{
-			if (null == this.LastCopyBinary)
-				this.LastCopyBinary = [];
-			this.LastCopyBinary.push({ type: _format, data : _data });
+			this.lastCopyPush(_format, _data)
 
 			if (this.ClosureParams.isDivCopy === true)
 			{
@@ -920,7 +982,34 @@
 			}
 		},
 
+		isSupportExecCommand : function(type)
+		{
+			if (AscCommon.AscBrowser.isSafariMacOs && !AscCommon.AscBrowser.isAppleDevices)
+				return false;
+			return true;
+		},
+
 		isUseNewCopy : function()
+		{
+			if (navigator.clipboard) {
+
+				if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["getEngineVersion"])
+				{
+					let nVersion = window["AscDesktopEditor"]["getEngineVersion"]();
+					if (nVersion < 109)
+						return false;
+				}
+
+				return true;
+			}
+			if (this._isUseMobileNewCopy())
+			{
+				return true;
+			}
+			return false;
+		},
+
+		_isUseMobileNewCopy : function()
 		{
 			if (this.Api.isMobileVersion)
 			{
@@ -937,29 +1026,58 @@
 
 		Button_Copy_New : function(isCut)
 		{
+			return this.Copy_New(isCut);
+		},
+
+		Copy_New : function(isCut)
+		{
+			let oThis = this;
+			//todo add check on mobile version, because before all work without focus check
+			if (!this.Api.asc_IsFocus(true) && !this._isUseMobileNewCopy()) {
+				return;
+			}
 			if (navigator.clipboard)
 			{
+				this.LastCopyBinary = null;
 				let copy_data = {
 					data : {},
 					pushData: function (format, value) {
+						oThis.lastCopyPush(format, value);
 						this.data[format] = value;
 					}
 				};
 
 				try
 				{
-					this.Api.asc_CheckCopy(copy_data, c_oAscClipboardDataFormat.Text | c_oAscClipboardDataFormat.Html | c_oAscClipboardDataFormat.Internal);
+					this.bCut = isCut;
 
-					const data = [new ClipboardItem({
-						"text/plain"        : new Blob([copy_data.data[c_oAscClipboardDataFormat.Text]], {type: "text/plain"}),
-						"text/html"         : new Blob([copy_data.data[c_oAscClipboardDataFormat.Html]], {type: "text/html"}),
-						"web text/x-custom" : new Blob(["asc_internalData2;" + copy_data.data[c_oAscClipboardDataFormat.Internal]], {type: "web text/x-custom"})
-					})];
+					this.Api.asc_CheckCopy(copy_data, c_oAscClipboardDataFormat.Text | c_oAscClipboardDataFormat.Html | c_oAscClipboardDataFormat.Internal | c_oAscClipboardDataFormat.Image);
 
-					navigator.clipboard.write(data).then(function(){},function(){});
+					let clipboardData = {};
+					if (copy_data.data[c_oAscClipboardDataFormat.Text]) {
+						clipboardData["text/plain"] = new Blob([copy_data.data[c_oAscClipboardDataFormat.Text]], {type: "text/plain"});
+					}
+					if (copy_data.data[c_oAscClipboardDataFormat.Html]) {
+						clipboardData["text/html"] = new Blob([copy_data.data[c_oAscClipboardDataFormat.Html]], {type: "text/html"});
+					}
+					if (copy_data.data[c_oAscClipboardDataFormat.Image]) {
+						clipboardData["image/png"] = new Blob(copy_data.data[c_oAscClipboardDataFormat.Image], {type: "image/png"});
+					}
+
+					//don't put custom format, because FF don't write all in clipboard, if we try write custom format
+					//"web text/x-custom" : new Blob(["asc_internalData2;" + copy_data.data[c_oAscClipboardDataFormat.Internal]], {type: "web text/x-custom"})
+
+					if (this.isCopyOutEnabled()) {
+						const data = [new ClipboardItem(clipboardData)];
+						navigator.clipboard.write(data).then(function(){},function(){});
+					}
 
 					if (isCut === true)
 						this.Api.asc_SelectionCut();
+
+					this.bCut = false;
+
+					this.SendCopyEvent();
 
 					return true;
 				}
@@ -1042,15 +1160,22 @@
 			return false;
 		},
 
-		Button_Copy : function()
+		Button_Copy : function(oldCopy)
 		{
+			if (window["AscDesktopEditor"])
+			{
+				window["asc_desktop_copypaste"](this.Api, "Copy");
+				return true;
+			}
+
 			if (window["NATIVE_EDITOR_ENJINE"])
 				return false;
 			
-			if (this.isUseNewCopy())
+			if (this.isUseNewCopy() && !oldCopy)
 			{
-				if (this.Button_Copy_New())
+				if (this.Button_Copy_New()) {
 					return true;
+				}
 			}
 
 			if (this.inputContext)
@@ -1066,7 +1191,8 @@
 			var _ret = false;
 			try
 			{
-				_ret = document.execCommand("copy");
+				if (this.isSupportExecCommand("copy"))
+					_ret = document.execCommand("copy");
 			}
 			catch (err)
 			{
@@ -1083,6 +1209,12 @@
 
 		Button_Cut : function()
 		{
+			if (window["AscDesktopEditor"])
+			{
+				window["asc_desktop_copypaste"](this.Api, "Cut");
+				return true;
+			}
+
 			if (window["NATIVE_EDITOR_ENJINE"])
 				return false;
 			
@@ -1105,7 +1237,8 @@
 			var _ret = false;
 			try
 			{
-				_ret = document.execCommand("cut");
+				if (this.isSupportExecCommand("cut"))
+					_ret = document.execCommand("cut");
 			}
 			catch (err)
 			{
@@ -1126,6 +1259,12 @@
 
 		Button_Paste : function()
 		{
+			if (window["AscDesktopEditor"])
+			{
+				window["asc_desktop_copypaste"](this.Api, "Paste");
+				return true;
+			}
+
 			if (window["NATIVE_EDITOR_ENJINE"])
 				return false;
 			
@@ -1147,7 +1286,8 @@
 			var _ret = false;
 			try
 			{
-				_ret = document.execCommand("paste");
+				if (this.isSupportExecCommand("paste"))
+					_ret = document.execCommand("paste");
 			}
 			catch (err)
 			{
@@ -1183,19 +1323,32 @@
 			return _ret;
 		},
 
-		ClearBuffer : function()
-		{
-            if (-1 != this.clearBufferTimerId)
-            {
-                // clear old timer (restart interval)
-                clearTimeout(this.clearBufferTimerId);
-            }
-            this.clearBufferTimerId = setTimeout(function(){
-                if (AscCommon.g_clipboardBase)
-                    AscCommon.g_clipboardBase.clearBufferTimerId = -1;
-            }, 500);
+		ClearBuffer: function() {
+			let oThis = this;
+			if (this.isUseNewCopy() && navigator.clipboard && navigator.clipboard.writeText) {
+				navigator.clipboard.writeText('')
+					.then(function() {
+						oThis.LastCopyBinary = null;
+					})
+					.catch(function(err) {
+						oThis.ClearBufferOld();
+					});
+			} else {
+				this.ClearBufferOld();
+			}
+		},
 
-			this.Button_Copy();
+		ClearBufferOld: function() {
+			if (-1 != this.clearBufferTimerId) {
+				clearTimeout(this.clearBufferTimerId);
+			}
+			this.clearBufferTimerId = setTimeout(function(){
+				if (AscCommon.g_clipboardBase) {
+					AscCommon.g_clipboardBase.clearBufferTimerId = -1;
+				}
+			}, 500);
+
+			this.Button_Copy(true);
 		},
 
 		isCopyOutEnabled : function()
@@ -1203,6 +1356,33 @@
 			if (this.Api && this.Api.isCopyOutEnabled)
 				return this.Api.isCopyOutEnabled();
 			return true;
+		},
+
+		ChangeLastCopy : function(arr)
+		{
+			if (arr) {
+				this.LastCopyBinary = null;
+				for (let i = 0; i < arr.length; i++) {
+					this.lastCopyPush(arr[i].type, arr[i].data);
+				}
+			}
+		},
+
+		SendCopyEvent : function () {
+			if (this.Api && this.Api.broadcastChannel) {
+				let obj = {
+					type: "ClipboardChange",
+					data: this.LastCopyBinary,
+					editor: this.Api.getEditorId()
+				};
+				this.Api.broadcastChannel.postMessage(obj);
+			}
+		},
+
+		lastCopyPush : function (_format, _data) {
+			if (null == this.LastCopyBinary)
+				this.LastCopyBinary = [];
+			this.LastCopyBinary.push({ type: _format, data : _data });
 		}
 	};
 
@@ -1525,6 +1705,4 @@ window["asc_desktop_copypaste"] = function(_api, _method)
 	if (!bIsFocus)
 		_api.asc_enableKeyEvents(true);
 	window["AscDesktopEditor"][_method]();
-	if (!bIsFocus)
-		_api.asc_enableKeyEvents(false);
 };

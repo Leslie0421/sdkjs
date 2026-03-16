@@ -73,10 +73,6 @@ CLogicDocumentController.prototype.AddOleObject = function(nW, nH, nWidthPix, nH
 {
 	return this.LogicDocument.controller_AddOleObject(nW, nH, nWidthPix, nHeightPix, oImage, oData, sApplicationId, bSelect, arrImagesForAddToHistory);
 };
-CLogicDocumentController.prototype.AddTextArt = function(nStyle)
-{
-	this.LogicDocument.controller_AddTextArt(nStyle);
-};
 CLogicDocumentController.prototype.EditChart = function(Chart)
 {
 	// Ничего не делаем
@@ -458,4 +454,8 @@ CLogicDocumentController.prototype.IsSelectionLocked = function(CheckType)
 CLogicDocumentController.prototype.CollectSelectedReviewChanges = function(oTrackManager)
 {
 	return this.LogicDocument.controller_CollectSelectedReviewChanges(oTrackManager);
+};
+CLogicDocumentController.prototype.GetCurrentTopDocContent = function()
+{
+	return this.LogicDocument;
 };

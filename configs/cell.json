@@ -27,8 +27,8 @@
 			"cell/view/HandlerList.js",
 			"common/collaborativeHistory.js",
 			"common/CollaborativeEditingBase.js",
-			"cell/model/DrawingObjects/GlobalCounters.js",
 			"cell/model/CollaborativeEditing.js",
+			"cell/model/DrawingObjects/GlobalCounters.js",
 			"common/macros.js",
 			"common/apiBase.js",
 			"common/apiBase_plugins.js",
@@ -48,6 +48,8 @@
 			"common/api/restrictionSettings.js",
 			
 			"common/collaboration/deleted-text-recovery.js",
+			
+			"common/custom-xml/serialize-custom-xml.js",
 			
 			"common/nameMap.js",
 			"common/downloaderfiles.js",
@@ -75,7 +77,8 @@
 			"common/Drawings/Metafile.js",
 			"common/libfont/textmeasurer.js",
 			"common/Drawings/WorkEvents.js",
-			
+
+			"word/Editor/History.js",
 			"cell/model/History.js",
 
 			"common/Shapes/EditorSettings.js",
@@ -135,6 +138,7 @@
 			"common/Drawings/HatchPattern.js",
 			
 			"common/bidi/bidi-common.js",
+			"common/bidi/bidi-brackets.js",
 			"common/bidi/bidi-types.js",
 			"common/bidi/unicode-data.js",
 			
@@ -169,6 +173,7 @@
 			"cell/model/FormulaObjects/traceDependents.js",
 			"cell/model/CellComment.js",
 			"cell/model/whatIfAnalysis.js",
+			"cell/model/SheetMemory.js",
 			"cell/model/WorkbookElems.js",
 			"cell/model/Workbook.js",
 			"cell/model/Serialize.js",
@@ -202,6 +207,7 @@
 			"common/Drawings/Format/SlicerView.js",
 			"cell/model/PivotTables.js",
 			
+			"word/Editor/Paragraph/RunContent/Types.js",
 			"word/Math/mathTypes.js",
 			"word/Editor/Styles.js",
 			"word/Math/math-settings.js",
@@ -214,13 +220,15 @@
 			"word/Editor/Paragraph/Run/RunAutoCorrect.js",
 			"word/Editor/DocumentContentElementBase.js",
 			"word/Editor/ParagraphContentBase.js",
+			"word/Editor/annotations/perm-ranges-manager.js",
+			"word/Editor/annotations/annotation-mark-base.js",
+			"word/Editor/annotations/paragraph-perm.js",
 			"word/Editor/Bookmarks.js",
 			"word/Editor/Comments.js",
 			"word/Editor/CommentsChanges.js",
 			"word/Editor/StylesChanges.js",
 			"word/Editor/RevisionsChange.js",
 			"word/Editor/FlowObjects.js",
-			"word/Editor/Paragraph/RunContent/Types.js",
 			"word/Editor/Paragraph/RunContent/Base.js",
 			"word/Editor/Paragraph/RunContent/FootnoteReference.js",
 			"word/Editor/Paragraph/RunContent/FootnoteRef.js",
@@ -367,8 +375,13 @@
 			"word/Editor/Styles/style-cache.js",
 			"word/Editor/Styles/FixedFormDefaults.js",
 			"word/Editor/Styles/default-styles.js",
-			"word/Editor/Revisions/TrackRevisionsManager.js",
-
+			"word/Editor/revisions/review-info.js",
+			"word/Editor/revisions/track-revisions-manager.js",
+			"word/Editor/custom-xml/custom-xml.js",
+			"word/Editor/custom-xml/custom-xml-changes.js",
+			"word/Editor/custom-xml/custom-xml-manager.js",
+			"word/Editor/custom-xml/data-binding.js",
+			
 			"word/apiBuilder.js",
 			"slide/apiBuilder.js",
 			"cell/apiBuilder.js",

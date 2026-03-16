@@ -205,8 +205,12 @@ CHeaderFooter.prototype =
 
         var CurPage = 0;
         var RecalcResult = recalcresult2_NextPage;
-        while ( recalcresult2_End != RecalcResult  )
-            RecalcResult = this.Content.Recalculate_Page( CurPage++, true );
+		while (recalcresult2_End !== RecalcResult)
+		{
+			RecalcResult = this.Content.Recalculate_Page(CurPage, true);
+			if (RecalcResult !== recalcresult2_CurPage)
+				++CurPage;
+		}
         
         this.RecalcInfo.RecalcObj[Page_abs]   = this.Content.SaveRecalculateObject();
         this.RecalcInfo.PageNumInfo[Page_abs] = this.LogicDocument.Get_SectionPageNumInfo(Page_abs);
@@ -316,10 +320,14 @@ CHeaderFooter.prototype =
 		this.Content.Set_StartPage(nPageAbs);
 		this.Content.PrepareRecalculateObject();
 
-		var nCurPage      = 0;
-		var nRecalcResult = recalcresult2_NextPage;
-		while (recalcresult2_End !== nRecalcResult)
-			nRecalcResult = this.Content.Recalculate_Page(nCurPage++, true);
+		var curPage      = 0;
+		var recalcResult = recalcresult2_NextPage;
+		while (recalcresult2_End !== recalcResult)
+		{
+			recalcResult = this.Content.Recalculate_Page(curPage, true);
+			if (recalcResult === recalcresult2_NextPage)
+				++curPage;
+		}
 
 		this.OnEndRecalculate();
     },
@@ -1017,14 +1025,14 @@ CHeaderFooter.prototype =
 	{
 		return this.Content.RemoveSelection(bNoCheckDrawing);
 	},
-
+	
 	DrawSelectionOnPage : function(CurPage)
-    {
-    	if (CurPage !== this.GetPage())
-    		return;
-
-        return this.Content.DrawSelectionOnPage(0, true, true);
-    },
+	{
+		if (CurPage !== this.GetPage())
+			return;
+		
+		return this.Content.DrawSelectionOnPage(0);
+	},
 
     Selection_SetStart : function(X,Y, PageIndex, MouseEvent)
     {
@@ -1305,8 +1313,9 @@ CHeaderFooter.prototype =
 
         this.Id      = Reader.GetString2();
         this.Type    = Reader.GetLong();
-
-        this.Content = AscCommon.g_oTableId.Get_ById( Reader.GetString2() );
+		
+		this.Content = AscCommon.g_oTableId.Get_ById(Reader.GetString2());
+		this.Content.SetParent(this);
     },
 //-----------------------------------------------------------------------------------
 // Функции для работы с комментариями
@@ -1415,7 +1424,15 @@ CHeaderFooter.prototype.GetContent = function()
 {
 	return this.Content;
 };
-
+/**
+ * Функция для выставления класса содержимого колонтитула (используется в совместке)
+ * @param {CDocumentContent} oDocumentContent
+ */
+CHeaderFooter.prototype.SetDocumentContent = function(oDocumentContent)
+{
+	this.Content = oDocumentContent;
+	oDocumentContent.SetParent(this);
+};
 CHeaderFooter.prototype.FindWatermark = function()
 {
     var aAllDrawings = this.Content.GetAllDrawingObjects();
@@ -2306,12 +2323,27 @@ CHeaderFooterController.prototype =
 		if (this.CurHdrFtr)
 			return this.CurHdrFtr.DrawSelectionOnPage(CurPage);
 	},
-
-    Selection_SetStart : function(X,Y, PageIndex, MouseEvent, bActivate)
-    {
-		var TempHdrFtr = null;
+	
+	Selection_SetStart : function(X, Y, PageIndex, MouseEvent, bActivate)
+	{
+		let TempHdrFtr = null;
+		let logicDocument = this.LogicDocument;
+		
 		// Если мы попадаем в заселекченную автофигуру, пусть она даже выходит за пределы
-		if (true === this.LogicDocument.DrawingObjects.pointInSelectedObject(X, Y, PageIndex)
+		if (logicDocument && logicDocument.DrawingObjects.pointInSelectedObject(X, Y, PageIndex))
+		{
+			let selectedObjects = logicDocument.DrawingObjects.getSelectedObjects();
+			if (selectedObjects.length)
+			{
+				let paraDrawing = selectedObjects[0].GetParaDrawing();
+				TempHdrFtr = paraDrawing ? paraDrawing.isHdrFtrChild(true) : null;
+			}
+			
+			if (!TempHdrFtr)
+				logicDocument.DrawingObjects.resetSelection(undefined, true);
+		}
+		
+		if (TempHdrFtr
 			|| (null !== (TempHdrFtr = this.Pages[PageIndex].Header) && true === TempHdrFtr.Is_PointInFlowTable(X, Y))
 			|| (null !== (TempHdrFtr = this.Pages[PageIndex].Footer) && true === TempHdrFtr.Is_PointInFlowTable(X, Y)))
 		{

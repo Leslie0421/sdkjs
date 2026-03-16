@@ -38,6 +38,8 @@
 		this.api = oApi;
 		this.isLocalDesktop = window["AscDesktopEditor"] && window["AscDesktopEditor"]["IsLocalFile"]();
 		this.fCallback = fCallback;
+
+		this._props = null;
 	}
 
 	CExternalDataLoader.prototype.updateExternalData = function () {
@@ -60,6 +62,14 @@
 			const sToken = oData['token'];
 			const sKey = oData['key'];
 
+			//check updated file on server. compare keys. if file not updated - check only collaborative editing
+			let curEr = oThis.externalReferences[i].externalReference;
+			let curErKey = curEr.getKey();
+			oData.notChangedFile = sKey === curEr.getKey() && !(oThis.props && oThis.props.forceUpdate);
+			if (curErKey == null) {
+				curEr.setKey(sKey);
+			}
+
 			if (!sKey) {
 				//if don't have key, then don't have force save
 				isForceSavePossible = false;
@@ -79,11 +89,13 @@
 
 					//url - file link
 
-					if (!bTimeout && oResult["code"] === AscCommon.c_oAscServerCommandErrors.NoError) {
+					if (!bTimeout && (oResult["code"] === AscCommon.c_oAscServerCommandErrors.NoError ||
+						(oThis.props && oThis.props.forceUpdate && oResult["code"] === AscCommon.c_oAscServerCommandErrors.NotModified && oResult["url"]))) {
 						arrData[i]["directUrl"] = oResult["url"];
 						arrData[i]["url"] = oResult["url"];
 						arrData[i]["fileType"] = "xlsx";
 						arrData[i]["token"] = null;
+						arrData[i].notChangedFile = false;
 					}
 					fResolve();
 				});
@@ -103,7 +115,7 @@
 		const nLength = Math.max(arrData.length, this.externalReferences.length);
 		const arrFPromiseGetters = [];
 		for (let i = 0; i < nLength; i += 1) {
-			if (this.isLocalDesktop || (arrData[i] && !arrData[i]["error"])) {
+			if (this.isLocalDesktop || (arrData[i] && !arrData[i]["error"] && !arrData[i].notChangedFile)) {
 				const oPromiseGetter = new CExternalDataPromiseGetter(this.api, this.getExternalReference(i), arrData[i]);
 				arrFPromiseGetters.push(oPromiseGetter.getPromise.bind(oPromiseGetter));
 			}
@@ -156,6 +168,7 @@
 
 	CExternalDataPromiseGetter.prototype.getLocalFileLink = function () {
 		let res = this.externalReference;
+		// todo should we make .replace to the local link here?
 		if (res) {
 			res = res.replace(/^file:\/\/\//, '');
 			res = res.replace(/^file:\/\//, '');

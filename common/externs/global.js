@@ -42,6 +42,7 @@ var AscCommon;
 var AscCommonWord;
 var AscCommonExcel;
 var AscCommonSlide;
+var AscVisio;
 var AscBuilder;
 var AscWord;
 var AscMath;
@@ -88,3 +89,6 @@ WebAssembly.Memory;
 function grow(){}
 
 var VBArray;
+
+var CreateEmbedObject;
+var FreeEmbedObject;

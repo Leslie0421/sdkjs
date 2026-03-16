@@ -1215,7 +1215,15 @@ StaxParser.prototype.next = function() {
     // ---------------------------------------------
     var w = this.xml.charCodeAt(i + 1);
     if (w === 33) { // 33 == "!"
-        this.index = this.xml.indexOf('>', i);
+        if (i + 3 < this.length && 45 === this.xml.charCodeAt(i + 2) && 45 === this.xml.charCodeAt(i + 3)) { // COMMENT
+            this.index = this.xml.indexOf('-->', i) + 3;
+        } else { // CDATA
+            this.index = this.xml.indexOf(']]>', i) + 3;
+        }
+        if (-1 === this.index) {
+            this.stop = true;
+        }
+        this.eventType = EasySAXEvent.Unknown;
         return this.eventType;
     }
     // QUESTION
@@ -1324,6 +1332,14 @@ StaxParser.prototype.MoveToNextAttribute = function() {
     this.index = i;
     this.isInAttr = false;
     return false;
+};
+StaxParser.prototype.GetAttributes = function() {
+	let attributes = {};
+	while (this.MoveToNextAttribute()) {
+		attributes[this.GetName()] = this.GetValue();
+	}
+	
+	return attributes;
 };
 StaxParser.prototype.SkipAttributes = function() {
     var i = this.xml.indexOf('>', this.index);
@@ -1627,7 +1643,7 @@ function XmlParserContext(){
 		this.smartarts = [];
     //docx
     this.commentDataById = {};
-    this.oReadResult = new AscCommonWord.DocReadResult();
+    this.oReadResult = AscCommonWord.DocReadResult && new AscCommonWord.DocReadResult();
     this.maxZIndex = 0;
 
     this.oformContext = null;
@@ -1815,11 +1831,9 @@ XmlParserContext.prototype.loadDataLinks = function() {
             oImageMap[_cur_ind++] = path;
             let data = this.zip.getFile(path);
             if (data) {
-                if (!window["NATIVE_EDITOR_ENJINE"]) {
-                    let blob = this.zip.getImageBlob(path);
-                    let url = window.URL.createObjectURL(blob);
-                    AscCommon.g_oDocumentUrls.addImageUrl(path, url);
-                }
+                let blobUrl = AscCommon.g_oDocumentBlobUrls.getBlobUrl(path, this.zip);
+                AscCommon.g_oDocumentUrls.addImageUrl(path, blobUrl);
+
                 this.imageMap[path].forEach(function(blipFill) {
                     AscCommon.pptx_content_loader.Reader.initAfterBlipFill(path, blipFill);
                 });
@@ -1882,7 +1896,7 @@ function XmlWriterContext(editorId){
     this.sheetIds = [];
     this.sharedStrings = null;
     this.isCopyPaste = null;
-    this.stylesForWrite = new AscCommonExcel.StylesForWrite();
+    this.stylesForWrite = AscCommonExcel.StylesForWrite && new AscCommonExcel.StylesForWrite(); //no StylesForWrite in vsdx now
     this.oSharedStrings = {index: 0, strings: {}};
     this.oleDrawings = [];
     this.signatureDrawings = [];

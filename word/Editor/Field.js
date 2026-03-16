@@ -475,7 +475,6 @@ ParaField.prototype.GetValue = function()
 {
 	var oText = new CParagraphGetText();
 	oText.SetBreakOnNonText(false);
-	oText.SetParaEndToSpace(true);
 
 	this.Get_Text(oText);
 
@@ -726,6 +725,10 @@ ParaField.prototype.CheckType = function(type)
 ParaField.prototype.IsAddin = function()
 {
 	return this.CheckType(AscWord.fieldtype_ADDIN);
+};
+ParaField.prototype.IsFormCheckBox = function()
+{
+	return this.CheckType(AscWord.fieldtype_FORMCHECKBOX);
 };
 //----------------------------------------------------------------------------------------------------------------------
 // Функции совместного редактирования

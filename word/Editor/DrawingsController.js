@@ -577,6 +577,17 @@ CDrawingsController.prototype.GetSelectionState = function()
 CDrawingsController.prototype.SetSelectionState = function(State, StateIndex)
 {
 	this.DrawingObjects.setSelectionState(State, StateIndex);
+	
+	let parentCC = this.private_GetParentContentControl();
+	if (parentCC && parentCC.IsPicture() && parentCC.IsForm() && parentCC.GetParagraph())
+	{
+		let parentShape = parentCC.GetParagraph().GetParentShape();
+		if (parentShape)
+		{
+			let paraDrawing = parentShape.GetParaDrawing();
+			this.DrawingObjects.selectById(paraDrawing.GetId(), paraDrawing.GetPageNum());
+		}
+	}
 };
 CDrawingsController.prototype.AddHyperlink = function(Props)
 {
@@ -708,6 +719,9 @@ CDrawingsController.prototype.IsSelectionLocked = function(checkType)
 			&& (AscCommon.changestype_Remove === checkType
 				|| AscCommon.changestype_Delete === checkType))
 		{
+			if (!contentControl.CanBeDeleted())
+				return AscCommon.CollaborativeEditing.Add_CheckLock(true);
+			
 			contentControl.SkipSpecialContentControlLock(true);
 			contentControl.Document_Is_SelectionLocked(checkType);
 			contentControl.SkipSpecialContentControlLock(false);
@@ -723,4 +737,9 @@ CDrawingsController.prototype.CollectSelectedReviewChanges = function(oTrackMana
 	var oTargetDocContent = this.DrawingObjects.getTargetDocContent();
 	if (oTargetDocContent && oTargetDocContent.CollectSelectedReviewChanges)
 		oTargetDocContent.CollectSelectedReviewChanges(oTrackManager);
+};
+CDrawingsController.prototype.GetCurrentTopDocContent = function()
+{
+	let docContent = this.DrawingObjects.getTargetDocContent();
+	return docContent ? docContent : this.LogicDocument;
 };

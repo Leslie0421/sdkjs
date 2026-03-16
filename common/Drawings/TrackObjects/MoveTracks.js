@@ -73,6 +73,11 @@ function MoveShapeImageTrack(originalObject)
             this.brush = originalObject.brush;
         }
         this.pen = originalObject.pen;
+
+        if (originalObject.GetEditField && originalObject.GetEditField()) {
+            this.brush = null;
+            this.pen = null;
+        }
     }
     if(this.originalObject.cropObject && this.brush)
     {
@@ -699,8 +704,8 @@ function MoveAnnotationTrack(originalObject)
 
         if (bStart || nPage != this.objectToDraw.GetPage()) {
             let page = this.viewer.drawingPages[nPage];
-            let w = (page.W * AscCommon.AscBrowser.retinaPixelRatio) >> 0;
-            let h = (page.H * AscCommon.AscBrowser.retinaPixelRatio) >> 0;
+            let w = AscCommon.AscBrowser.convertToRetinaValue(page.W, true);
+            let h = AscCommon.AscBrowser.convertToRetinaValue(page.H, true);
 
             this.tmpCanvas = document.createElement('canvas');
             this.tmpCanvas.width = w;
@@ -712,7 +717,8 @@ function MoveAnnotationTrack(originalObject)
     {
         // рисуем на отдельном канвасе
         let nPage = this.pageIndex;
-        this.objectToDraw.SetPage(nPage);
+        let oPageInfo = this.viewer.doc.GetPageInfo(this.pageIndex);
+        this.objectToDraw.SetParentPage(oPageInfo);
 
         let page = this.viewer.drawingPages[nPage];
         if (!page)
@@ -737,8 +743,8 @@ function MoveAnnotationTrack(originalObject)
 			xCenter = (this.viewer.documentWidth >> 1) - (this.viewer.scrollX) >> 0;
 		}
 
-        let w = (page.W * AscCommon.AscBrowser.retinaPixelRatio) >> 0;
-        let h = (page.H * AscCommon.AscBrowser.retinaPixelRatio) >> 0;
+        let w = AscCommon.AscBrowser.convertToRetinaValue(page.W, true);
+        let h = AscCommon.AscBrowser.convertToRetinaValue(page.H, true);
         
         let tmpCanvasCtx = this.tmpCanvas.getContext('2d');
         tmpCanvasCtx.clearRect(0, 0, this.tmpCanvas.width, this.tmpCanvas.height);
@@ -760,7 +766,8 @@ function MoveAnnotationTrack(originalObject)
             case AscPDF.ANNOTATIONS_TYPES.Polygon:
             case AscPDF.ANNOTATIONS_TYPES.PolyLine:
             case AscPDF.ANNOTATIONS_TYPES.FreeText:
-            case AscPDF.ANNOTATIONS_TYPES.Circle: {
+            case AscPDF.ANNOTATIONS_TYPES.Circle:
+            case AscPDF.ANNOTATIONS_TYPES.Stamp: {
                 let nScale  = AscCommon.AscBrowser.retinaPixelRatio * this.viewer.zoom;
                 oGraphicsWord   = new AscCommon.CGraphics();
 

@@ -228,6 +228,10 @@ ParaDrawing.prototype.Get_Height = function()
 {
 	return this.Height * this.GetScaleCoefficient();
 };
+ParaDrawing.prototype.GetHeight = function()
+{
+	return this.Get_Height();
+};
 ParaDrawing.prototype.getHeight = function()
 {
 	return this.Get_Height();
@@ -256,6 +260,9 @@ ParaDrawing.prototype.GetSearchElementId = function(bNext, bCurrent)
 };
 ParaDrawing.prototype.FindNextFillingForm = function(isNext, isCurrent)
 {
+	if (isCurrent && this.IsForm())
+		return null;
+	
 	if (AscCommon.isRealObject(this.GraphicObj) && typeof this.GraphicObj.FindNextFillingForm === "function")
 		return this.GraphicObj.FindNextFillingForm(isNext, isCurrent);
 
@@ -340,6 +347,7 @@ ParaDrawing.prototype.Get_Props = function(OtherProps)
 	var Props    = {};
 	Props.Width  = this.GraphicObj.extX;
 	Props.Height = this.GraphicObj.extY;
+	Props.Form   = this.IsForm();
 	if (drawing_Inline === this.DrawingType)
 		Props.WrappingStyle = c_oAscWrapStyle2.Inline;
 	else if (WRAPPING_TYPE_NONE === this.wrappingType)
@@ -529,6 +537,9 @@ ParaDrawing.prototype.Get_Props = function(OtherProps)
 		if(undefined === OtherProps.description || Props.description !== OtherProps.description){
 			Props.description = undefined;
 		}
+		
+		if (OtherProps.Form || Props.Form)
+			Props.Form = true;
 	}
 
 	return Props;
@@ -1148,7 +1159,9 @@ ParaDrawing.prototype.CheckWH = function()
 		extY = 5;
 		rot = 0;
 	}
-	this.setExtent(extX, extY);
+
+	let dKoef = this.GetScaleCoefficient();
+	this.setExtent(extX / dKoef, extY / dKoef);
 
 
 	var EEL = 0.0, EET = 0.0, EER = 0.0, EEB = 0.0;
@@ -1647,6 +1660,9 @@ ParaDrawing.prototype.updatePosition3 = function(pageIndex, x, y, oldPageNum)
 		this.wrappingPolygon.updatePosition(_x, _y);
 
 	this.calculateSnapArrays();
+	
+	if (this.GraphicObj.checkFormShiftView)
+		this.GraphicObj.checkFormShiftView();
 };
 ParaDrawing.prototype.calculateAfterChangeTheme = function()
 {
@@ -1820,18 +1836,47 @@ ParaDrawing.prototype.Get_DrawingType = function()
 };
 ParaDrawing.prototype.Is_Inline = function()
 {
+	if (Asc.editor.isPdfEditor()) {
+		return drawing_Inline === this.DrawingType;
+	}
+
 	if(this.Parent &&
 		this.Parent.Get_ParentTextTransform &&
 		this.Parent.Get_ParentTextTransform())
 	{
-			return true;
+		return true;
+	}
+	
+	
+	let para = this.GetParagraph();
+	let logicDocument = para ? para.GetLogicDocument() : null;
+	if (logicDocument
+		&& logicDocument.IsDocumentEditor()
+		&& this.IsForm()
+		&& logicDocument.GetDocumentLayout().IsReadMode())
+	{
+		return true;
 	}
 
-	return ( drawing_Inline === this.DrawingType ? true : false );
+	return drawing_Inline === this.DrawingType;
 };
 ParaDrawing.prototype.IsInline = function()
 {
 	return this.Is_Inline();
+};
+ParaDrawing.prototype.MakeInline = function()
+{
+	if (drawing_Inline === this.Get_DrawingType())
+		return;
+	
+	this.Set_DrawingType(drawing_Inline);
+	
+	if (AscCommon.isRealObject(this.GraphicObj.bounds)
+		&& AscFormat.isRealNumber(this.GraphicObj.bounds.w)
+		&& AscFormat.isRealNumber(this.GraphicObj.bounds.h))
+	{
+		this.CheckWH();
+	}
 };
 ParaDrawing.prototype.IsForm = function()
 {
@@ -1842,14 +1887,35 @@ ParaDrawing.prototype.SetForm = function(isForm)
 	History.Add(new CChangesParaDrawingForm(this, this.DrawingType, isForm));
 	this.Form = isForm;
 }
+ParaDrawing.prototype.IsInForm = function()
+{
+	let run = this.GetRun();
+	if (!run)
+		return false;
+	
+	let parentCCs = run.GetParentContentControls();
+	for (let i = 0; i < parentCCs.length; ++i)
+	{
+		if (parentCCs[i].IsForm())
+			return true;
+	}
+	
+	return false;
+};
 ParaDrawing.prototype.GetInnerForm = function()
 {
 	return this.GraphicObj ? this.GraphicObj.getInnerForm() : null;
 };
 ParaDrawing.prototype.Use_TextWrap = function()
 {
+	if (this.IsInline())
+		return false;
+	
+	// TODO: Проверить, возможно данную проверку можно заменить на Paragraph.IsInline()
 	// Если автофигура привязана к параграфу с рамкой, обтекание не делается
-	if (this.IsInline() || !this.Parent || !this.Parent.Get_FramePr || (null !== this.Parent.Get_FramePr() && undefined !== this.Parent.Get_FramePr()))
+	if (!this.Parent
+		|| !this.Parent.GetFramePr
+		|| (this.Parent.GetFramePr() && !this.Parent.GetFramePr().IsInline()))
 		return false;
 
 	// здесь должна быть проверка, нужно ли использовать обтекание относительно данного объекта,
@@ -2117,10 +2183,7 @@ ParaDrawing.prototype.AddToDocument = function(oAnchorPos, oRunPr, oRun, oPictur
 		oSdt.ReplacePlaceHolderWithContent();
 		oSdt.AddToContent(0, oDrawingRun);
 		oInsertParagraph.AddToContent(0, oSdt);
-
-		let oFormPr = oPictureCC.GetFormPr();
-		if (oFormPr)
-			oSdt.SetFormPr(oFormPr.Copy());
+		oPictureCC.private_CopyPrTo(oSdt);
 	}
 	else
 	{
@@ -2458,9 +2521,6 @@ ParaDrawing.prototype.Read_FromBinary2 = function(Reader)
 	this.graphicObjects.addGraphicObject(this);
 	g_oTableId.Add(this, this.Id);
 };
-ParaDrawing.prototype.Load_LinkData = function()
-{
-};
 ParaDrawing.prototype.draw = function(graphics, PDSE)
 {
 	let iO = AscCommon.isRealObject;
@@ -2703,7 +2763,7 @@ ParaDrawing.prototype.setPageIndex = function(newPageIndex)
 		}
 	}
 };
-ParaDrawing.prototype.Get_PageNum = function()
+ParaDrawing.prototype.GetPageNum = function()
 {
 	return this.PageNum;
 };
@@ -2750,6 +2810,10 @@ ParaDrawing.prototype.select = function(pageIndex)
 	if (AscCommon.isRealObject(this.GraphicObj) && typeof  this.GraphicObj.select === "function")
 		this.GraphicObj.select(pageIndex);
 
+};
+ParaDrawing.prototype.isSelected = function()
+{
+	return this.GraphicObj ? this.GraphicObj.selected : false;
 };
 ParaDrawing.prototype.paragraphClearFormatting = function(isClearParaPr, isClearTextPr)
 {
@@ -3293,9 +3357,14 @@ ParaDrawing.prototype.CheckDeletingLock = function()
 	
 	if (logicDocument && logicDocument.IsDocumentEditor())
 	{
-		// Если в форму зайти нельзя, то и не проверяем можно ли удалять её внутреннюю часть
+		// Если в форму зайти нельзя, то проверяем можно ли удалять её внутреннюю часть
 		if (form && this.IsForm() && !form.CanPlaceCursorInside())
+		{
+			if (Asc.c_oAscSdtLockType.SdtLocked === form.GetContentControlLock() || Asc.c_oAscSdtLockType.SdtContentLocked === form.GetContentControlLock())
+				AscCommon.CollaborativeEditing.Add_CheckLock(true);
+			
 			return;
+		}
 		
 		if (!this.LogicDocument.CanEdit() || this.LogicDocument.IsFillingFormMode())
 		{
@@ -4243,3 +4312,7 @@ CAnchorPosition.prototype.Calculate_Y_Value = function(RelativeFrom)
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonWord'] = window['AscCommonWord'] || {};
 window['AscCommonWord'].ParaDrawing = ParaDrawing;
+
+window['AscWord'] = window['AscWord'] || {};
+window['AscWord'].ParaDrawing = ParaDrawing;
+

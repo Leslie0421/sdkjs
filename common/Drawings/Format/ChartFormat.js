@@ -2137,6 +2137,15 @@
     }
 
     InitClass(CBaseChartObject, CBaseFormatObject, AscDFH.historyitem_type_Unknown);
+		CBaseChartObject.prototype.getBrush = function() {
+			return this.brush;
+		};
+	CBaseChartObject.prototype.getPen = function() {
+		return this.pen;
+	};
+	CBaseChartObject.prototype.onRemoveContent = function() {};
+	CBaseChartObject.prototype.forEachAnimationDrawing = function(fCallback) {};
+	CBaseChartObject.prototype.forEachObjectToDraw = function(fCallback) {};
 	CBaseChartObject.prototype.generateSmartArtDrawingPart = function () {};
     CBaseChartObject.prototype.notAllowedWithoutId = function() {
         return true;
@@ -2379,6 +2388,21 @@
         }
         return {min: null, max: null};
     }
+	function getStepBetweenPoints(aPoints) {
+		if(Array.isArray(aPoints) && aPoints.length > 1) {
+			const bCheckFirstValues = isRealObject(aPoints[0]) && AscFormat.isRealNumber(aPoints[0].val) && isRealObject(aPoints[1]) && AscFormat.isRealNumber(aPoints[1].val);
+			const bCheckLastValues = isRealObject(aPoints[aPoints.length - 1]) && AscFormat.isRealNumber(aPoints[aPoints.length - 1].val) && isRealObject(aPoints[aPoints.length - 2]) && AscFormat.isRealNumber(aPoints[aPoints.length - 2].val);
+
+			if(bCheckFirstValues && bCheckLastValues) {
+				return Math.min(Math.abs(aPoints[0].val - aPoints[1].val), Math.abs(aPoints[aPoints.length - 1].val - aPoints[aPoints.length - 2].val));
+			} else if (bCheckFirstValues) {
+				return Math.abs(aPoints[0].val - aPoints[1].val);
+			} else if (bCheckLastValues) {
+				return Math.abs(aPoints[aPoints.length - 1].val - aPoints[aPoints.length - 2].val);
+			}
+		}
+		return null;
+	}
 
     var SCALE_INSET_COEFF = 1.016;//Возможно придется уточнять
     function CDLbl() {
@@ -2438,6 +2462,22 @@
 	CDLbl.prototype.notAllowedWithoutId = function() {
 		return false;
 	};
+
+    // function to get label content width without accessing inner fields of CDLbl
+    CDLbl.prototype.getContentWidth = function() {
+        if (!this.tx || !this.tx.rich || !this.getContentWidth) {
+            return 0;
+        }
+        return this.tx.rich.getContentWidth();
+    };
+
+    // function to get label max content width without accessing inner fields of CDLbl
+    CDLbl.prototype.getMaxContentWidth = function(maxWidth, bLeft) {
+        if (!this.tx || !this.tx.rich || !this.getMaxContentWidth) {
+            return 0;
+        }
+        return this.tx.rich.getMaxContentWidth(maxWidth, bLeft);
+    };
     CDLbl.prototype.Check_AutoFit = function() {
         return true;
     };
@@ -2973,6 +3013,7 @@
                     style.TextPr.Merge(chart_text_pr);
                 }
             }
+            let bChartEx = this.isChartEx && this.isChartEx();
             if(this instanceof CTitle || this.parent instanceof CTitle) {
                 style.TextPr.Bold = true;
                 if(this.parent instanceof CChart || (this.parent && (this.parent.parent instanceof CChart))) {
@@ -2981,6 +3022,25 @@
                     else
                         style.TextPr.FontSize = 18;
                 }
+
+
+                if(bChartEx) {
+                    if (oChartSpace.chartStyle && oChartSpace.chartColors) {
+                        let oTxPr;
+                        if(this.parent instanceof CChart ) {
+                            if (oChartSpace.chartStyle && oChartSpace.chartColors) {
+                                 oTxPr = oChartSpace.getTxPrFormStyleEntry(oChartSpace.chartStyle.title, oChartSpace.chartColors.generateColors(1), 0);
+                            }
+                        }
+                        else if(this.parent instanceof AscFormat.CAxis) {
+                            oTxPr = oChartSpace.getTxPrFormStyleEntry(oChartSpace.chartStyle.axisTitle, oChartSpace.chartColors.generateColors(1), 0);
+                        }
+                        if(oTxPr) {
+                            let oParaPr = oTxPr.content.Content[0].Pr;
+                            style.TextPr.Merge(oParaPr.DefaultRunPr);
+                        }
+                    }
+                }
             }
             if(this instanceof CalcLegendEntry && this.legend) {
                 oParaPr = this.legend.getTxPrParaPr();
@@ -2988,6 +3048,16 @@
                     style.ParaPr.Merge(oParaPr);
                     if(oParaPr.DefaultRunPr)
                         style.TextPr.Merge(oParaPr.DefaultRunPr);
+                }
+                if(bChartEx) {
+                    if (oChartSpace.chartStyle && oChartSpace.chartColors) {
+                        let oTxPr;
+                        oTxPr = oChartSpace.getTxPrFormStyleEntry(oChartSpace.chartStyle.legend, oChartSpace.chartColors.generateColors(1), 0);
+                        if(oTxPr) {
+                            let oParaPr = oTxPr.content.Content[0].Pr;
+                            style.TextPr.Merge(oParaPr.DefaultRunPr);
+                        }
+                    }
                 }
                 if(AscFormat.isRealNumber(this.idx)) {
                     var aLegendEntries = this.legend.legendEntryes;
@@ -3005,6 +3075,16 @@
                     }
                 }
 
+            }
+            if(this.parent && this.parent instanceof AscFormat.CAxis) {
+                if (oChartSpace.chartStyle && oChartSpace.chartColors) {
+                    let oTxPr;
+                    oTxPr = oChartSpace.getTxPrFormStyleEntry(oChartSpace.chartStyle.categoryAxis, oChartSpace.chartColors.generateColors(1), 0);
+                    if(oTxPr) {
+                        let oParaPr = oTxPr.content.Content[0].Pr;
+                        style.TextPr.Merge(oParaPr.DefaultRunPr);
+                    }
+                }
             }
             if(!(this instanceof CTitle)) {
                 if(this.parent) {
@@ -3152,7 +3232,7 @@
         if (this.showChartExVal) {
             //TODO: format the passed number
             const val = this.pt;
-            compiled_string = "" + val;
+            compiled_string += this.getValueString();
         }
         return compiled_string;
     };
@@ -3341,7 +3421,12 @@
                     break;
                 }
             }
+            var oTextWarpContent = AscFormat.CShape.prototype.checkTextWarp.call(this, content, bodyPr, max_content_width, 20000, true, false);
+            this.txWarpStructParamarks = oTextWarpContent.oTxWarpStructParamarksNoTransform;
+            this.txWarpStruct = oTextWarpContent.oTxWarpStructNoTransform;
 
+            this.txWarpStructParamarksNoTransform = oTextWarpContent.oTxWarpStructParamarksNoTransform;
+            this.txWarpStructNoTransform = oTextWarpContent.oTxWarpStructNoTransform;
         }
     };
     CDLbl.prototype.recalculateTxBody = function() {
@@ -3477,7 +3562,25 @@
             this.txPr.setParent(this);
         }
     };
-    CDLbl.prototype.draw = CShape.prototype.draw;
+    CDLbl.prototype.draw = function () {
+
+        if(this.txWarpStructNoTransform === undefined) {
+
+            if(this.txBody && this.txBody.content) {
+                var bodyPr = this.getBodyPr();
+                var oTextWarpContent = AscFormat.CShape.prototype.checkTextWarp.call(this, this.txBody.content, bodyPr, this.txBody.content.XLimit, 20000, true, false);
+                this.txWarpStructParamarks = oTextWarpContent.oTxWarpStructParamarksNoTransform;
+                this.txWarpStruct = oTextWarpContent.oTxWarpStructNoTransform;
+
+                this.txWarpStructParamarksNoTransform = oTextWarpContent.oTxWarpStructParamarksNoTransform;
+                this.txWarpStructNoTransform = oTextWarpContent.oTxWarpStructNoTransform;
+            }
+        }
+        AscFormat.CShape.prototype.draw.apply(this, arguments);
+    };
+    CDLbl.prototype.checkContentWordArt = CShape.prototype.checkContentWordArt;
+    CDLbl.prototype.chekBodyPrTransform = function () {return false;};
+    CDLbl.prototype.checkNeedRecalcDocContentForTxWarp = function () {return false;};
     CDLbl.prototype.isEmptyPlaceholder = function() {
         return false;
     };
@@ -3860,6 +3963,9 @@
                 }
                 return "";
             }
+        }
+        if(this.tx &&  this.tx.txData && this.tx.txData.v) {
+            return this.tx.txData.v;
         }
         return AscCommon.translateManager.getValue('Series') + " " + (this.idx + 1);
     };
@@ -8740,13 +8846,8 @@
             ret.putLogScale(false);
         }
 
-        var oMinMaxOnAxis;
-        if(this.axPos === AX_POS_L || this.axPos === AX_POS_R) {
-            oMinMaxOnAxis = getMinMaxFromArrPoints(this.yPoints);
-        }
-        else {
-            oMinMaxOnAxis = getMinMaxFromArrPoints(this.xPoints);
-        }
+				const aPoints = this.isVertical() ? this.yPoints : this.xPoints;
+        const oMinMaxOnAxis = getMinMaxFromArrPoints(aPoints);
         //настроки максимального значения по оси
         if(scaling && AscFormat.isRealNumber(scaling.max)) {
             ret.putMaxValRule(c_oAscValAxisRule.fixed);
@@ -8843,6 +8944,22 @@
         ret.putLabel(this.getLabelSetting());
         ret.putNumFmt(new AscCommon.asc_CAxNumFmt(this));
 	    ret.putIsRadarAxis(this.isRadarAxis());
+
+			if (this.majorUnit === null) {
+				ret.putMajorUnit(getStepBetweenPoints(aPoints));
+				ret.putMajorUnitRule(c_oAscValAxisRule.auto);
+			} else {
+				ret.putMajorUnit(this.majorUnit);
+				ret.putMajorUnitRule(c_oAscValAxisRule.fixed);
+			}
+
+			if (this.minorUnit === null) {
+				ret.putMinorUnit(null);
+				ret.putMinorUnitRule(c_oAscValAxisRule.auto);
+			} else {
+				ret.putMinorUnit(this.minorUnit);
+				ret.putMinorUnitRule(c_oAscValAxisRule.fixed);
+			}
         return ret;
     };
     CValAx.prototype.setMenuProps = function(props) {
@@ -8954,6 +9071,40 @@
             this.setTickLblPos(props.tickLabelsPos);
             bChanged = true;
         }
+			if (AscFormat.isRealNumber(props.minorUnitRule)) {
+				if (props.minorUnitRule === c_oAscValAxisRule.auto) {
+					if (AscFormat.isRealNumber(this.minorUnit)) {
+						this.setMinorUnit(null);
+						bChanged = true;
+					}
+				} else {
+					if (AscFormat.isRealNumber(props.minorUnit)) {
+						if (!(props.majorUnitRule === c_oAscValAxisRule.fixed && props.majorUnit < props.minorUnit) && this.minorUnit !== props.minorUnit) {
+							this.setMinorUnit(props.minorUnit);
+							bChanged = true;
+						}
+					}
+				}
+			}
+
+			if (AscFormat.isRealNumber(props.majorUnitRule)) {
+				if (props.majorUnitRule === c_oAscValAxisRule.auto) {
+					if (AscFormat.isRealNumber(this.majorUnit)) {
+						this.setMajorUnit(null);
+						bChanged = true;
+					}
+				} else {
+					if (AscFormat.isRealNumber(props.majorUnit)) {
+						if (!AscFormat.isRealNumber(this.minorUnit) || this.minorUnit < props.majorUnit) {
+							if (this.majorUnit !== props.majorUnit) {
+								this.setMajorUnit(props.majorUnit);
+								bChanged = true;
+							}
+						}
+					}
+				}
+			}
+
 
         if(AscFormat.isRealNumber(props.crossesRule) && isRealObject(this.crossAx)) {
             if(props.crossesRule === c_oAscCrossesRule.auto) {
@@ -11753,7 +11904,15 @@
             }
         }
     };
-
+    CStrRef.prototype.onUpdateCache = function() {
+        CChartRefBase.prototype.onUpdateCache.call(this);
+        if(this.parent && this.parent.getObjectType() === AscDFH.historyitem_type_ChartText) {
+            let oParentObject = this.parent.parent;
+            if(oParentObject && oParentObject.recalcInfo && oParentObject.recalcInfo.recalculateTxBody === false) {
+                oParentObject.recalcInfo.recalculateTxBody = true;
+            }
+        }
+    };
     function CNumericPoint() {
         CBaseChartObject.call(this);
         this.formatCode = null;
@@ -13823,6 +13982,9 @@
     CTitle.prototype.recalculateTransform = CDLbl.prototype.recalculateTransform;
     CTitle.prototype.recalculateTransformText = CDLbl.prototype.recalculateTransformText;
     CTitle.prototype.recalculateContent = CDLbl.prototype.recalculateContent;
+    CTitle.prototype.chekBodyPrTransform = CDLbl.prototype.chekBodyPrTransform;
+    CTitle.prototype.checkContentWordArt = CDLbl.prototype.checkContentWordArt;
+    CTitle.prototype.checkNeedRecalcDocContentForTxWarp = CDLbl.prototype.checkNeedRecalcDocContentForTxWarp;
     CTitle.prototype.setPosition = CDLbl.prototype.setPosition;
     CTitle.prototype.checkHitToBounds = CDLbl.prototype.checkHitToBounds;
     CTitle.prototype.getBodyPr = CDLbl.prototype.getBodyPr;
@@ -13835,13 +13997,19 @@
     CTitle.prototype.convertPixToMM = CDLbl.prototype.convertPixToMM;
     CTitle.prototype.isEmptyPlaceholder = CDLbl.prototype.isEmptyPlaceholder;
     CTitle.prototype.checkShapeChildTransform = CDLbl.prototype.checkShapeChildTransform;
+
+    CTitle.prototype.checkBlipFillRasterImage = function(images) {
+        if(this.spPr) {
+            this.spPr.checkBlipFillRasterImage(images);
+        }
+        if (this.tx && this.tx.rich && this.tx.rich.content) {
+            AscFormat.fCheckContentImages(images, this.tx.rich.content, false);
+        }
+    };
     CTitle.prototype.Refresh_RecalcData = function() {
         this.Refresh_RecalcData2();
     };
     CTitle.prototype.chekBodyPrTransform = function() {
-        return false;
-    };
-    CTitle.prototype.checkContentWordArt = function() {
         return false;
     };
     CTitle.prototype.Get_AbsolutePage = function() {
@@ -14393,7 +14561,7 @@
         this.drawerData = null;
 
         let oDrawerData = oChartSpace.chartObj.recalculatePositionText(this);
-        if(!oDrawerData) {
+        if(!oDrawerData || !oDrawerData.coefficients) {
             return;
         }
         this.drawerData = oDrawerData;
@@ -15980,7 +16148,7 @@
         }
         else {
             oContent.SetApplyToAll(true);
-            let sContentText = oContent.GetSelectedText(false, {NewLine: true, NewParagraph: true});
+            let sContentText = oContent.GetSelectedText(false);
             oContent.SetApplyToAll(false);
             if(sContentText !== sText) {
                 bClear = true;
@@ -16119,11 +16287,21 @@
     CalcLegendEntry.prototype.Get_Styles = CDLbl.prototype.Get_Styles;
     CalcLegendEntry.prototype.Get_Theme = CDLbl.prototype.Get_Theme;
     CalcLegendEntry.prototype.Get_ColorMap = CDLbl.prototype.Get_ColorMap;
+    CalcLegendEntry.prototype.getBodyPr = function () {
+        let oBodyPr = CDLbl.prototype.getBodyPr.call(this);
+        oBodyPr.resetInsets(0, 0, 0, 0);
+        return oBodyPr;
+    };
+    CalcLegendEntry.prototype.chekBodyPrTransform = CDLbl.prototype.chekBodyPrTransform;
+    CalcLegendEntry.prototype.checkContentWordArt = CDLbl.prototype.checkContentWordArt;
+    CalcLegendEntry.prototype.checkNeedRecalcDocContentForTxWarp = CDLbl.prototype.checkNeedRecalcDocContentForTxWarp;
+    CalcLegendEntry.prototype.getParentObjects = CDLbl.prototype.getParentObjects;
+    CalcLegendEntry.prototype.getDocContent = CDLbl.prototype.getDocContent;
     CalcLegendEntry.prototype.recalculate = function() {
     };
     CalcLegendEntry.prototype.draw = function(g) {
 
-        CShape.prototype.draw.call(this, g);
+        CDLbl.prototype.draw.call(this, g);
         if(this.calcMarkerUnion)
             this.calcMarkerUnion.draw(g);
     };
@@ -16184,6 +16362,13 @@
     CalcLegendEntry.prototype.GetParaDrawing = function() {
         return null;
     };
+    CalcLegendEntry.prototype.isChartEx = function() {
+        let oCS = this.getChartSpace();
+        if(oCS) {
+            return oCS.isChartEx();
+        }
+        return false;
+    };
 
     function CompiledMarker() {
         this.spPr = new AscFormat.CSpPr();
@@ -16200,6 +16385,8 @@
     }
 
     CompiledMarker.prototype.draw = CShape.prototype.draw;
+
+    CompiledMarker.prototype.chekBodyPrTransform = function () {return false;};
     CompiledMarker.prototype.getGeometry = CShape.prototype.getGeometry;
     CompiledMarker.prototype.check_bounds = CShape.prototype.check_bounds;
     CompiledMarker.prototype.isEmptyPlaceholder = function() {
@@ -16463,7 +16650,12 @@
 
     function fCreateRef(oBBoxInfo) {
         if(oBBoxInfo) {
-            return AscCommon.parserHelp.getEscapeSheetName(oBBoxInfo.worksheet.getName()) + "!" + oBBoxInfo.bbox.getAbsName();
+            let externalIndex = null;
+            let api = Asc['editor'] && Asc['editor'].wbModel;
+            if (api && oBBoxInfo && oBBoxInfo.worksheet) {
+                externalIndex = Asc['editor'].wbModel.getExternalIndexByWorksheet(oBBoxInfo.worksheet);
+            }
+            return AscCommon.parserHelp.getEscapeSheetName((externalIndex !== null ? "[" + externalIndex + "]" : "") + oBBoxInfo.worksheet.getName()) + "!" + oBBoxInfo.bbox.getAbsName();
         }
         return null;
     }
