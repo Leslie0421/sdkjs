@@ -3950,6 +3950,7 @@ var editor;
     var sheet, arrLocks = [];
     for (var i = 0; i < arrSheets.length; ++i) {
       sheet = arrSheets[i] = this.wbModel.getWorksheet(arrSheets[i]);
+			if(!sheet) return;
       arrLocks.push(this.collaborativeEditing.getLockInfo(c_oAscLockTypeElem.Sheet, /*subType*/null, sheet.getId(), sheet.getId()));
     }
 
