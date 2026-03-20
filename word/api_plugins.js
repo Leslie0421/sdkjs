@@ -1493,8 +1493,7 @@
 					};
 				case 'row': 
 					const oTable = table.Table;
-
-					if (rowIndex >= oTable.Rows) {
+					if (rowIndex > oTable.Rows) {
 						return {
 							code: 200,
 							data: false,
@@ -1502,8 +1501,8 @@
 						};
 					}
 					
-					const row = table.GetRow(rowIndex);
-					cell = row.Row.GetCell(0);
+					const row = oTable.Content[rowIndex - 1];
+					cell = row.Content[0];
 					break;
 				case 'column': {
 					const row = table.GetRow(0);

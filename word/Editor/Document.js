@@ -27831,11 +27831,11 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 					i === paraOffsets.length - 1 || paraOffsets[i+1] > idx
 			);
 			let startOffset = idx - paraOffsets[startParaIdx];
-
 			let endIdx = idx + searchStr.length;
+			let endLastCharIdx = endIdx - 1;
 			let endParaIdx = paraOffsets.findIndex((offset, i) => 
-					i === paraOffsets.length - 1 || paraOffsets[i+1] > endIdx
-			);
+				i === paraOffsets.length - 1 || paraOffsets[i+1] > endLastCharIdx
+		  );
 			let endOffset = endIdx - paraOffsets[endParaIdx];
 
 			results.push({
