@@ -27849,8 +27849,15 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 
 	const doc = this.Api.GetDocument().Document;
 
-	if(results.length > 0) {
+	if (results.length > 0) {
 		doc.SelectRange(results[0].startPara,results[0].endPara)
+	} else {
+		return {
+			CurId: -1,
+			CurIds: [],
+			Count: results.length,
+			Results: []
+		}
 	}
 	
 	const allSearchParaIdxs = [];
