@@ -1466,7 +1466,6 @@
 			const Doc = doc.Document;
 			const tables = doc.GetAllTables() || [];
 			const tableLength = tables.length;
-
 			if (!tableLength) {
 					return {
 						code: 200,
@@ -1483,6 +1482,7 @@
 
 			const table = tables[tableIndex];		
 			let cell = null;
+			let cells = [];
 
 			switch (type) {
 				case 'table':
@@ -1500,15 +1500,23 @@
 							message: '所选行不存在！'
 						};
 					}
-					
+
 					const row = oTable.Content[rowIndex - 1];
-					cell = row.Content[0];
+					cells = row.Content;
 					break;
 				case 'column': {
-					const row = table.GetRow(0);
-					const cellLength = row.Row.Content.length || 0;
+					const oTableCol = table.Table;
+					if (!oTableCol.Rows) {
+						return {
+							code: 200,
+							data: false,
+							message: '所选列不存在！'
+						};
+					}
+					const firstRowCol = oTableCol.Content[0];
+					const cellLength = firstRowCol ? firstRowCol.Content.length : 0;
 
-					if(columnIndex >= cellLength) {
+					if (columnIndex > cellLength) {
 						return {
 							code: 200,
 							data: false,
@@ -1516,7 +1524,14 @@
 						};
 					}
 
-					cell = row.Row.GetCell(columnIndex);
+					cells = [];
+					for (let r = 0; r < oTableCol.Rows; r++) {
+						const tableRow = oTableCol.Content[r];
+						if (tableRow && columnIndex < tableRow.Content.length) {
+							cells.push(tableRow.GetCell(columnIndex));
+						}
+					}
+					cell = cells.length ? cells[0] : null;
 					break;
 				}
 				case 'cell': {
@@ -1547,13 +1562,52 @@
 				default:
 					break;
 			}
-			
-			const curPage = cell.Content.GetAbsolutePage();
-			const curPos = cell.Content_GetCurPosXY();
+
+			const cellList = cells.length > 0 ? cells : (cell ? [cell] : []);
+			if (!cellList.length) {
+				return {
+					code: 200,
+					data: false,
+					message: '无法定位表格区域！'
+				};
+			}
+
+			// 遍历每个单元格，比较 Y 坐标大小，取最大那一个
+			let bestCell = null;
+			let bestPos = null;
+			let bestY = -Infinity;
+			let curPage = 0;
+
+			for (let ci = 0; ci < cellList.length; ci++) {
+				const c = cellList[ci];
+				if (!c || !c.Content || !c.Content.GetAbsolutePage) continue;
+				if (typeof c.Content_GetCurPosXY !== 'function') continue;
+
+				const pos = c.Content_GetCurPosXY();
+				const y = pos ? pos.Y : undefined;
+				if (typeof y !== 'number') continue;
+
+				const p = c.Content.GetAbsolutePage();
+				// Y 最大；如果 Y 相同，取页码更大的（更贴近期望“落到后面那页”）
+				if (y > bestY || (y === bestY && p > curPage)) {
+					bestY = y;
+					bestCell = c;
+					bestPos = pos;
+					curPage = p;
+				}
+			}
+
+			if (!bestCell || !bestPos) {
+				return {
+					code: 200,
+					data: false,
+					message: '无法获取单元格坐标！'
+				};
+			}
 
 			Doc.GoToPage(curPage);
-			Doc.MoveCursorToXY(curPos.X, curPos.Y);
-
+			// 当前单元格的数据，可能刚好在分割线上，导致定位偏移，所以需要向下移动1个像素
+			Doc.MoveCursorToXY(bestPos.X, bestPos.Y + 1);
 			switch (type) {
 				case 'row':
 					this.selectRow();

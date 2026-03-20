@@ -27818,13 +27818,12 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 2. 拼接全文本流
 	for (let i = 0; i < allParas.length; i++) {
 			paraOffsets.push(allText.length);
-			allText += allParas[i]?.GetText?.().trim();
+			allText += allParas[i]?.GetText?.().replace('\r\n', '').replace('\n', '');
 	}
 
 	// 3. 全局查找
 	let results = [];
 	let idx = 0;
-
 	while ((idx = allText.indexOf(searchStr, idx)) !== -1) {
 			// 4. 结果映射
 			let startParaIdx = paraOffsets.findIndex((offset, i) => 
@@ -27844,8 +27843,8 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 					endPara: endParaIdx,
 					endOffset: endOffset
 			});
-
-			idx += 1;
+			// 找到第一个匹配结果后直接中断
+			break;
 	}
 
 	const doc = this.Api.GetDocument().Document;
@@ -27873,7 +27872,7 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 			CurId: -1,
 			CurIds: CurIds,
 			Count: results.length,
-			Results: results
+			Results: results[0]
 	};
 };
 //----------------------------------------------------------------------------------------------------------------------
@@ -27912,12 +27911,9 @@ CDocument.prototype.Search = function(oProps, bDraw)
 		arrEndnotes[nIndex].Search(this.SearchEngine, search_Endnote);
 	}
 	
-	// console.log("Search string: " + oProps.GetText());
-	// console.log("Time: " + ((performance.now() - startTime) / 1000) + " s");
-	// console.log("Number of matches: " + this.SearchEngine.Count);
-	
 	if (false !== bDraw)
 		this.Redraw(-1, -1);
+
 	return this.SearchEngine;
 };
 CDocument.prototype.ClearSearch = function()
