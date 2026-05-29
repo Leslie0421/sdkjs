@@ -1273,11 +1273,11 @@
 		let _t = this;
 		opts.callback = function() {
 			_t.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.DownloadAs);
-			_t.fCurCallback = function(res) {
-				let data = (res.status == "ok") ? res.data : "error";
-				window.g_asc_plugins && window.g_asc_plugins.onPluginMethodReturn(data);
-			};
-		}
+		};
+		opts.onSaveDocumentOpen = function(res) {
+			let data = (res.status == "ok") ? res.data : "error";
+			window.g_asc_plugins && window.g_asc_plugins.onPluginMethodReturn(data);
+		};
 		this.downloadAs(Asc.c_oAscAsyncAction.DownloadAs, opts);
 	};
 

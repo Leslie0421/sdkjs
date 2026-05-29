@@ -1635,7 +1635,70 @@
 			}
 		}
 	};
-
+	window["asc_docs_api"].prototype["pluginMethod_SearchByPos"] = function(params)
+	{
+				const { page, box } = params;
+				const Doc = this.GetDocument().Document;
+				const allPara = Doc.GetAllParagraphs();
+				const targetY = box?.[1];
+	
+				if (targetY == null || !Number.isFinite(Number(targetY)) || !allPara?.length) {
+					return null;
+				}
+	
+				const toOfficeYpx = (para) => para.Y * (144 / 25.4);
+				const y = Number(targetY);
+				/** 同一页可能命中多段，先收集再以与 box[1] 的纵向距离选最近 */
+				const candidates = [];
+				const pushCandidate = (item, refYpx) => {
+					candidates.push({ item, dist: Math.abs(refYpx - y), text: item?.GetText() || '', page: item.GetAbsolutePage() + 1 });
+				};
+	
+				for (let i = 0; i < allPara.length; i++) {
+					const item = allPara[i];
+					const next = allPara[i + 1];
+					const officeYpx = toOfficeYpx(item);
+					if (item.GetAbsolutePage() + 1 !== page) {
+						continue;
+					}
+					if (!next) {
+						// 无下一项时：落在当前段 Y 及以下（Y 向下增大）或及以上（Y 向上减小）仍归属当前段
+						const prev = allPara[i - 1];
+						if (!prev) {
+							pushCandidate(item, officeYpx);
+							continue;
+						}
+						const prevOfficeYpx = toOfficeYpx(prev);
+						if (prevOfficeYpx <= officeYpx) {
+							if (y >= officeYpx) {
+								pushCandidate(item, officeYpx);
+							}
+						} else if (y <= officeYpx) {
+							pushCandidate(item, officeYpx);
+						}
+						break;
+					}
+					const nextOfficeYpx = toOfficeYpx(next);
+					// box[1] 落在 [当前段 Y, 下一段 Y) 半开区间（Y 增大时）；Y 减小时对称，避免边界重复命中两段
+					if (officeYpx <= nextOfficeYpx) {
+						if (y >= officeYpx && y < nextOfficeYpx) {
+							pushCandidate(item, officeYpx);
+						}
+					} else if (y > nextOfficeYpx && y <= officeYpx) {
+						pushCandidate(item, officeYpx);
+					}
+				}
+	
+				if (!candidates.length) {
+					return null;
+				}
+				candidates.sort((a, b) => a.dist - b.dist);
+	
+				const best = candidates[0].item;
+				const Index = best.Index;
+				Doc.SelectRange(Index, Index);
+				return best;
+	};
 	/**
 	 * 处理中文和数字之间的间距
 	 * @memberof Api

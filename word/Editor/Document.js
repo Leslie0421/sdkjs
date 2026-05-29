@@ -27810,7 +27810,10 @@ CDocument.prototype.GetSpellCheckManager = function()
 };
 CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 1. 预处理查找字符串
-	let searchStr = oProps.GetText().replace(/\^p/gi, '').trim();
+	// ^p 表示跨段检索：与 allText 中段末/软换行的 \n 对齐，不能删除否则与 GetText 串不一致
+	// 不要用 String#trim()：会去掉首尾 \\n，导致「以空段/换行开头的检索」与 allText 对不齐
+	let searchStr = oProps.GetText().replace(/\^p/gi, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+	searchStr = searchStr.replace(/^[ \t\uFEFF]+/, '').replace(/[ \t\uFEFF]+$/, '');
 	let allParas = this.Content;
 	let allText = '';
 	let paraOffsets = [];
@@ -27818,7 +27821,11 @@ CDocument.prototype.SearchMultiParagraph = function(oProps) {
 	// 2. 拼接全文本流
 	for (let i = 0; i < allParas.length; i++) {
 			paraOffsets.push(allText.length);
-			allText += allParas[i]?.GetText?.().replace('\r\n', '').replace('\n', '');
+			// 与 Run.Get_Text 一致：默认软换行为 \r、段末为 \r\n；此处统一为 \n 以便与外部检索串匹配
+			allText += allParas[i]?.GetText?.({
+				NewLineSeparator: '\n',
+				ParaSeparator: '\n'
+			});
 	}
 
 	// 3. 全局查找

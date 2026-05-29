@@ -2405,8 +2405,10 @@
 	baseEditorsApi.prototype._downloadAsUsingServer                        = function (actionType, options, oAdditionalData, dataContainer, downloadType)
 	{
 		var t = this;
+		var fSaveDocumentOpenCallback = options.onSaveDocumentOpen || null;
 		this.fCurCallback = null;
-		if (!options.callback)
+		// save 最终结果经 WebSocket documentOpen 返回，需在发起下载时即注册回调（不能等 HTTP 分片完成）
+		if (!options.callback || fSaveDocumentOpenCallback)
 		{
 			this.fCurCallback = function(input, status)
 			{
@@ -2420,21 +2422,35 @@
 						if (url)
 						{
 							error = c_oAscError.ID.No;
-							t.processSavedFile(url, downloadType, input["filetype"]);
+							if (fSaveDocumentOpenCallback)
+							{
+								fSaveDocumentOpenCallback(input);
+							}
+							else
+							{
+								t.processSavedFile(url, downloadType, input["filetype"]);
+							}
 						}
 					}
 					else
 					{
 						error = AscCommon.mapAscServerErrorToAscError(parseInt(input["data"]),
 							(options && options.isGetTextFromUrl) ? AscCommon.c_oAscAdvancedOptionsAction.Open : AscCommon.c_oAscAdvancedOptionsAction.Save);
+						if (fSaveDocumentOpenCallback)
+						{
+							fSaveDocumentOpenCallback(input);
+						}
 					}
 				}
 				if (c_oAscError.ID.No !== error)
 				{
 					t.endInsertDocumentUrls();
-					t.sendEvent('asc_onError', options.errorDirect || error, c_oAscError.Level.NoCritical);
+					if (!fSaveDocumentOpenCallback || null == input || oAdditionalData["c"] !== input['type'])
+					{
+						t.sendEvent('asc_onError', options.errorDirect || error, c_oAscError.Level.NoCritical);
+					}
 				}
-				if (actionType)
+				if (actionType && !fSaveDocumentOpenCallback)
 				{
 					t.sync_EndAction(c_oAscAsyncActionType.BlockInteraction, actionType);
 				}
