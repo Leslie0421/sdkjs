@@ -39,6 +39,7 @@
     function CPdfGraphicFrame()
     {
         AscFormat.CGraphicFrame.call(this);
+        AscPDF.CPdfDrawingPrototype.call(this);
     }
     
     CPdfGraphicFrame.prototype.constructor = CPdfGraphicFrame;
@@ -79,17 +80,19 @@
             }
         }
 
-        ret._page = this._page; 
+        if ((!oPr || !oPr.bSkipRedactsIds) && this.GetRedactIds) {
+            this.GetRedactIds().forEach(function(id) {
+                ret.AddRedactId(id);
+            });
+        }
+
         return ret;
     };
-    CPdfGraphicFrame.prototype.handleUpdateRot = function() {
-        this.SetNeedRecalc(true);
+    CPdfGraphicFrame.prototype.GetPageContentFrame = function(page, sectPr) {
+        return this.GetDocument().Get_PageLimits(page);
     };
-    CPdfGraphicFrame.prototype.Get_PageContentStartPos = function(nPage) {
-        return this.GetDocument().Get_PageLimits(nPage);
-    };
-    CPdfGraphicFrame.prototype.Get_PageContentStartPos2 = function(nPage) {
-        return this.Get_PageContentStartPos(nPage);
+    CPdfGraphicFrame.prototype.GetColumnContentFrame = function(page, column, sectPr) {
+        return this.GetPageContentFrame(page);
     };
     CPdfGraphicFrame.prototype.GetDocContent = function() {
         return this.getDocContent();
@@ -99,27 +102,6 @@
 		var ty = this.invertTransform.TransformPointY(x, y);
 		this.graphicObject.UpdateCursorType(tx, ty, 0)
 	};
-    /**
-     * Removes char in current position by direction.
-     * @memberof CTextField
-     * @typeofeditors ["PDF"]
-     */
-    CPdfGraphicFrame.prototype.Remove = function(nDirection, isCtrlKey) {
-        let oContent = this.GetDocContent();
-
-        if (oContent) {
-            oContent.Remove(nDirection, true, false, false, isCtrlKey);
-        }
-        else {
-            this.graphicObject.Remove(nDirection, true, false, false, isCtrlKey);
-        }
-        
-        this.SetNeedRecalc(true);
-
-        if (AscCommon.History.Is_LastPointEmpty()) {
-            AscCommon.History.Remove_LastPoint();
-        }
-    };
     CPdfGraphicFrame.prototype.CheckTextOnOpen = function() {
         let oTable = this.graphicObject;
         if (oTable) {
@@ -415,25 +397,29 @@
 			oDrDoc.TargetEnd();
 		}
 	};
-    CPdfGraphicFrame.prototype.Set_CurrentElement = function () {
-        let oDoc        = this.GetDocument();
-        let oController = oDoc.GetController();
-
-		oController.resetSelection(true);
-        if (this.group) {
-            var main_group = this.group.getMainGroup();
-            oController.selectObject(main_group, 0);
-            main_group.selectObject(this, 0);
-            main_group.selection.textSelection = this;
-        }
-        else {
-            oController.selectObject(this, 0);
-            oController.selection.textSelection = this;
-        }
-	};
     CPdfGraphicFrame.prototype.Get_PageFields = function (nPage) {
         return this.Get_PageLimits(nPage);
     };
+	CPdfGraphicFrame.prototype.Set_CurrentElement = function () {
+		let oDoc = this.GetDocument();
+		let nPage = this.GetPage();
+
+		if (this.parent && this.parent.graphicObjects) {
+			this.parent.graphicObjects.resetSelection(true);
+			if (this.group) {
+				var main_group = this.group.getMainGroup();
+				this.parent.graphicObjects.selectObject(main_group, 0);
+				main_group.selectObject(this, 0);
+				main_group.selection.textSelection = this;
+			} else {
+				this.parent.graphicObjects.selectObject(this, 0);
+				this.parent.graphicObjects.selection.textSelection = this;
+			}
+			if (oDoc && oDoc.GetCurPage() !== nPage) {
+				Asc.editor.WordControl.GoToPage(nPage);
+			}
+		}
+	};
 
     window["AscPDF"].CPdfGraphicFrame = CPdfGraphicFrame;
 })();

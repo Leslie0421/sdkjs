@@ -276,6 +276,8 @@
 
 		CImageShape.prototype.changeSize = CShape.prototype.changeSize;
 
+		CImageShape.prototype.getBounds = CShape.prototype.getBounds;
+
 		CImageShape.prototype.canRotate = function () {
 			if (this.isCrop) {
 				return false;
@@ -520,6 +522,10 @@
 				case AscDFH.historyitem_ImageShapeSetBlipFill: {
 					this.recalcBrush();
 					this.recalcFill();
+					this.addToRecalculate();
+					break;
+				}
+				case AscDFH.historyitem_AutoShapes_AddToDrawingObjects: {
 					this.addToRecalculate();
 					break;
 				}
@@ -895,8 +901,9 @@
 				if (oMainGroup) {
 					oMainGroup.normalize();
 				}
-				let dExtX = this.extX;
-				let dExtY = this.extY;
+				const dScaleCoefficient = this.getScaleCoefficient();
+				let dExtX = this.extX / dScaleCoefficient;
+				let dExtY = this.extY / dScaleCoefficient;
 				let dX = oXfrm.offX;
 				let dY = oXfrm.offY;
 				let bFlipH = oXfrm.flipH;

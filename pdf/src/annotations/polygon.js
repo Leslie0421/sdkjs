@@ -56,7 +56,6 @@
         this._rotate        = undefined;
         this._state         = undefined;
         this._stateModel    = undefined;
-        this._width         = undefined;
         this._vertices      = undefined;
         this._intent        = undefined;
     }
@@ -64,36 +63,65 @@
     AscFormat.InitClass(CAnnotationPolygon, AscPDF.CPdfShape, AscDFH.historyitem_type_Pdf_Annot_Polygon);
     Object.assign(CAnnotationPolygon.prototype, AscPDF.CAnnotationBase.prototype);
     
+	CAnnotationPolygon.prototype.private_UpdateRect = function(rect) {
+		AscCommon.History.StartNoHistoryMode();
+		let aCurRect = this.GetRect();
+		let aCurRD = this.GetRectangleDiff().slice();
+		let nLineW = this.GetBorderWidth() * g_dKoef_pt_to_mm;
+		rect && this.SetRect(rect);
+		this.SetRectangleDiff([0, 0, 0, 0]);
+		this.recalcBounds();
+		this.recalcGeometry();
+		this.Recalculate(true);
+		
+		AscCommon.History.EndNoHistoryMode();
+		
+		let oGrBounds = this.bounds;
+		let oShapeBounds = this.getRectBounds();
+
+		if (!rect) {
+			rect = [];
+		}
+
+		rect[0] = (oGrBounds.l - nLineW) * g_dKoef_mm_to_pt;
+		rect[1] = (oGrBounds.t - nLineW) * g_dKoef_mm_to_pt;
+		rect[2] = (oGrBounds.r + nLineW) * g_dKoef_mm_to_pt;
+		rect[3] = (oGrBounds.b + nLineW) * g_dKoef_mm_to_pt;
+
+		this._rect = aCurRect;
+		this._rectDiff = aCurRD;
+
+		this.SetRect(rect);
+		this.SetRectangleDiff([
+			(oShapeBounds.l - oGrBounds.l + nLineW) * g_dKoef_mm_to_pt,
+			(oShapeBounds.t - oGrBounds.t + nLineW) * g_dKoef_mm_to_pt,
+			(oGrBounds.r - oShapeBounds.r + nLineW) * g_dKoef_mm_to_pt,
+			(oGrBounds.b - oShapeBounds.b + nLineW) * g_dKoef_mm_to_pt
+		]);
+	};
+
+    CAnnotationPolygon.prototype.Copy = function(isForMove) {
+        let oCopy = AscPDF.CAnnotationBase.prototype.Copy.call(this, isForMove);
+
+        let aVertices = this.GetVertices();
+
+        oCopy.SetVertices(aVertices.slice());
+
+        return oCopy;
+    };
     CAnnotationPolygon.prototype.SetVertices = function(aVertices) {
-        let oViewer = editor.getDocumentRenderer();
-        let oDoc    = oViewer.getPDFDoc();
-        
-        this.recalcGeometry();
-        oDoc.History.Add(new CChangesPDFAnnotVertices(this, this.GetVertices(), aVertices));
+        AscCommon.History.Add(new CChangesPDFAnnotVertices(this, this.GetVertices(), aVertices));
 
         this._vertices = aVertices;
+		this.recalcGeometry();
+		this.SetWasChanged(true);
+		this.SetNeedRecalc(true);
     };
     CAnnotationPolygon.prototype.GetVertices = function() {
         return this._vertices;
     };
 
-    CAnnotationPolygon.prototype.Recalculate = function(bForce) {
-        if (true !== bForce && false == this.IsNeedRecalc()) {
-            return;
-        }
-
-        if (this.recalcInfo.recalculateGeometry)
-            this.RefillGeometry();
-
-        this.recalculateTransform();
-        this.updateTransformMatrix();
-        this.recalculate();
-        this.SetNeedRecalc(false);
-    };
     CAnnotationPolygon.prototype.RefillGeometry = function() {
-        let oViewer = editor.getDocumentRenderer();
-        let oDoc    = oViewer.getPDFDoc();
-        
         let aPoints = this.GetVertices();
 
         let aPolygonPoints = [];
@@ -108,10 +136,10 @@
             return measure * g_dKoef_pt_to_mm;
         });
 
-        oDoc.StartNoHistoryMode();
+        AscCommon.History.StartNoHistoryMode();
 
         let geometry;
-        if (this.GetBorderEffectStyle() === AscPDF.BORDER_EFFECT_STYLES.Cloud) {
+        if (this.GetBorderEffectStyle() === AscPDF.BORDER_EFFECT_STYLES.cloud) {
             geometry = AscPDF.generateCloudyGeometry(aPolygonPoints, aShapeRectInMM, this.spPr.geometry, this.GetBorderEffectIntensity());
         }
         else {
@@ -121,61 +149,7 @@
         if (this.spPr.geometry == null)
             this.spPr.setGeometry(geometry);
 
-        oDoc.EndNoHistoryMode();
-    };
-    CAnnotationPolygon.prototype.SetRect = function(aOrigRect) {
-        let oViewer     = Asc.editor.getDocumentRenderer();
-        let oDoc        = oViewer.getPDFDoc();
-
-        oDoc.History.Add(new CChangesPDFAnnotRect(this, this.GetOrigRect(), aOrigRect));
-
-        this._origRect = aOrigRect;
-
-        let oXfrm = this.getXfrm();
-        if (oXfrm) {
-            AscCommon.History.StartNoHistoryMode();
-            oXfrm.setOffX(aOrigRect[0] * g_dKoef_pt_to_mm);
-            oXfrm.setOffY(aOrigRect[1] * g_dKoef_pt_to_mm);
-            oXfrm.setExtX((aOrigRect[2] - aOrigRect[0]) * g_dKoef_pt_to_mm);
-            oXfrm.setExtY((aOrigRect[3] - aOrigRect[1]) * g_dKoef_pt_to_mm);
-            AscCommon.History.EndNoHistoryMode();
-        }
-
-        this.AddToRedraw();
-        this.SetWasChanged(true);
-    };
-    CAnnotationPolygon.prototype.LazyCopy = function() {
-        let oDoc = this.GetDocument();
-        oDoc.StartNoHistoryMode();
-
-        let oPolygon = new CAnnotationPolygon(AscCommon.CreateGUID(), this.GetOrigRect().slice(), oDoc);
-        oPolygon.lazyCopy = true;
-
-        this.fillObject(oPolygon);
-
-        let aStrokeColor    = this.GetStrokeColor();
-        let aFillColor      = this.GetFillColor();
-        let aVertices       = this.GetVertices();
-
-        oPolygon._apIdx = this._apIdx;
-        oPolygon._originView = this._originView;
-        oPolygon.SetOriginPage(this.GetOriginPage());
-        oPolygon.SetAuthor(this.GetAuthor());
-        oPolygon.SetModDate(this.GetModDate());
-        oPolygon.SetCreationDate(this.GetCreationDate());
-        oPolygon.SetContents(this.GetContents());
-        aStrokeColor && oPolygon.SetStrokeColor(aStrokeColor.slice());
-        aFillColor && oPolygon.SetFillColor(aFillColor.slice());
-        oPolygon.SetWidth(this.GetWidth());
-        oPolygon.SetOpacity(this.GetOpacity());
-        aVertices && oPolygon.SetVertices(aVertices.slice());
-        oPolygon.SetWasChanged(oPolygon.IsChanged());
-        oPolygon.recalcInfo.recalculateGeometry = true;
-        oPolygon.recalculate();
-
-        oDoc.EndNoHistoryMode();
-
-        return oPolygon;
+        AscCommon.History.EndNoHistoryMode();
     };
     CAnnotationPolygon.prototype.onMouseDown = function(x, y, e) {
         let oViewer         = Asc.editor.getDocumentRenderer();
@@ -194,11 +168,8 @@
         oDrawingObjects.startEditGeometry();
     };
     CAnnotationPolygon.prototype.GetGeometryEdit = function() {
-        if (this.GetBorderEffectStyle() !== AscPDF.BORDER_EFFECT_STYLES.Cloud)
+        if (this.GetBorderEffectStyle() !== AscPDF.BORDER_EFFECT_STYLES.cloud)
             return this.spPr.geometry;
-        
-        let oViewer = editor.getDocumentRenderer();
-        let oDoc    = oViewer.getPDFDoc();
         
         let aPoints = this.GetVertices();
         let aPolygonPoints = [];
@@ -213,10 +184,10 @@
             return measure * g_dKoef_pt_to_mm;
         });
 
-        oDoc.StartNoHistoryMode();
+        AscCommon.History.StartNoHistoryMode();
         this._internalGeomForEdit = generateGeometry(aPolygonPoints, aShapeRectInMM, this._internalGeomForEdit);
         this._internalGeomForEdit.Recalculate(aShapeRectInMM[2] - aShapeRectInMM[0], aShapeRectInMM[3] - aShapeRectInMM[1]);
-        oDoc.EndNoHistoryMode();
+        AscCommon.History.EndNoHistoryMode();
 
         return this._internalGeomForEdit;
     };

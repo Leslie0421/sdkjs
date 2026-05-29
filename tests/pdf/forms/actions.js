@@ -40,7 +40,8 @@ $(function ()
 	
 	function CreateTextForm(name)
 	{
-		let oField = pdfDoc.AddFieldByParams(name, AscPDF.FIELD_TYPES.text, 0, [20, 20, 50, 20]);
+		let oField = pdfDoc.CreateField(name, AscPDF.FIELD_TYPES.text, [20, 20, 50, 20]);
+		pdfDoc.AddField(oField, 0);
 		return oField; 
 	}
 	function EnterTextToForm(form, text)
@@ -48,7 +49,6 @@ $(function ()
 		let chars = text.codePointsArray();
 		AscTest.Editor.DocumentRenderer.getPDFDoc().activeForm = form;
 		form.EnterText(chars);
-		form.SetDrawHighlight(false);
 		pdfDoc.EnterDownActiveField();
 	}
 	function AddJsAction(form, trigger, script)
@@ -72,9 +72,9 @@ $(function ()
 		assert.strictEqual(textForm2.GetValue(), "2", "Check form2 value");
 		assert.strictEqual(textForm3.GetValue(), "3", "Check form3 value");
 		
-		AddJsAction(textForm1, AscPDF.FORMS_TRIGGERS_TYPES.Calculate, "this.getField('TextForm2').value += 1");
-		AddJsAction(textForm2, AscPDF.FORMS_TRIGGERS_TYPES.Calculate, "this.getField('TextForm3').value += 1");
-		AddJsAction(textForm3, AscPDF.FORMS_TRIGGERS_TYPES.Calculate, "this.getField('TextForm1').value += 1");
+		AddJsAction(textForm1, AscPDF.PDF_TRIGGERS_TYPES.Calculate, "this.getField('TextForm2').value += 1");
+		AddJsAction(textForm2, AscPDF.PDF_TRIGGERS_TYPES.Calculate, "this.getField('TextForm3').value += 1");
+		AddJsAction(textForm3, AscPDF.PDF_TRIGGERS_TYPES.Calculate, "this.getField('TextForm1').value += 1");
 		
 		textForm2.MoveCursorRight();
 		EnterTextToForm(textForm2, "2");

@@ -105,14 +105,66 @@ $(function () {
 			"界! "
 		]);
 		
-		// check non asian text with the eastAsian hint (71108)
+		setText("你好世界! HΩllo! 你好世界! 你好世界! ");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"你好世界! ",
+			"HΩllo! 你",
+			"好世界! 你好世",
+			"界! "
+		]);
+		
+		setText("你好世界! HeΩlo! 你好世界! 你好世界! ");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"你好世界! ",
+			"HeΩlo! 你",
+			"好世界! 你好世",
+			"界! "
+		]);
+		
+		// Don't break words in Korean script (73922)
+		setText("안녕하세요 우주인님");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"안녕하세요 ",
+			"우주인님"
+		]);
+		
+		// Check ambiguous characters with the eastAsian hint (71108)
+		// × Ω (whole greek script)
+		
 		run.SetRFontsHint(AscWord.fonthint_EastAsia);
 		setText("你好世界! Hello! 你好世界! 你好世界! ");
 		recalculate(charWidth * 8.5);
 		checkLines(assert, para, [
-			"你好世界! He",
+			"你好世界! ",
+			"Hello! 你",
+			"好世界! 你好世",
+			"界! "
+		]);
+		
+		setText("你好世界! HΩllo! 你好世界! 你好世界! ");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"你好世界! HΩ",
 			"llo! 你好世",
 			"界! 你好世界! "
+		]);
+		
+		setText("你好世界! HeΩlo! 你好世界! 你好世界! ");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"你好世界! He",
+			"Ωlo! 你好世",
+			"界! 你好世界! "
+		]);
+		
+		setText("안녕하세요 우주인님");
+		recalculate(charWidth * 8.5);
+		checkLines(assert, para, [
+			"안녕하세요 ",
+			"우주인님"
 		]);
 		
 		run.SetRFontsHint(undefined);
@@ -250,6 +302,36 @@ $(function () {
 		assert.strictEqual(para.GetLinesCount(), 1, "Lines count 1");
 		assert.strictEqual(para.GetTextOnLine(0), "xyz", "Text on line 0 'xyz'");
 	});
-
+	
+	QUnit.test("Test edge cases", function (assert)
+	{
+		// -------------------------------------------------------------------------------------------------------------
+		// Check bug (76557)
+		// We can make a break after '-'
+		// But '%',')' can't be at the start of the line
+		// so we should treat the whole text as a long word
+		// '(' can be at the start of the line
+		setText("hhhh-%hhh");
+		recalculate(charWidth * 6.5);
+		checkLines(assert, para, [
+			"hhhh-%",
+			"hhh"
+		]);
+		
+		setText("hhhh-)hhh");
+		recalculate(charWidth * 6.5);
+		checkLines(assert, para, [
+			"hhhh-)",
+			"hhh"
+		]);
+		
+		setText("hhhh-(hhh");
+		recalculate(charWidth * 6.5);
+		checkLines(assert, para, [
+			"hhhh-",
+			"(hhh"
+		]);
+		// -------------------------------------------------------------------------------------------------------------
+	});
 
 });

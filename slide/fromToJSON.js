@@ -1817,7 +1817,7 @@
 		if (!oPres)
 			oPres = private_GetPresentation();
 
-		oPres.addSlideMaster(oPres.slideMasters.length, oMasterSlide);
+		oPres.pushSlideMaster(oMasterSlide);
 		this.mastersMap[oParsedMaster["id"]] = oMasterSlide;
 
 		return oMasterSlide;
@@ -2307,7 +2307,7 @@
 	};
 	ReaderFromJSON.prototype.CommentFromJSON = function(oParsedComment, oParent)
 	{
-		var oAscCommentData = new Asc.asc_CCommentData({
+		var oAscCommentData = new Asc.asc_CCommentDataSlide({
 			m_sText:     oParsedComment["text"],
 			m_sUserName: oParsedComment["authorName"],
 			m_sUserId:   oParsedComment["authorId"],

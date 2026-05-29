@@ -84,7 +84,7 @@ CPDFCollaborativeEditing.prototype.Check_ForeignSelectedObjectsLabels = function
                 continue;
             }
 
-            let aOrigRect = aObjects[i].GetOrigRect();
+            let aOrigRect = aObjects[i].GetRect();
             if (X >= aOrigRect[0] && X < aOrigRect[2] && Y > aOrigRect[1] && Y < aOrigRect[3]) {
                 let color = AscCommon.getUserColorById(this.m_aForeignCursorsId[UserId], null, true);
                 oDoc.Show_ForeignSelectedObjectLabel(UserId, aObjects[i], color);
@@ -328,12 +328,12 @@ CPDFCollaborativeEditing.prototype.Apply_Changes = function(fEndCallBack) {
 		return fEndCallBack ? fEndCallBack() : null;
 
 	let docHistory = this.GetDocument().History;
-	docHistory.TurnOff();
+	docHistory.StartNoHistoryMode();
 	
 	this.GetDocument().currInkInDrawingProcess = null; // останавливаем ink рисование
 	AscCommon.CCollaborativeEditingBase.prototype.Apply_Changes.call(this, fEndCallBack);
 	
-	docHistory.TurnOn();
+	docHistory.EndNoHistoryMode();
 };
 CPDFCollaborativeEditing.prototype.OnEnd_ReadForeignChanges = function() {
 	AscCommon.CCollaborativeEditingBase.prototype.OnEnd_ReadForeignChanges.apply(this, arguments);

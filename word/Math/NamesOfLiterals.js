@@ -1343,7 +1343,9 @@
 		function IsFunc(arrStr)
 		{
 			let str = arrStr.join("");
-			if (oMathAutoCorrection.arrFunctionsNames[str] === null)
+			// This function must not be used in autocorrection.
+			// Function-related logic is handled separately during token processing.
+			if (false)
 				strLast = str;
 		}
 
@@ -1687,64 +1689,6 @@
 		this.arrRuleList = [];
 		this.oGeneralRules = {};
 		this.oSpecialList = {};
-		this.arrFunctionsNames = {
-			'arcsin'	: null,
-			'asin' 		: null,
-			'sin'		: null,
-			'arcsinh'	: null,
-			'asinh'		: null,
-			'sinh'		: null,
-			'arcsec'	: null,
-			'sec'		: null,
-			'asec' 		: null,
-			'arcsech'	: null,
-			'asech'		: null,
-			'sech'		: null,
-			'arccos'	: null,
-			'acos'		: null,
-			'cos'		: null,
-			'arccosh'	: null,
-			'acosh'		: null,
-			'cosh'		: null,
-			'arccsc'	: null,
-			'acsc'		: null,
-			'csc'		: null,
-			'arccsch'	: null,
-			'acsch'		: null,
-			'csch'		: null,
-			'arctan'	: null,
-			'atan'		: null,
-			'tan' 		: null,
-			'arctanh'	: null,
-			'atanh'		: null,
-			'tanh'		: null,
-			'arccot'	: null,
-			'acot' 		: null,
-			'cot'		: null,
-			'arccoth'	: null,
-			'acoth'		: null,
-			'coth'		: null,
-			'arg' 		: null,
-			'det'		: null,
-			'exp'		: null,
-			'inf'		: null,
-			'lim'		: null,
-			'min'		: null,
-			'def'		: null,
-			'dim'		: null,
-			'gcd'		: null,
-			'log'		: null,
-			'Pr'		: null,
-			'deg'		: null,
-			'erf'		: null,
-			'lg'		: null,
-			'ln'		: null,
-			'max'		: null,
-			'sup'		: null,
-			"ker"		: null,
-			'hom'		: null,
-			'sgn'		: null,
-		};
 		this.GenerateTokens();
 
 		return this;
@@ -2168,7 +2112,12 @@
 	};
 	Tokenizer.prototype.GetStyle = function (nCursorPos)
 	{
-		return this._styles[nCursorPos - 1];
+		let style = this._styles[nCursorPos - 1];
+
+		if (!style)
+			style = new MathTextAdditionalData();
+
+		return style;
 	};
 	Tokenizer.prototype.ProcessString = function (str, char)
 	{
@@ -2295,6 +2244,13 @@
 	{
 		Paragraph = oContext.Paragraph;
 
+		let arrContentAfterConvert = [];
+		if (oContext.Content[oContext.CurPos] instanceof ParaRun)
+		{
+			arrContentAfterConvert = oContext.SplitContentByPos(oContext.CurPos, true)
+			oContext.CurPos = oContext.Content.length - 1;
+		}
+
 		if (typeof oTokens === "object")
 		{
 			if (oTokens.type === "LaTeXEquation" || oTokens.type === "UnicodeEquation")
@@ -2330,6 +2286,12 @@
 		else
 		{
 			oContext.Add_Text(oTokens);
+		}
+
+		if (arrContentAfterConvert.length)
+		{
+			oContext.MoveCursorToEndPos();
+			oContext.ConcatToContent(oContext.Content.length, arrContentAfterConvert);
 		}
 	}
 	// Find token in all types for convert
@@ -2479,7 +2441,10 @@
 							null,
 							null
 						);
-						oFraction.SetReviewTypeWithInfo(oTokens.style.reviewData.reviewType, oTokens.style.reviewData.reviewInfo);
+
+						if (oTokens.style.reviewData.reviewType && oTokens.style.reviewData.reviewInfo)
+							oFraction.SetReviewTypeWithInfo(oTokens.style.reviewData.reviewType, oTokens.style.reviewData.reviewInfo);
+
 						if (oTokens.style.reviewData.reviewInfo && oFraction.ReviewInfo)
 							oFraction.ReviewInfo.Update();
 
@@ -2658,7 +2623,8 @@
 							null
 						);
 
-						SubSup.SetReviewTypeWithInfo(oCurrentStyle.reviewData.reviewType, oCurrentStyle.reviewData.reviewInfo);
+						if (oCurrentStyle.reviewData.reviewType && oCurrentStyle.reviewData.reviewInfo)
+							SubSup.SetReviewTypeWithInfo(oCurrentStyle.reviewData.reviewType, oCurrentStyle.reviewData.reviewInfo);
 
 						ConvertTokens(
 							oTokens.value,
@@ -2682,7 +2648,7 @@
 						if (oUpper && oTokens.style.subStyle)
 						{
 							oUpper.CtrPrp.Merge(oTokens.style.subStyle.style);
-							if (oTokens.style.subStyle.reviewData.reviewInfo)
+							if (oTokens.style.subStyle.reviewData.reviewType && oTokens.style.subStyle.reviewData.reviewInfo)
 								oUpper.SetReviewTypeWithInfo(oTokens.style.subStyle.reviewData.reviewType, oTokens.style.subStyle.reviewData.reviewInfo);
 						}
 
@@ -2690,7 +2656,7 @@
 						if (oLower && oTokens.style.supStyle)
 						{
 							oLower.CtrPrp.Merge(oTokens.style.supStyle.style);
-							if (oTokens.style.supStyle.reviewData.reviewInfo)
+							if (oTokens.style.supStyle.reviewData.reviewType && oTokens.style.supStyle.reviewData.reviewInfo)
 								oLower.SetReviewTypeWithInfo(oTokens.style.supStyle.reviewData.reviewType, oTokens.style.supStyle.reviewData.reviewInfo);
 						}
 					}
@@ -2885,7 +2851,9 @@
 						null
 					);
 
-					oRadical.SetReviewTypeWithInfo(oTokens.style.reviewData.reviewType, oTokens.style.reviewData.reviewInfo);
+					if (oTokens.style.reviewData.reviewType && oTokens.style.reviewData.reviewInfo)
+						oRadical.SetReviewTypeWithInfo(oTokens.style.reviewData.reviewType, oTokens.style.reviewData.reviewInfo);
+					
 					UnicodeArgument(
 						oTokens.value,
 						MathStructures.bracket_block,
@@ -4484,20 +4452,29 @@
 		let nParaCopy = this._nParaRun;
 		let nIndex = this._index;
 		let counter = this.counter;
+		let paraRun = this._paraRun;
+
+		let oReset = {
+			RunPos: nParaCopy,
+			nIndex: nIndex,
+			Counter: counter,
+			ParaRun: paraRun
+		}
 
 		if (!this.IsHasContent())
 			return false;
 
 		if (this._paraRun)
 		{
-			return this.Reset(this.Next(), nParaCopy, nIndex, counter);
+			return this.Reset(this.Next(), oReset);
 		}
 	};
-	CMathContentIterator.prototype.Reset = function (El, RunPos, nIndex, Counter)
+	CMathContentIterator.prototype.Reset = function (El, oReset)
 	{
-		this._nParaRun = RunPos;
-		this._index = nIndex;
-		this.counter = Counter;
+		this._nParaRun = oReset.RunPos;
+		this._index = oReset.nIndex;
+		this.counter = oReset.Counter;
+		this._paraRun = oReset.ParaRun;
 
 		return El;
 	};
@@ -5585,6 +5562,9 @@
 
 		if (oContent)
 			this.SetAdditionalDataFromContent(oContent, isCtrPr);
+
+		if (!oContent)
+			this.style = new CTextPr();
 	}
 
 	MathTextAdditionalData.prototype.Copy = function()
@@ -6103,6 +6083,9 @@
 		if (this.Tokens.brackets.NoPair.length > 1)
 			return true;
 
+		if (!AscCommonWord.b_DoAutoCorrectMathSymbols)
+			return false;
+
 		let oAbsoluteLastId 		= this.GetAbsoluteLast();
 		let nInputType = 0;
 
@@ -6275,7 +6258,7 @@
 
 			if (oPos)
 			{
-				while (!oPos.IsEqualPosition(oToken))
+				while (oToken && nCounter < arrAllTokens.length && !oPos.IsEqualPosition(oToken))
 				{
 					nCounter++;
 					oToken = arrAllTokens[nCounter];
@@ -7538,6 +7521,7 @@
 						}
 
 						oCurrentElement.State.ContentPos -= nEndRunContent - intRunContent;
+						oCurrentElement.State.ContentPos = Math.max(0, oCurrentElement.State.ContentPos);
 						oCurrentElement.Remove_FromContent(intRunContent, nEndRunContent - intRunContent, false);
 
 						if (oCurrentElement.Content.length === 0)
@@ -7668,7 +7652,7 @@
 
 			strWord = strCurrentContent + strWord;
 
-			if (oMathAutoCorrection.arrFunctionsNames[strWord.trim()] === null)
+			if (window['AscCommonWord'].g_AutoCorrectMathsList.AutoCorrectMathFuncs.includes(strWord.trim()))
 			{
 				let nTempRunCounter		= oContentIterator._nParaRun;
 				let nTempRootIndex		= oContentIterator._index;
@@ -8019,7 +8003,7 @@
 	{
 		let oPos = [];
 		arrContent = arrContent.slice().reverse();
-		let oNames = oMathAutoCorrection.arrFunctionsNames;
+		let oNames = window['AscCommonWord'].g_AutoCorrectMathsList.AutoCorrectMathFuncs;
 		let arrCurrent = [];
 		let str = "";
 
@@ -8029,7 +8013,7 @@
 			arrCurrent.push(oCurrentEl[0]);
 
 			str = arrCurrent.slice().reverse().join("");
-			if (oNames[str] === null)
+			if (oNames.includes(str))
 			{
 				oPos[0] = new PositionIsCMathContent(
 					oCurrentEl[1],

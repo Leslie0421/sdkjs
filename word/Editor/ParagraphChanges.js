@@ -49,6 +49,8 @@ AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_Before]            = 
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_After]             = CChangesParagraphSpacingAfter;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_AfterAutoSpacing]  = CChangesParagraphSpacingAfterAutoSpacing;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_BeforeAutoSpacing] = CChangesParagraphSpacingBeforeAutoSpacing;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_BeforeLines]       = CChangesParagraphSpacingBeforeLines;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Spacing_AfterLines]        = CChangesParagraphSpacingAfterLines;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Shd_Value]                 = CChangesParagraphShdValue;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Shd_Color]                 = CChangesParagraphShdColor;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Shd_Unifill]               = CChangesParagraphShdUnifill;
@@ -164,6 +166,14 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Spacing_BeforeAutoSpacing
 	AscDFH.historyitem_Paragraph_Spacing_BeforeAutoSpacing,
 	AscDFH.historyitem_Paragraph_Pr
 ];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Spacing_BeforeLines]       = [
+	AscDFH.historyitem_Paragraph_Spacing_BeforeLines,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Spacing_AfterLines]        = [
+	AscDFH.historyitem_Paragraph_Spacing_AfterLines,
+	AscDFH.historyitem_Paragraph_Pr
+];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Shd_Value]                 = [
 	AscDFH.historyitem_Paragraph_Shd_Value,
 	AscDFH.historyitem_Paragraph_Shd,
@@ -238,6 +248,8 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Pr]                      
 	AscDFH.historyitem_Paragraph_Spacing_After,
 	AscDFH.historyitem_Paragraph_Spacing_AfterAutoSpacing,
 	AscDFH.historyitem_Paragraph_Spacing_BeforeAutoSpacing,
+	AscDFH.historyitem_Paragraph_Spacing_BeforeLines,
+	AscDFH.historyitem_Paragraph_Spacing_AfterLines,
 	AscDFH.historyitem_Paragraph_Shd_Value,
 	AscDFH.historyitem_Paragraph_Shd_Color,
 	AscDFH.historyitem_Paragraph_Shd_Unifill,
@@ -306,6 +318,12 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Shd_ThemeFill]           
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Bidi] = [
 	AscDFH.historyitem_Paragraph_Bidi,
 	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_ParaId] = [
+	AscDFH.historyitem_Paragraph_ParaId
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_TextId] = [
+	AscDFH.historyitem_Paragraph_TextId
 ];
 
 // Общая функция Merge для изменений, которые зависят только от себя и AscDFH.historyitem_Paragraph_Pr
@@ -817,7 +835,7 @@ CChangesParagraphSpacingLine.prototype.private_SetValue = function(Value)
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.Line = Value;
 
@@ -843,7 +861,7 @@ CChangesParagraphSpacingLineRule.prototype.private_SetValue = function(Value)
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.LineRule = Value;
 
@@ -869,7 +887,7 @@ CChangesParagraphSpacingBefore.prototype.private_SetValue = function(Value)
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.Before = Value;
 
@@ -895,7 +913,7 @@ CChangesParagraphSpacingAfter.prototype.private_SetValue = function(Value)
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.After = Value;
 
@@ -921,7 +939,7 @@ CChangesParagraphSpacingAfterAutoSpacing.prototype.private_SetValue = function(V
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.AfterAutoSpacing = Value;
 
@@ -947,7 +965,7 @@ CChangesParagraphSpacingBeforeAutoSpacing.prototype.private_SetValue = function(
 	var oParagraph = this.Class;
 
 	if (undefined === oParagraph.Pr.Spacing)
-		oParagraph.Pr.Spacing = new CParaSpacing();
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
 
 	oParagraph.Pr.Spacing.BeforeAutoSpacing = Value;
 
@@ -957,6 +975,58 @@ CChangesParagraphSpacingBeforeAutoSpacing.prototype.private_SetValue = function(
 CChangesParagraphSpacingBeforeAutoSpacing.prototype.Merge = private_ParagraphChangesOnMergePr;
 CChangesParagraphSpacingBeforeAutoSpacing.prototype.Load = private_ParagraphChangesOnLoadPr;
 CChangesParagraphSpacingBeforeAutoSpacing.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseLongProperty}
+ */
+function CChangesParagraphSpacingBeforeLines(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseLongProperty.call(this, Class, Old, New, Color);
+}
+CChangesParagraphSpacingBeforeLines.prototype = Object.create(AscDFH.CChangesBaseLongProperty.prototype);
+CChangesParagraphSpacingBeforeLines.prototype.constructor = CChangesParagraphSpacingBeforeLines;
+CChangesParagraphSpacingBeforeLines.prototype.Type = AscDFH.historyitem_Paragraph_Spacing_BeforeLines;
+CChangesParagraphSpacingBeforeLines.prototype.private_SetValue = function(Value)
+{
+	var oParagraph = this.Class;
+
+	if (undefined === oParagraph.Pr.Spacing)
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
+
+	oParagraph.Pr.Spacing.BeforeLines = Value;
+
+	oParagraph.CompiledPr.NeedRecalc = true;
+	oParagraph.private_UpdateTrackRevisionOnChangeParaPr(false);
+};
+CChangesParagraphSpacingBeforeLines.prototype.Merge = private_ParagraphChangesOnMergePr;
+CChangesParagraphSpacingBeforeLines.prototype.Load = private_ParagraphChangesOnLoadPr;
+CChangesParagraphSpacingBeforeLines.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseLongProperty}
+ */
+function CChangesParagraphSpacingAfterLines(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseLongProperty.call(this, Class, Old, New, Color);
+}
+CChangesParagraphSpacingAfterLines.prototype = Object.create(AscDFH.CChangesBaseLongProperty.prototype);
+CChangesParagraphSpacingAfterLines.prototype.constructor = CChangesParagraphSpacingAfterLines;
+CChangesParagraphSpacingAfterLines.prototype.Type = AscDFH.historyitem_Paragraph_Spacing_AfterLines;
+CChangesParagraphSpacingAfterLines.prototype.private_SetValue = function(Value)
+{
+	var oParagraph = this.Class;
+
+	if (undefined === oParagraph.Pr.Spacing)
+		oParagraph.Pr.Spacing = new AscWord.ParaSpacing();
+
+	oParagraph.Pr.Spacing.AfterLines = Value;
+
+	oParagraph.CompiledPr.NeedRecalc = true;
+	oParagraph.private_UpdateTrackRevisionOnChangeParaPr(false);
+};
+CChangesParagraphSpacingAfterLines.prototype.Merge = private_ParagraphChangesOnMergePr;
+CChangesParagraphSpacingAfterLines.prototype.Load = private_ParagraphChangesOnLoadPr;
+CChangesParagraphSpacingAfterLines.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseByteProperty}
@@ -1431,7 +1501,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_Line:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.Line = oChange.New;
 			break;
@@ -1439,7 +1509,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_LineRule:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.LineRule = oChange.New;
 			break;
@@ -1447,7 +1517,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_Before:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.Before = oChange.New;
 			break;
@@ -1455,7 +1525,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_After:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.After = oChange.New;
 			break;
@@ -1463,7 +1533,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_AfterAutoSpacing:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.AfterAutoSpacing = oChange.New;
 			break;
@@ -1471,7 +1541,7 @@ CChangesParagraphPr.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_Paragraph_Spacing_BeforeAutoSpacing:
 		{
 			if (!this.New.Spacing)
-				this.New.Spacing = new CParaSpacing();
+				this.New.Spacing = new AscWord.ParaSpacing();
 
 			this.New.Spacing.BeforeAutoSpacing = oChange.New;
 			break;
@@ -1663,23 +1733,17 @@ CChangesParagraphSectPr.prototype.constructor = CChangesParagraphSectPr;
 CChangesParagraphSectPr.prototype.Type = AscDFH.historyitem_Paragraph_SectionPr;
 CChangesParagraphSectPr.prototype.Undo = function()
 {
-	var oParagraph = this.Class;
-	var oOldSectPr = oParagraph.SectPr;
-	oParagraph.SectPr = this.Old;
-	
-	let logicDocument = oParagraph.GetLogicDocument();
-	if (logicDocument)
-		logicDocument.UpdateSectionInfo(oOldSectPr, this.Old, false);
+	let paragraph = this.Class;
+	let oldSectPr = paragraph.SectPr;
+	paragraph.SectPr = this.Old;
+	paragraph.UpdateSectionInfo(oldSectPr, false);
 };
 CChangesParagraphSectPr.prototype.Redo = function()
 {
-	var oParagraph = this.Class;
-	var oOldSectPr = oParagraph.SectPr;
-	oParagraph.SectPr = this.New;
-	
-	let logicDocument = oParagraph.GetLogicDocument();
-	if (logicDocument)
-		logicDocument.UpdateSectionInfo(oOldSectPr, this.New, false);
+	let paragraph = this.Class;
+	let oldSectPr = paragraph.SectPr;
+	paragraph.SectPr = this.New;
+	paragraph.UpdateSectionInfo(oldSectPr, false);
 };
 CChangesParagraphSectPr.prototype.WriteToBinary = function(Writer)
 {
@@ -2083,3 +2147,46 @@ CChangesParagraphBidi.prototype.IsNeedRecalculate = function()
 	return true;
 };
 CChangesParagraphBidi.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+
+(function()
+{
+	/**
+	 * @constructor
+	 * @extends {AscDFH.CChangesBaseLongProperty}
+	 */
+	function CChangesParagraphParaId(Class, Old, New)
+	{
+		AscDFH.CChangesBaseLongProperty.call(this, Class, Old, New);
+	}
+	
+	AscDFH.InheritPropertyChange(
+		CChangesParagraphParaId,
+		AscDFH.CChangesBaseLongProperty,
+		AscDFH.historyitem_Paragraph_ParaId,
+		function(value)
+		{
+			this.Class.ParaId = value;
+		}
+	);
+	AscDFH.CChangesParagraphParaId = CChangesParagraphParaId;
+	
+	/**
+	 * @constructor
+	 * @extends {AscDFH.CChangesBaseLongProperty}
+	 */
+	function CChangesParagraphTextId(Class, Old, New)
+	{
+		AscDFH.CChangesBaseLongProperty.call(this, Class, Old, New);
+	}
+	
+	AscDFH.InheritPropertyChange(
+		CChangesParagraphTextId,
+		AscDFH.CChangesBaseLongProperty,
+		AscDFH.historyitem_Paragraph_TextId,
+		function(value)
+		{
+			this.Class.TextId = value;
+		}
+	);
+	AscDFH.CChangesParagraphTextId = CChangesParagraphTextId;
+})();

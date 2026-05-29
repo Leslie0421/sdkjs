@@ -1,4 +1,4 @@
-﻿/*
+/*
  * (c) Copyright Ascensio System SIA 2010-2024
  *
  * This program is a free software product. You can redistribute it and/or
@@ -362,7 +362,7 @@ ThemeColor.prototype =
 					HSL.L = HSL.L * (1 - this.tint) + (g_nHSLMaxValue - g_nHSLMaxValue * (1 - this.tint));
 				HSL.L >>= 0;
 				var RGB = {R: 0, G: 0, B: 0};
-				oCColorModifiers.HSL2RGB(HSL, RGB);
+				oCColorModifiers.HSL2RGB(HSL, RGB, true);
 				r = RGB.R;
 				g = RGB.G;
 				b = RGB.B;
@@ -653,9 +653,6 @@ var g_oFontProperties = {
 		if (!this.fs) {
 			this.fs = 11;
 		}
-		if (!this.c) {
-			this.c = AscCommonExcel.g_oColorManager.getThemeColor(AscCommonExcel.g_nColorTextDefault);
-		}
 	};
 	Font.prototype.assign = function(font) {
 		this.fn = font.fn;
@@ -775,7 +772,7 @@ var g_oFontProperties = {
 		return font && this.getName() === font.getName() && this.getSize() === font.getSize() && this.getBold() === font.getBold() && this.getItalic() === font.getItalic();
 	};
 	Font.prototype.isNormalXfColor = function () {
-		return this.c && this.c.isEqual(g_StyleCache.normalXf.font.c);
+		return g_oColorManager.isEqual(this.c, g_StyleCache.normalXf.font.c);
 	};
 	Font.prototype.clone = function () {
 		var font = new Font();
@@ -3017,7 +3014,7 @@ var g_oFontProperties = {
 		var res = undefined;
 		switch (val) {
 			case "automatic":
-				res = AscCommonExcel.EDataBarAxisPosition.context;
+				res = AscCommonExcel.EDataBarAxisPosition.automatic;
 				break;
 			case "middle":
 				res = AscCommonExcel.EDataBarAxisPosition.middle;
@@ -4892,11 +4889,14 @@ var g_oFontProperties = {
         return this.getFont2().getStrikeout();
     };
     CellXfs.prototype.asc_getFontSubscript = function () {
-        return (AscCommon.vertalign_SubScript === this.getFont2().getVerticalAlign());
+        return (AscCommon.vertalign_SubScript === this.asc_getFontVerticalAlign());
     };
     CellXfs.prototype.asc_getFontSuperscript = function () {
-        return (AscCommon.vertalign_SuperScript === this.getFont2().getVerticalAlign());
+        return (AscCommon.vertalign_SuperScript === this.asc_getFontVerticalAlign());
     };
+	CellXfs.prototype.asc_getFontVerticalAlign = function () {
+		return this.getFont2().getVerticalAlign();
+	};
 
 	CellXfs.prototype.asc_getNumFormat = function () {
 		return this.getNum2().getFormat();
@@ -4925,7 +4925,11 @@ var g_oFontProperties = {
 		return this.getAlign2().getShrinkToFit();
 	};
 	CellXfs.prototype.asc_getReadingOrder = function () {
-		return this.getAlign2().getReadingOrder();
+		let readingOrder = this.getAlign2().getReadingOrder();
+		if (readingOrder === null || readingOrder === undefined) {
+			readingOrder = Asc.c_oReadingOrderTypes.Context;
+		}
+		return readingOrder;
 	};
 	CellXfs.prototype.asc_getPreview = function (api, text, width, height) {
 		return AscCommonExcel.generateXfsStyle(width, height, api.wb, this, text);
@@ -5091,18 +5095,6 @@ var g_oFontProperties = {
 			Vertical: 7,
 			WrapText: 8
 	};
-
-	const c_oReadingOrderTypes = {
-		Context: 0,
-		LTR: 1,
-		RTL: 2
-	};
-
-	window['Asc']['c_oReadingOrderTypes'] = window['Asc'].c_oReadingOrderTypes = c_oReadingOrderTypes;
-	prot = c_oReadingOrderTypes;
-	prot['Context'] = prot.Context;
-	prot['LTR'] = prot.LTR;
-	prot['RTL'] = prot.RTL;
 
 	window['Asc']['c_oSerAligmentTypes'] = window['Asc'].c_oSerAligmentTypes = c_oSerAligmentTypes;
 	prot = c_oSerAligmentTypes;
@@ -6089,6 +6081,8 @@ StyleManager.prototype =
 		this.bVisited = false;
 
 		this.bHyperlinkFunction = null;
+		
+		this._tempLocation = null;
 	}
 
 	Hyperlink.prototype.clone = function (oNewWs) {
@@ -6155,6 +6149,9 @@ StyleManager.prototype =
 			}
 		}
 		this._updateLocation();
+		if (Location && !this.Location) {
+			this._tempLocation = Location;
+		}
 	};
 	Hyperlink.prototype.getLocation = function () {
 		if (this.bUpdateLocation)
@@ -6295,6 +6292,14 @@ StyleManager.prototype =
 	Hyperlink.prototype.getHyperlinkFunction = function () {
 		return this.bHyperlinkFunction;
 	};
+	Hyperlink.prototype.checkAfterOpen = function () {
+		let type = this.getHyperlinkType();
+		if (type === Asc.c_oAscHyperlinkType.WebLink && this._tempLocation) {
+			this.Location = this._tempLocation;
+		}
+		this._tempLocation = null;
+	};
+	
 
 	/** @constructor */
 	function SheetFormatPr() {
@@ -7199,6 +7204,11 @@ StyleManager.prototype =
 		}
 		stream.Seek2(end);
 	};
+	Row.prototype.isEqualForXLSB = function(row) {
+		return this.xfs === row.xfs && this.h === row.h && this.outlineLevel === row.outlineLevel &&
+			this.getCollapsed() === row.getCollapsed() && this.getHidden() === row.getHidden() &&
+			this.getCustomHeight() === row.getCustomHeight();
+	};
 	Row.prototype.toXLSB = function(stream, offsetIndex, stylesForWrite) {
 		stream.XlsbStartRecord(AscCommonExcel.XLSB.rt_ROW_HDR, 17);
 		stream.WriteULong((this.index + offsetIndex) & 0xFFFFF);
@@ -7233,6 +7243,7 @@ StyleManager.prototype =
 		stream.WriteByte(0);
 		stream.WriteULong(0);
 		stream.XlsbEndRecord();
+		return 0 === nS && 0 === nHt && 0 === byteExtra2;
 	};
 	Row.prototype.onStartNode = function(elem, attr, uq, tagend, getStrNode) {
 		var attrVals;
@@ -11703,18 +11714,19 @@ function RangeDataManagerElem(bbox, data)
 			case Asc.c_oAscDynamicAutoFilter.belowAverage: {
 				let sum = 0;
 				let counter = 0;
+				if (range) {
+					range._foreachNoEmpty(function (cell) {
+						let cellVal = parseFloat(cell.getValueWithoutFormat());
 
-				range._foreachNoEmpty(function (cell) {
-					let cellVal = parseFloat(cell.getValueWithoutFormat());
-
-					if (!isNaN(cellVal)) {
-						sum += parseFloat(cellVal);
-						counter++;
+						if (!isNaN(cellVal)) {
+							sum += parseFloat(cellVal);
+							counter++;
+						}
+					});
+					if (counter > 0) {
+						val = sum / counter;
 					}
-
-				});
-				val = sum / counter;
-
+				}
 				break;
 			}
 			case Asc.c_oAscDynamicAutoFilter.lastMonth:
@@ -12754,14 +12766,14 @@ function RangeDataManagerElem(bbox, data)
 			}
 			case Asc.EDateTimeGroup.datetimegroupHour://hour
 			{
-				startDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, 1)).getExcelDateWithTime();
-				endDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, 59)).getExcelDateWithTime();
+				startDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, 0, 0)).getExcelDateWithTime();
+				endDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour + 1, 0, 0)).getExcelDateWithTime();
 				break;
 			}
 			case Asc.EDateTimeGroup.datetimegroupMinute://minute
 			{
 				startDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, oDateGroupItem.Minute, 0)).getExcelDateWithTime();
-				endDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, oDateGroupItem.Minute, 59)).getExcelDateWithTime();
+				endDate = new Asc.cDate(Date.UTC( oDateGroupItem.Year, oDateGroupItem.Month - 1, oDateGroupItem.Day, oDateGroupItem.Hour, oDateGroupItem.Minute + 1, 0)).getExcelDateWithTime();
 				break;
 			}
 			case Asc.EDateTimeGroup.datetimegroupMonth://month
@@ -13011,16 +13023,20 @@ function RangeDataManagerElem(bbox, data)
 	 */
 	function CSharedStrings () {
 		this.all = [];
-		this.text = new Map();
-		this.multiTextMap = new Map();
+		this.text = Object.create(null);
+		this.multiTextMap = Object.create(null);
+
+		this.bssr = null;
 	}
 
 	CSharedStrings.prototype.addText = function(text) {
-		var index = this.text.get(text);
+		var textMap = this.text;
+		var index = textMap[text];
 		if (undefined === index) {
-			this.all.push(text);
-			index = this.all.length;
-			this.text.set(text, index);
+			var allArray = this.all;
+			allArray.push(text);
+			index = allArray.length;
+			textMap[text] = index;
 			if (AscFonts.IsCheckSymbols) {
 				AscFonts.FontPickerByCharacter.getFontsByString(text);
 			}
@@ -13032,10 +13048,10 @@ function RangeDataManagerElem(bbox, data)
 		var text = multiText.reduce(function(accumulator, currentValue) {
 			return accumulator + currentValue.text;
 		}, '');
-		var mapElem = this.multiTextMap.get(text);
+		var mapElem = this.multiTextMap[text];
 		if (!mapElem) {
 			mapElem = [];
-			this.multiTextMap.set(text, mapElem);
+			this.multiTextMap[text] = mapElem;
 		}
 		for (i = 0; i < mapElem.length; ++i) {
 			if (AscCommonExcel.isEqualMultiText(multiText, this.all[mapElem[i] - 1])) {
@@ -13048,12 +13064,91 @@ function RangeDataManagerElem(bbox, data)
 			index = this.all.length;
 			mapElem.push(index);
 			if (AscFonts.IsCheckSymbols) {
-				for (i = 0; i < multiText.length; ++i) {
-					AscFonts.FontPickerByCharacter.getFontsByString(multiText[i].text);
-				}
+				AscFonts.FontPickerByCharacter.getFontsByString(text);
 			}
 		}
 		return index;
+	};
+	/**
+	 * Initialize with sharedStrings from file. Relies on uniqueness.
+	 * Adds new shared strings to existing ones without removing existing data.
+	 * @param {Array<string | Array<{text: string, format: CellXfs}>>} sharedStrings
+	 * @param {Array<number>} [opt_sharedStringIndexMap] - optional array to collect index mappings
+	 */
+	CSharedStrings.prototype.initWithSharedStrings = function(sharedStrings, opt_sharedStringIndexMap) {
+		if (this.all.length > 0) {
+			for (let i = 0; i < sharedStrings.length; i++) {
+				const item = sharedStrings[i];
+				let index;
+				if (typeof item === 'string') {
+					index = this.addText(item);
+				} else {
+					index = this.addMultiText(item);
+				}
+				if (opt_sharedStringIndexMap) {
+					opt_sharedStringIndexMap.push(index);
+				}
+			}
+			return;
+		}
+		this.replaceSharedStrings(sharedStrings, opt_sharedStringIndexMap);
+	};
+	/**
+	 * Replace all shared strings with new ones (fast path for empty state).
+	 * @param {Array<string | Array<{text: string, format: CellXfs}>>} sharedStrings
+	 * @param {Array<number>} [opt_sharedStringIndexMap] - optional array to collect index mappings
+	 */
+	CSharedStrings.prototype.replaceSharedStrings = function(sharedStrings, opt_sharedStringIndexMap) {
+		this.all = sharedStrings.slice(); // copy
+		this.text = Object.create(null);
+		this.multiTextMap = Object.create(null);
+
+		for (let i = 0; i < sharedStrings.length; i++) {
+			const text = sharedStrings[i];
+			this._addSharedStringCacheByIndex(text, i + 1); // 1-based indexing
+			if (opt_sharedStringIndexMap) {
+				opt_sharedStringIndexMap.push(i + 1);
+			}
+		}
+	};
+	CSharedStrings.prototype._addSharedStringCacheByIndex = function(text, index) {
+		if (typeof text === 'string') {
+			this.text[text] = index;
+			if (AscFonts.IsCheckSymbols) {
+				AscFonts.FontPickerByCharacter.getFontsByString(text);
+			}
+		} else {
+			let key = "";
+			for (let j = 0; j < text.length; ++j) {
+				key += text[j].text;
+			}
+			if (AscFonts.IsCheckSymbols) {
+				AscFonts.FontPickerByCharacter.getFontsByString(key);
+			}
+			var mapElem = this.multiTextMap[key];
+			if (!mapElem) {
+				mapElem = [];
+				this.multiTextMap[key] = mapElem;
+			}
+			mapElem.push(index);
+		}
+	};
+	CSharedStrings.prototype.initWithBinaryReader = function(bssr) {
+		this.all = new Array(bssr.offsets.length / 2);
+		this.bssr = bssr;
+		this.get = this._getFromBinaryReader;
+	}
+	CSharedStrings.prototype._getFromBinaryReader = function(index) {
+		let res = null;
+		if (1 <= index && index <= this.all.length) {
+			res = this.all[index - 1];
+			if (undefined === res) {
+				res = this.bssr.ReadSharedStringByOffset(index - 1);
+				this.all[index - 1] = res
+				this._addSharedStringCacheByIndex(res, index);
+			}
+		}
+		return res;
 	};
 	CSharedStrings.prototype.get = function(index) {
 		return 1 <= index && index <= this.all.length ? this.all[index - 1] : null;
@@ -13062,7 +13157,9 @@ function RangeDataManagerElem(bbox, data)
 		return this.all.length;
 	};
 	CSharedStrings.prototype.generateFontMap = function(oFontMap) {
-		this.multiTextMap.forEach(function(mapElem) {
+		var keys = Object.keys(this.multiTextMap);
+		for (var k = 0; k < keys.length; ++k) {
+			var mapElem = this.multiTextMap[keys[k]];
 			for (var i = 0; i < mapElem.length; ++i) {
 				var multiText = this.all[mapElem[i] - 1];
 				for (var j = 0; j < multiText.length; ++j) {
@@ -13072,7 +13169,7 @@ function RangeDataManagerElem(bbox, data)
 					}
 				}
 			}
-		}, this);
+		}
 	};
 
 	/**
@@ -14493,6 +14590,9 @@ function RangeDataManagerElem(bbox, data)
 
 		this.arguments = null;
 
+		this.activeArgPos = null;
+		this.activeArgsCount = null;
+
 		this._init(name);
 
 		return this;
@@ -14536,6 +14636,12 @@ function RangeDataManagerElem(bbox, data)
 	};
 	CFunctionInfo.prototype.asc_setArguments = function (val) {
 		this.arguments = val;
+	};
+	CFunctionInfo.prototype.asc_getActiveArgPos = function () {
+		return this.activeArgPos;
+	};
+	CFunctionInfo.prototype.asc_getActiveArgsCount = function () {
+		return this.activeArgsCount;
 	};
 
 
@@ -14958,13 +15064,10 @@ function RangeDataManagerElem(bbox, data)
 	};
 
 	//external reference
-	function ExternalReference() {
-		this.DefinedNames = [];
+	function ExternalReferenceBase()
+	{
 		this.Id = null;
-		this.SheetDataSet = [];
-		this.SheetNames = [];
 		this.Type = 0;
-
 		//дополнительная информация, которая приходит при copy/paste
 		//необходимо её добавлять в ooxml
 		//fileId
@@ -14973,9 +15076,220 @@ function RangeDataManagerElem(bbox, data)
 
 		//temp for update
 		this.sKey = null;
+	}
+	ExternalReferenceBase.prototype.getKey = function() {
+		return this.sKey;
+	};
+	ExternalReferenceBase.prototype.setKey = function(val) {
+		this.sKey = val;
+	};
+	ExternalReferenceBase.prototype.createDuplicate = function ()
+	{
+		const oCopy = new this.constructor();
+		oCopy.Id = this.Id;
+		oCopy.Type = this.Type;
+		if (null != this.referenceData)
+		{
+			oCopy.referenceData = {};
+			oCopy.referenceData["fileKey"] = this.referenceData["fileKey"];
+			oCopy.referenceData["instanceId"] = this.referenceData["instanceId"];
+		}
+		return oCopy;
+	}
+	ExternalReferenceBase.prototype.convertToExternalReference = function ()
+	{
+		const oExternalReference = new ExternalReference();
+		if (this.referenceData)
+		{
+			oExternalReference.setReferenceData(this.referenceData["fileKey"], this.referenceData["instanceId"]);
+		}
+		oExternalReference.Id = this.Id;
+		oExternalReference.Type = this.Type;
+		return oExternalReference;
+	}
+	ExternalReferenceBase.prototype.isExternalLink = function() {
+		if (!this.Id)
+			return false;
+		var p = /^(?:http:\/\/|https:\/\/)/;
+		return this.Id.match(p);
+	};
+
+	ExternalReferenceBase.prototype.isXlsx = function() {
+		if (!this.Id)
+			return false;
+		var p = /^.*\.(xlsx)$/i;
+		return this.Id.match(p);
+	};
+
+	//TODO внешние источники данных, как в файле из бага https://bugzilla.onlyoffice.com/show_bug.cgi?id=38646
+
+	ExternalReferenceBase.prototype.getAscLink = function () {
+
+		// вот так, если это из файла прилетело, в т.ч. из буфера
+		// onRequestReferenceData({data:{referenceData:config.document.referenceData}})
+		//
+		//
+		// вот так, если это будет ссылка на редактор файла в тестовом как в onedrive
+		// onRequestReferenceData({data:{link:"http://192.168.1.1/editor?fileName=new.docx"}})
+		//
+		// вот так, если б это было просто путь к файлу как в MS:
+		// 	onRequestReferenceData({data:{path: "new.docx"}})
+
+
+		var res = new asc_CExternalReference();
+
+		if (this.referenceData) {
+			res.type = Asc.c_oAscExternalReferenceType.referenceData;
+			res.data = this.referenceData;
+		} else if (this.isExternalLink()) {
+			res.type = Asc.c_oAscExternalReferenceType.link;
+			res.data = this.Id;
+		} else {
+			res.type = Asc.c_oAscExternalReferenceType.path;
+			res.data = this.Id;
+		}
+
+		res.externalReference = this;
+
+		return res;
+	};
+
+
+	ExternalReferenceBase.prototype.setReferenceData = function (fileId, portalName) {
+		if (!fileId || !portalName) {
+			return;
+		}
+		if (!this.referenceData) {
+			this.referenceData = {};
+		}
+		this.referenceData["instanceId"] = portalName;
+		this.referenceData["fileKey"] = fileId + "";
+	};
+
+	ExternalReferenceBase.prototype.setId = function (id) {
+		if (!id) {
+			return;
+		}
+
+		this.Id = id;
+	};
+
+	ExternalReferenceBase.prototype.initFromObj = function (obj) {
+		//directUrl:
+		//fileType:
+		//token:
+		//url
+		//path
+		//referenceData
+		if (obj["path"] !== this.Id) {
+			this.setId(this._checkAndCorrectPath(obj["path"], obj["filePath"]));
+		}
+
+		if (obj["referenceData"] && (!this.referenceData || this.referenceData["instanceId"] !== obj["referenceData"]["instanceId"] ||
+			this.referenceData["instanceId"] !== obj["referenceData"]["fileKey"])) {
+			this.setReferenceData(obj["referenceData"]["fileKey"], obj["referenceData"]["instanceId"]);
+		}
+	};
+
+	ExternalReferenceBase.prototype._checkAndCorrectPath = function (sPath, sAbsolutePath) {
+		if (!sPath || 1 === sPath.indexOf("../")) {
+			// sPath -> ../../from.xlsx
+			//sAbsolutePath - > C:\root\from.xlsx
+			// need -> /root/from.xlsx
+			if (sAbsolutePath) {
+				sPath = sAbsolutePath.substring(sAbsolutePath.indexOf("\\"))
+				sPath = sPath.replace(/\\/g,"/")
+			}
+		} else if (sPath && -1 !== sPath.indexOf(":/")) {
+			// sPath -> C:/root/from1.xlsx
+			//need -> file:///C:\root\from1.xlsx
+			sPath = sPath.replace(/\//g,"\\");
+			sPath = "file:///" + sPath;
+		} else if (sPath && -1 === sPath.indexOf("file:///")) {
+			sPath = "file:///" + sPath;
+		}
+
+		return sPath;
+	};
+
+	function CChartExternalReference(chart)
+	{
+		ExternalReferenceBase.call(this);
+		this.chart = chart;
+	}
+	AscFormat.InitClassWithoutType(CChartExternalReference, ExternalReferenceBase);
+
+	CChartExternalReference.prototype.Write_ToBinary = function(writer) {
+		this.WriteToBinary(writer);
+	};
+	CChartExternalReference.prototype.Read_FromBinary = function(writer) {
+		this.ReadFromBinary(writer);
+	};
+	CChartExternalReference.prototype.WriteToBinary = function(writer) {
+		AscFormat.writeString(writer, this.Id);
+		AscFormat.writeLong(writer, this.Type);
+		writer.WriteBool(isRealObject(this.referenceData));
+		if (this.referenceData)
+		{
+			AscFormat.writeString(writer, this.referenceData["instanceId"]);
+			AscFormat.writeString(writer, this.referenceData["fileKey"]);
+		}
+	};
+	CChartExternalReference.prototype.ReadFromBinary = function(reader) {
+		this.Id = AscFormat.readString(reader);
+		this.Type = AscFormat.readLong(reader);
+		if (reader.GetBool())
+		{
+			this.referenceData = {};
+			this.referenceData["instanceId"] = AscFormat.readString(reader);
+			this.referenceData["fileKey"] = AscFormat.readString(reader);
+		}
+	};
+	CChartExternalReference.prototype.setReferenceData = function (fileId, portalName) {
+		ExternalReferenceBase.prototype.setReferenceData.call(this, fileId, portalName);
+		try {
+			this.Id = JSON.parse(fileId)["fileName"];
+		} catch (e) {
+		}
+	};
+	CChartExternalReference.prototype.updateData = function (wb, oPortalData) {
+		Asc.editor.wbModel = wb;
+		this.chart.worksheet = wb.getWorksheet(0);
+		this.chart.recalculateReferences(true);
+
+		const oReferenceData = oPortalData && oPortalData["referenceData"];
+		let oCopy;
+		if (oReferenceData && (!this.referenceData || (this.referenceData["instanceId"] !== oReferenceData["instanceId"] || this.referenceData["fileKey"] !== oReferenceData["fileKey"]))) {
+			oCopy = this.createDuplicate();
+			oCopy.setReferenceData(oReferenceData["fileKey"], oReferenceData["instanceId"]);
+		}
+
+		var path = oPortalData && oPortalData["path"];
+		if (path && this.Id !== path) {
+			oCopy = oCopy ? oCopy : this.createDuplicate();
+			oCopy.setId(path);
+		}
+
+		if (oCopy) {
+			this.chart.setExternalReference(oCopy);
+		}
+
+		this.chart.worksheet = undefined;
+		delete Asc.editor.wbModel;
+	};
+	AscDFH.drawingsConstructorsMap[AscDFH.historyitem_ChartSpace_SetExternalReference] = CChartExternalReference;
+
+	function ExternalReference() {
+		ExternalReferenceBase.call(this);
+		this.DefinedNames = [];
+		this.SheetDataSet = [];
+		this.SheetNames = [];
 
 		this.worksheets = {};
+
+		this._id = AscCommon.g_oIdCounter.Get_NewId();
 	}
+	AscFormat.InitClassWithoutType(ExternalReference, ExternalReferenceBase);
 
 	ExternalReference.prototype.getType = function() {
 		return AscCommonExcel.UndoRedoDataTypes.externalReference;
@@ -15030,6 +15344,10 @@ function RangeDataManagerElem(bbox, data)
 			if (r.GetBool()) {
 				this.referenceData["instanceId"] = r.GetString2();
 			}
+		}
+
+		if (r.GetBool()) {
+			this._id = r.GetString2();
 		}
 	};
 	ExternalReference.prototype.Write_ToBinary2 = function(w) {
@@ -15086,6 +15404,13 @@ function RangeDataManagerElem(bbox, data)
 		} else {
 			w.WriteBool(false);
 		}
+
+		if (null != this._id) {
+			w.WriteBool(true);
+			w.WriteString2(this._id);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	ExternalReference.prototype.clone = function (needCloneSheets) {
@@ -15123,6 +15448,8 @@ function RangeDataManagerElem(bbox, data)
 			}
 		}
 
+		newObj._id = this._id;
+
 		return newObj;
 	};
 
@@ -15133,7 +15460,12 @@ function RangeDataManagerElem(bbox, data)
 				this.DefinedNames[i].parent = this;
 			}
 		}
+		this.initExternalReference();
 
+		return res;
+	};
+
+	ExternalReference.prototype.initExternalReference = function () {
 		let api = Asc.editor || editor;
 		let originalWb = api.wbModel;
 		originalWb && originalWb.dependencyFormulas.lockRecal();
@@ -15143,8 +15475,6 @@ function RangeDataManagerElem(bbox, data)
 		this.prepareDefNames();
 
 		originalWb && originalWb.dependencyFormulas.unlockRecal();
-
-		return res;
 	};
 
 	ExternalReference.prototype.getDefinedNamesBySheetIndex = function (index, wb) {
@@ -15237,7 +15567,7 @@ function RangeDataManagerElem(bbox, data)
 				this.SheetDataSet.splice(index, 1);
 				delete this.worksheets[sheetName];
 
-				// shift all dataset indexes 
+				// shift all dataset indexes
 				this.shiftData();
 			}
 		}
@@ -15247,7 +15577,7 @@ function RangeDataManagerElem(bbox, data)
 		var t = this;
 		var isChanged = false;
 		var cloneER = this.clone();
-		
+
 		let existedWsArray = [];
 		for (var i = 0; i < arr.length; i++) {
 			//если есть this.worksheets, если нет - проверить и обработать
@@ -15358,49 +15688,6 @@ function RangeDataManagerElem(bbox, data)
 		}
 	};
 
-	//TODO внешние источники данных, как в файле из бага https://bugzilla.onlyoffice.com/show_bug.cgi?id=38646
-
-	ExternalReference.prototype.getAscLink = function () {
-
-		// вот так, если это из файла прилетело, в т.ч. из буфера
-		// onRequestReferenceData({data:{referenceData:config.document.referenceData}})
-		//
-		//
-		// вот так, если это будет ссылка на редактор файла в тестовом как в onedrive
-		// onRequestReferenceData({data:{link:"http://192.168.1.1/editor?fileName=new.docx"}})
-		//
-		// вот так, если б это было просто путь к файлу как в MS:
-		// 	onRequestReferenceData({data:{path: "new.docx"}})
-
-
-		var res = new asc_CExternalReference();
-
-		if (this.referenceData) {
-			res.type = Asc.c_oAscExternalReferenceType.referenceData;
-			res.data = this.referenceData;
-		} else if (this.isExternalLink()) {
-			res.type = Asc.c_oAscExternalReferenceType.link;
-			res.data = this.Id;
-		} else {
-			res.type = Asc.c_oAscExternalReferenceType.path;
-			res.data = this.Id;
-		}
-
-		res.externalReference = this;
-
-		return res;
-	};
-
-	ExternalReference.prototype.isExternalLink = function() {
-		var p = /^(?:http:\/\/|https:\/\/)/;
-		return this.Id.match(p);
-	};
-
-	ExternalReference.prototype.isXlsx = function() {
-		var p = /^.*\.(xlsx)$/i;
-		return this.Id.match(p);
-	};
-
 	ExternalReference.prototype.addSheetName = function (name, generateDefaultStructure, addSheetObj) {
 		this.SheetNames.push(name);
 		if (generateDefaultStructure) {
@@ -15484,19 +15771,23 @@ function RangeDataManagerElem(bbox, data)
 			}
 		}
 	};
-	
+
 	ExternalReference.prototype.initWorksheet = function (sheetName) {
-		var ws = this.worksheets[sheetName];
-		if (!this.worksheets[sheetName]) {
+		let ws = this.worksheets[sheetName];
+		if (!ws) {
 			var wb = this.getWb();
 			if (!wb) {
 				wb = new AscCommonExcel.Workbook(null, window["Asc"]["editor"], false);
+				wb.dependencyFormulas.lockRecal();
 			}
 			ws = new AscCommonExcel.Worksheet(wb);
 			ws.sName = sheetName;
+			wb.aWorksheets.push(ws);
+			ws._setIndex(wb.aWorksheets.length - 1);
 
 			this.worksheets[sheetName] = ws;
 		}
+		return ws;
 	};
 
 	ExternalReference.prototype.initWorksheetFromSheetDataSet = function (sheetName) {
@@ -15504,19 +15795,7 @@ function RangeDataManagerElem(bbox, data)
 		if (null !== sheetDataSetIndex) {
 
 			var sheetDataSet = this.SheetDataSet[sheetDataSetIndex];
-			var ws = this.worksheets[sheetName];
-			if (!this.worksheets[sheetName]) {
-				var wb = this.getWb();
-				if (!wb) {
-					wb = new AscCommonExcel.Workbook(null, window["Asc"]["editor"], false);
-				}
-				ws = new AscCommonExcel.Worksheet(wb, wb.aWorksheets.length);
-				ws.sName = sheetName;
-
-				this.worksheets[sheetName] = ws;
-				wb.aWorksheets.push(ws);
-			}
-
+			var ws = this.initWorksheet(sheetName);
 
 			//клонируем все данные из SheetDataSet в данный темповый Worksheet
 			if (!sheetDataSet || !sheetDataSet.Row) {
@@ -15554,46 +15833,54 @@ function RangeDataManagerElem(bbox, data)
 		}
 	};
 
-	ExternalReference.prototype.initWorkbook = function () {
-		if (this.DefinedNames) {
-			let wb = this.getWb();
-			for (let i = 0; i < this.DefinedNames.length; i++) {
-				let defName = this.DefinedNames[i];
-				let ws = this.getSheetByIndex(defName.SheetId);
-				if (!ws && defName.RefersTo) {
-					// try to find sheetname by RefersTo string
-					let exclamationMarkIndex = defName.RefersTo.lastIndexOf("!");
-					if (exclamationMarkIndex !== -1) {
-						let sheetNamePart = defName.RefersTo.slice(0, exclamationMarkIndex);
-						// remove equal sign
-						if (sheetNamePart[0] === "=") {
-							sheetNamePart = sheetNamePart.substring(1);
-						}
-
-						// regex to find string enclosed in single qoutes
-						let regex = /^'(.*)'$/;
-						let match = regex.exec(sheetNamePart);
-						if (match && match[1]) {
-							sheetNamePart = match[1];
-						}
-
-						ws = this.worksheets[sheetNamePart];
+	ExternalReference.prototype.initDefinedNamesInWorkbook = function (definedNames) {
+		let wb = this.getWb();
+		const workbookDefinedNames = [];
+		for (let i = 0; i < definedNames.length; i++) {
+			let defName = definedNames[i];
+			let ws = this.getSheetByIndex(defName.SheetId);
+			if (!ws && defName.RefersTo) {
+				// try to find sheetname by RefersTo string
+				let exclamationMarkIndex = defName.RefersTo.lastIndexOf("!");
+				if (exclamationMarkIndex !== -1) {
+					let sheetNamePart = defName.RefersTo.slice(0, exclamationMarkIndex);
+					// remove equal sign
+					if (sheetNamePart[0] === "=") {
+						sheetNamePart = sheetNamePart.substring(1);
 					}
-				}
 
-				if (ws != null) {
-					//on parse name3d use g_DefNameWorksheet
-					let RealDefNameWorksheet = AscCommonExcel.g_DefNameWorksheet;
-					AscCommonExcel.g_DefNameWorksheet = ws;
-					let stringToParse;
-					if (defName && defName.RefersTo && defName.RefersTo[0] === "=") {
-						stringToParse = defName.RefersTo.substring(1);
+					// regex to find string enclosed in single qoutes
+					let regex = /^'(.*)'$/;
+					let match = regex.exec(sheetNamePart);
+					if (match && match[1]) {
+						sheetNamePart = match[1];
 					}
-					let oDefName = new Asc.asc_CDefName(defName.Name, stringToParse ? stringToParse : defName.RefersTo);
-					wb && wb.editDefinesNames(null, oDefName);
-					AscCommonExcel.g_DefNameWorksheet = RealDefNameWorksheet;	
+
+					ws = this.worksheets[sheetNamePart];
 				}
 			}
+
+			if (ws != null) {
+				//on parse name3d use g_DefNameWorksheet
+				let RealDefNameWorksheet = AscCommonExcel.g_DefNameWorksheet;
+				AscCommonExcel.g_DefNameWorksheet = ws;
+				let stringToParse;
+				if (defName && defName.RefersTo && defName.RefersTo[0] === "=") {
+					stringToParse = defName.RefersTo.substring(1);
+				}
+				let oDefName = new Asc.asc_CDefName(defName.Name, stringToParse ? stringToParse : defName.RefersTo);
+				const workbookDefName = wb && wb.editDefinesNames(null, oDefName);
+				if  (workbookDefName) {
+					workbookDefinedNames.push(workbookDefName);
+				}
+				AscCommonExcel.g_DefNameWorksheet = RealDefNameWorksheet;
+			}
+		}
+		return workbookDefinedNames;
+	};
+	ExternalReference.prototype.initWorkbook = function () {
+		if (this.DefinedNames) {
+			this.initDefinedNamesInWorkbook(this.DefinedNames);
 		}
 	};
 
@@ -15668,9 +15955,16 @@ function RangeDataManagerElem(bbox, data)
 		if (!val) {
 			return;
 		}
+		this.initDefinedNameFromObj({worksheetName: val.ws.sName, defName: val.value, shortLink: val.shortLink, ref: null});
+	};
 
-		const index = this.getSheetByName(val.ws.sName);
-		const name = val.value;
+	ExternalReference.prototype.initDefinedNameFromObj = function (val) {
+		if (!val) {
+			return;
+		}
+
+		const index = this.getSheetByName(val.worksheetName);
+		const name = val.defName;
 
 		//check on exist
 		// if (this.getDefName(name, index)) {
@@ -15683,7 +15977,24 @@ function RangeDataManagerElem(bbox, data)
 		let defName = new ExternalDefinedName(this);
 		defName.Name = name;
 		defName.SheetId = val.shortLink ? null : index;
+		defName.RefersTo = val.ref || null;
 		this.addDefName(defName);
+		return defName;
+	};
+	ExternalReference.prototype.initDefinedNamesOnCopyPaste = function (definedNameInfos) {
+		const externalDefinedNames = [];
+		for (let i = 0; i < definedNameInfos.length; i++) {
+			const defNameInfo = definedNameInfos[i];
+			const oExternalDefName = this.initDefinedNameFromObj(defNameInfo);
+			if (oExternalDefName) {
+				externalDefinedNames.push(oExternalDefName);
+			}
+		}
+		const workbookDefNames = this.initDefinedNamesInWorkbook(externalDefinedNames);
+		for (let i = 0; i < workbookDefNames.length; i += 1) {
+			const workbookDefName = workbookDefNames[i];
+			workbookDefName.parsedRef.parse();
+		}
 	};
 
 	ExternalReference.prototype.addDefName = function (defName) {
@@ -15719,62 +16030,6 @@ function RangeDataManagerElem(bbox, data)
 			}
 		}
 	};
-
-	ExternalReference.prototype.setReferenceData = function (fileId, portalName) {
-		if (!fileId || !portalName) {
-			return;
-		}
-		if (!this.referenceData) {
-			this.referenceData = {};
-		}
-		this.referenceData["instanceId"] = portalName;
-		this.referenceData["fileKey"] = fileId + "";
-	};
-
-	ExternalReference.prototype.setId = function (id) {
-		if (!id) {
-			return;
-		}
-
-		this.Id = id;
-	};
-
-	ExternalReference.prototype.initFromObj = function (obj) {
-		//directUrl:
-		//fileType:
-		//token:
-		//url
-		//path
-		//referenceData
-		if (obj["path"] !== this.Id) {
-			this.setId(this._checkAndCorrectPath(obj["path"], obj["filePath"]));
-		}
-
-		if (obj["referenceData"] && (!this.referenceData || this.referenceData["instanceId"] !== obj["referenceData"]["instanceId"] ||
-			this.referenceData["instanceId"] !== obj["referenceData"]["fileKey"])) {
-			this.setReferenceData(obj["referenceData"]["fileKey"], obj["referenceData"]["instanceId"]);
-		}
-	};
-
-	ExternalReference.prototype._checkAndCorrectPath = function (sPath, sAbsolutePath) {
-		if (!sPath || 1 === sPath.indexOf("../")) {
-			// sPath -> ../../from.xlsx
-			//sAbsolutePath - > C:\root\from.xlsx
-			// need -> /root/from.xlsx
-			if (sAbsolutePath) {
-				sPath = sAbsolutePath.substring(sAbsolutePath.indexOf("\\"))
-				sPath = sPath.replace(/\\/g,"/")
-			}
-		} else if (sPath && -1 !== sPath.indexOf(":/")) {
-			// sPath -> C:/root/from1.xlsx
-			//need -> file:///C:\root\from1.xlsx
-			sPath = sPath.replace(/\//g,"\\");
-			sPath = "file:///" + sPath;
-		}
-
-		return sPath;
-	};
-
 	ExternalReference.prototype.addDataSetFrom = function (eR) {
 		if (!eR.SheetDataSet) {
 			return;
@@ -15794,9 +16049,8 @@ function RangeDataManagerElem(bbox, data)
 			}
 		}
 	};
+	ExternalReference.prototype.addDefNameFromInfo = function (defNameInfo) {
 
-	ExternalReference.prototype.getKey = function() {
-		return this.sKey;
 	};
 	ExternalReference.prototype.shiftData = function () {
 		/* shift data to 1 position left */
@@ -15806,10 +16060,6 @@ function RangeDataManagerElem(bbox, data)
 				dataSet.SheetId--;
 			}
 		}
-	};
-
-	ExternalReference.prototype.setKey = function(val) {
-		this.sKey = val;
 	};
 
 	function asc_CExternalReference() {
@@ -15953,6 +16203,10 @@ function RangeDataManagerElem(bbox, data)
 		if (sheet) {
 			var t = this;
 
+			var api_sheet = Asc['editor'];
+			var wb = api_sheet.wbModel;
+			var wbView = api_sheet.wb;
+			const aRanges = [];
 			//TODO пока обновлю ячейки по одной, в дальнейшем нужно объединить ячейки в диапазоны
 			for (var i = 0; i < this.Row.length; i++) {
 				var row = this.Row[i];
@@ -15965,16 +16219,13 @@ function RangeDataManagerElem(bbox, data)
 						continue;
 					}
 					var range = sheet.getRange2(externalCell.Ref);
+					aRanges.push(range);
 					range._foreach(function (cell) {
 
 						let changedCell = externalCell.initFromCell(cell, true, noData);
 						if (!isChanged) {
 							isChanged = changedCell;
 						}
-
-						var api_sheet = Asc['editor'];
-						var wb = api_sheet.wbModel;
-						
 						/* if we haven't received data from an external source, put #REF error for all cells */
 						if (noData) {
 							cell._setValue("#REF!");
@@ -15984,6 +16235,7 @@ function RangeDataManagerElem(bbox, data)
 					});
 				}
 			}
+			wbView && wbView.handleDrawingsOnWorkbookChange(aRanges);
 		}
 		return isChanged;
 	};
@@ -16175,7 +16427,18 @@ function RangeDataManagerElem(bbox, data)
 				});
 			}
 
-			let newVal = noData ? "#REF!" : cell.getValue();
+			let cellType = cell.getType();
+			let newVal;
+			if (noData) {
+				newVal = "#REF!";
+			} else {
+				if (cellType === CellValueType.Number) {
+					let _numVal = cell.getNumberValue();
+					newVal = _numVal == null ? cell.getValue() : _numVal + "";
+				} else {
+					newVal = cell.getValue();
+				}
+			}
 			if (this.CellValue !== newVal) {
 				isChanged = true;
 				this.CellValue = newVal;
@@ -16183,12 +16446,21 @@ function RangeDataManagerElem(bbox, data)
 
 
 			var cellValueType = null;
-			switch (cell.getType()) {
+			switch (cellType) {
 				case CellValueType.String:
 					cellValueType = Asc.ECellTypeType.celltypeStr;
 					break;
 				case CellValueType.Bool:
 					cellValueType = Asc.ECellTypeType.celltypeBool;
+					break;
+				case CellValueType.Number:
+					let cellFormat = cell.getNumFormat();
+					let isDateTimeFormat = cellFormat && cellFormat.isDateTimeFormat() && cellFormat.getType() !== Asc.c_oAscNumFormatType.Time;
+					if (isDateTimeFormat) {
+						cellValueType = Asc.ECellTypeType.celltypeDate;
+					} else {
+						cellValueType = Asc.ECellTypeType.celltypeNumber;
+					}
 					break;
 				case CellValueType.Error:
 					cellValueType = Asc.ECellTypeType.celltypeError;
@@ -17749,6 +18021,7 @@ function RangeDataManagerElem(bbox, data)
 		this.HidePivotFieldList = null;
 		this.ShowPivotChartFilter = null;
 		this.UpdateLinks = null;
+		this.CodeName = null;
 	}
 	/**
 	 * Method clones calculation options
@@ -17763,6 +18036,7 @@ function RangeDataManagerElem(bbox, data)
 		res.HidePivotFieldList = this.HidePivotFieldList;
 		res.ShowPivotChartFilter = this.ShowPivotChartFilter;
 		res.UpdateLinks = this.UpdateLinks;
+		res.CodeName = this.CodeName;
 
 		return res;
 	};
@@ -17852,6 +18126,22 @@ function RangeDataManagerElem(bbox, data)
 			val = Asc.EUpdateLinksType.updatelinksNever;
 		}
 		this.UpdateLinks = val;
+	};
+	/**
+	 * Method returns "CodeName" value
+	 * @memberof CWorkbookPr
+	 * @returns {string|null}
+	 */
+	CWorkbookPr.prototype.getCodeName = function () {
+		return this.CodeName;
+	};
+	/**
+	 * Method set "CodeName" value
+	 * @memberof CWorkbookPr
+	 * @param {string} val - CodeName value
+	 */
+	CWorkbookPr.prototype.setCodeName = function (val) {
+		this.CodeName = val;
 	};
 
 
@@ -17964,19 +18254,421 @@ function RangeDataManagerElem(bbox, data)
 
 		this.aFutureMetadata = null;
 	}
+	CMetadata.prototype.getType = function () {
+		return UndoRedoDataTypes.Metadata;
+	};
 	CMetadata.prototype.clone = function () {
 		let res = new CMetadata();
 
-		res.metadataTypes = this.metadataTypes && this.metadataTypes.clone();
-		res.metadataStrings = this.metadataStrings && this.metadataStrings.clone();
-		res.mdxMetadata = this.mdxMetadata && this.mdxMetadata.clone();
-		res.cellMetadata = this.cellMetadata && this.cellMetadata.clone();	// CMetadataRecord.clone
-		res.valueMetadata = this.valueMetadata && this.valueMetadata.clone();	// CMetadataRecord.clone
+		if (this.metadataTypes) {
+			res.metadataTypes = [];
+			for (let i = 0; i < this.metadataTypes.length; i++) {
+				res.metadataTypes.push(this.metadataTypes[i].clone());
+			}
+		}
+		
+		if (this.metadataStrings) {
+			res.metadataStrings = [];
+			for (let i = 0; i < this.metadataStrings.length; i++) {
+				res.metadataStrings.push(this.metadataStrings[i].clone());
+			}
+		}
+		
+		if (this.mdxMetadata) {
+			res.mdxMetadata = [];
+			for (let i = 0; i < this.mdxMetadata.length; i++) {
+				res.mdxMetadata.push(this.mdxMetadata[i].clone());
+			}
+		}
+		
+		if (this.cellMetadata) {
+			res.cellMetadata = [];
+			for (let i = 0; i < this.cellMetadata.length; i++) {
+				res.cellMetadata.push(this.cellMetadata[i].clone());
+			}
+		}
+		
+		if (this.valueMetadata) {
+			res.valueMetadata = [];
+			for (let i = 0; i < this.valueMetadata.length; i++) {
+				res.valueMetadata.push(this.valueMetadata[i].clone());
+			}
+		}
 
-		res.aFutureMetadata = this.aFutureMetadata && this.aFutureMetadata.clone();
+		if (this.aFutureMetadata) {
+			res.aFutureMetadata = [];
+			for (let i = 0; i < this.aFutureMetadata.length; i++) {
+				res.aFutureMetadata.push(this.aFutureMetadata[i].clone());
+			}
+		}
 
 		return res;
 	};
+
+	CMetadata.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.metadataTypes = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataType();
+				elem.Read_FromBinary2(r);
+				this.metadataTypes.push(elem);
+			}
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.metadataStrings = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataString();
+				elem.Read_FromBinary2(r);
+				this.metadataStrings.push(elem);
+			}
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.mdxMetadata = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMdx();
+				elem.Read_FromBinary2(r);
+				this.mdxMetadata.push(elem);
+			}
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.cellMetadata = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataRecord();
+				elem.Read_FromBinary2(r);
+				this.cellMetadata.push(elem);
+			}
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.valueMetadata = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataRecord();
+				elem.Read_FromBinary2(r);
+				this.valueMetadata.push(elem);
+			}
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.aFutureMetadata = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CFutureMetadata();
+				elem.Read_FromBinary2(r);
+				this.aFutureMetadata.push(elem);
+			}
+		}
+	};
+
+	CMetadata.prototype.Write_ToBinary2 = function(w) {
+		if (this.metadataTypes) {
+			w.WriteBool(true);
+			w.WriteLong(this.metadataTypes.length);
+			for (var i = 0; i < this.metadataTypes.length; ++i) {
+				this.metadataTypes[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.metadataStrings) {
+			w.WriteBool(true);
+			w.WriteLong(this.metadataStrings.length);
+			for (var i = 0; i < this.metadataStrings.length; ++i) {
+				this.metadataStrings[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.mdxMetadata) {
+			w.WriteBool(true);
+			w.WriteLong(this.mdxMetadata.length);
+			for (var i = 0; i < this.mdxMetadata.length; ++i) {
+				this.mdxMetadata[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.cellMetadata) {
+			w.WriteBool(true);
+			w.WriteLong(this.cellMetadata.length);
+			for (var i = 0; i < this.cellMetadata.length; ++i) {
+				this.cellMetadata[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.valueMetadata) {
+			w.WriteBool(true);
+			w.WriteLong(this.valueMetadata.length);
+			for (var i = 0; i < this.valueMetadata.length; ++i) {
+				this.valueMetadata[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.aFutureMetadata) {
+			w.WriteBool(true);
+			w.WriteLong(this.aFutureMetadata.length);
+			for (var i = 0; i < this.aFutureMetadata.length; ++i) {
+				this.aFutureMetadata[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	/**
+	 * Method returns dynamic array properties for cell with cm attribute
+	 * @memberof CMetadata
+	 * @param {number} cmIndex - cm attribute value from cell (1-based index)
+	 * @returns {object|null} - object with fDynamic and fCollapsed properties or null if not found
+	 */
+	CMetadata.prototype.getDynamicArrayProperties = function (cmIndex) {
+		if (!cmIndex || !this.cellMetadata) {
+			return null;
+		}
+
+		const cellMetadataBlocks = this.cellMetadata;
+		if (!cellMetadataBlocks || cmIndex > cellMetadataBlocks.length) {
+			return null;
+		}
+		
+		const cellMetadataBlock = cellMetadataBlocks[cmIndex - 1];
+		if (!cellMetadataBlock) {
+			return null;
+		}
+
+		const typeIndex = cellMetadataBlock.t - 1;
+		const valueIndex = cellMetadataBlock.v;
+
+		const metadataTypes = this.metadataTypes && this.metadataTypes;
+		if (!metadataTypes || typeIndex >= metadataTypes.length) {
+			return null;
+		}
+
+		const metadataType = metadataTypes[typeIndex];
+		if (!metadataType || metadataType.name !== 'XLDAPR') {
+			return null;
+		}
+
+		if (!this.aFutureMetadata) {
+			return null;
+		}
+		
+		let xldaprFutureMetadata = null;
+		for (let i = 0; i < this.aFutureMetadata.length; i++) {
+			if (this.aFutureMetadata[i].name === 'XLDAPR') {
+				xldaprFutureMetadata = this.aFutureMetadata[i];
+				break;
+			}
+		}
+
+		if (!xldaprFutureMetadata || !xldaprFutureMetadata.futureMetadataBlocks) {
+			return null;
+		}
+
+		const futureBlocks = xldaprFutureMetadata.futureMetadataBlocks;
+		if (!futureBlocks || valueIndex >= futureBlocks.length) {
+			return null;
+		}
+
+		const futureBlock = futureBlocks[valueIndex];
+		if (!futureBlock) {
+			return null;
+		}
+
+		const extBlocks = futureBlock.extLst;
+		if (!extBlocks) {
+			return null;
+		}
+
+		for (let i = 0; i < extBlocks.length; i++) {
+			const extBlock = extBlocks[i];
+			//if (extBlock.uri === '{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}') {
+				const dynamicArrayProps = extBlock.dynamicArrayProperties;
+				if (dynamicArrayProps) {
+					return dynamicArrayProps;
+					/*{
+						fDynamic: dynamicArrayProps.fDynamic === true,
+						fCollapsed: dynamicArrayProps.fCollapsed === true
+					};*/
+				}
+			//}
+		}
+
+		return null;
+	};
+
+	CMetadata.prototype.getLastDynamicArrayPropertiesByType = function (sType) {
+		if (!sType || !this.aFutureMetadata || !this.metadataTypes || !this.cellMetadata) {
+			return null;
+		}
+
+		let targetFutureMetadata = null;
+		for (let i = 0; i < this.aFutureMetadata.length; i++) {
+			if (this.aFutureMetadata[i].name === sType) {
+				targetFutureMetadata = this.aFutureMetadata[i];
+				break;
+			}
+		}
+
+		if (!targetFutureMetadata || !targetFutureMetadata.futureMetadataBlocks) {
+			return null;
+		}
+
+		const futureBlocks = targetFutureMetadata.futureMetadataBlocks;
+		if (!futureBlocks || futureBlocks.length === 0) {
+			return null;
+		}
+
+		const lastBlockIndex = futureBlocks.length - 1;
+		const lastBlock = futureBlocks[lastBlockIndex];
+		if (!lastBlock) {
+			return null;
+		}
+
+		const extBlocks = lastBlock.extLst;
+		if (!extBlocks) {
+			return null;
+		}
+
+		let dynamicArrayProps = null;
+		for (let i = 0; i < extBlocks.length; i++) {
+			const extBlock = extBlocks[i];
+			if (extBlock.dynamicArrayProperties) {
+				dynamicArrayProps = extBlock.dynamicArrayProperties;
+				break;
+			}
+		}
+
+		if (!dynamicArrayProps) {
+			return null;
+		}
+
+		let typeIndex = -1;
+		for (let i = 0; i < this.metadataTypes.length; i++) {
+			if (this.metadataTypes[i].name === sType) {
+				typeIndex = i;
+				break;
+			}
+		}
+
+		if (typeIndex === -1) {
+			return null;
+		}
+
+		let cmIndex = null;
+		for (let i = 0; i < this.cellMetadata.length; i++) {
+			const cellMetadataBlock = this.cellMetadata[i];
+			// t - 1 = typeIndex (0-based), v = valueIndex in futureBlocks (0-based)
+			if (cellMetadataBlock.t - 1 === typeIndex && cellMetadataBlock.v === lastBlockIndex) {
+				cmIndex = i + 1; // 1-based
+				break;
+			}
+		}
+
+		return {
+			index: cmIndex,
+			dynamicArrayProperties: dynamicArrayProps
+		};
+	};
+
+	CMetadata.prototype.getRichValueBlock = function (vmIndex) {
+		let metaDataType = this.getMetaDataType("XLRICHVALUE");
+		if (metaDataType) {
+			let valueFutureMetadata = this.getFutureMetadataByType("XLRICHVALUE");
+			if (valueFutureMetadata && valueFutureMetadata.futureMetadataBlocks && valueFutureMetadata.futureMetadataBlocks[vmIndex] &&
+				valueFutureMetadata.futureMetadataBlocks[vmIndex].extLst && valueFutureMetadata.futureMetadataBlocks[vmIndex].extLst[0] &&
+				valueFutureMetadata.futureMetadataBlocks[vmIndex].extLst[0].richValueBlock) {
+				return valueFutureMetadata.futureMetadataBlocks[vmIndex].extLst[0].richValueBlock;
+			}
+		}
+
+		return null;
+	};
+
+	CMetadata.prototype.getMetaDataType = function (sType) {
+		const metadataTypes = this.metadataTypes;
+		if (metadataTypes) {
+			for (let i = 0; i < metadataTypes.length; i++) {
+				if (metadataTypes[i].name === sType) {
+					return this.aFutureMetadata[i];
+				}
+			}
+		}
+		return null;
+	};
+
+	CMetadata.prototype.getFutureMetadataByType = function (sType) {
+		let valueFutureMetadata = null;
+		if (this.aFutureMetadata) {
+			for (let i = 0; i < this.aFutureMetadata.length; i++) {
+				if (this.aFutureMetadata[i].name === sType) {
+					return this.aFutureMetadata[i];
+				}
+			}
+		}
+		return null;
+	};
+	CMetadata.prototype.ensureInitialized = function () {
+		if (!this.metadataTypes) {
+			this.metadataTypes = [];
+		}
+		if (!this.aFutureMetadata) {
+			this.aFutureMetadata = [];
+		}
+	};
+	CMetadata.prototype.getOrCreateMetadataType = function (sType) {
+		this.ensureInitialized();
+		let metadataType = this.getMetaDataType(sType);
+		if (!metadataType) {
+			if (sType === "XLDAPR") {
+				metadataType = CMetadataType.createXLDAPRType();
+			} else if (sType === "XLRICHVALUE") {
+				metadataType = CMetadataType.createXLRICHVALUEType();
+			}
+			if (metadataType) {
+				this.metadataTypes.push(metadataType);
+			}
+		}
+		return metadataType;
+	};
+	CMetadata.prototype.getOrCreateFutureMetadata = function (sType) {
+		this.ensureInitialized();
+		let futureMetadata = this.getFutureMetadataByType(sType);
+		if (!futureMetadata) {
+			futureMetadata = new CFutureMetadata();
+			futureMetadata.name = sType;
+			futureMetadata.futureMetadataBlocks = [];
+			this.aFutureMetadata.push(futureMetadata);
+		}
+		return futureMetadata;
+	};
+	CMetadata.prototype.addCellMetadataBlock = function (metadataType, futureMetadata) {
+		if (!this.cellMetadata) {
+			this.cellMetadata = [];
+		}
+		const cellMetadataBlock = new CMetadataRecord();
+		cellMetadataBlock.t = this.metadataTypes.length;
+		cellMetadataBlock.v = futureMetadata.futureMetadataBlocks.length - 1;
+		this.cellMetadata.push(cellMetadataBlock);
+		return cellMetadataBlock;
+	};
+	CMetadata.prototype.addValueMetadataBlock = function (metadataType, futureMetadata) {
+		if (!this.valueMetadata) {
+			this.valueMetadata = [];
+		}
+		const valueMetadataBlock = new CMetadataRecord();
+		valueMetadataBlock.t = this.metadataTypes.length;
+		valueMetadataBlock.v = futureMetadata.futureMetadataBlocks.length - 1;
+		this.valueMetadata.push(valueMetadataBlock);
+		return valueMetadataBlock;
+	};
+
+
+
 
 	function CFutureMetadata() {
 		this.name = null;
@@ -17986,12 +18678,49 @@ function RangeDataManagerElem(bbox, data)
 		let res = new CFutureMetadata();
 
 		res.name = this.name;
-		res.futureMetadataBlocks = this.futureMetadataBlocks && this.futureMetadataBlocks.clone();
+		if (this.futureMetadataBlocks) {
+			res.futureMetadataBlocks = [];
+			for (let i = 0; i < this.futureMetadataBlocks.length; i++) {
+				res.futureMetadataBlocks.push(this.futureMetadataBlocks[i].clone());
+			}
+		}
 
 		return res;
 	};
+	CFutureMetadata.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.name = r.GetString2();
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.futureMetadataBlocks = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CFutureMetadataBlock();
+				elem.Read_FromBinary2(r);
+				this.futureMetadataBlocks.push(elem);
+			}
+		}
+	};
+	CFutureMetadata.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.name) {
+			w.WriteBool(true);
+			w.WriteString2(this.name);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.futureMetadataBlocks) {
+			w.WriteBool(true);
+			w.WriteLong(this.futureMetadataBlocks.length);
+			for (var i = 0; i < this.futureMetadataBlocks.length; ++i) {
+				this.futureMetadataBlocks[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+	};
 
 	function CMetadataType() {
+		this.name = null;
 		this.minSupportedVersion = null;
 		this.ghostRow = null;
 		this.ghostCol = null;
@@ -18022,6 +18751,7 @@ function RangeDataManagerElem(bbox, data)
 	CMetadataType.prototype.clone = function () {
 		let res = new CMetadataType();
 
+		res.name = this.name;
 		res.minSupportedVersion = this.minSupportedVersion;
 		res.ghostRow = this.ghostRow;
 		res.ghostCol = this.ghostCol;
@@ -18051,6 +18781,286 @@ function RangeDataManagerElem(bbox, data)
 
 		return res;
 	};
+	CMetadataType.createXLDAPRType = function () {
+		const metadataType = new CMetadataType();
+		metadataType.name = "XLDAPR";
+		metadataType.minSupportedVersion = 120000;
+		metadataType.copy = 1;
+		metadataType.pasteAll = 1;
+		metadataType.pasteValues = 1;
+		metadataType.merge = 1;
+		metadataType.splitFirst = 1;
+		metadataType.rowColShift = 1;
+		metadataType.clearFormats = 1;
+		metadataType.clearComments = 1;
+		metadataType.assign = 1;
+		metadataType.coerce = 1;
+		metadataType.cellMeta = 1;
+		return metadataType;
+	};
+	CMetadataType.createXLRICHVALUEType = function () {
+		const metadataType = new CMetadataType();
+		metadataType.name = "XLRICHVALUE";
+		metadataType.minSupportedVersion = 120000;
+		metadataType.copy = 1;
+		metadataType.pasteAll = 1;
+		metadataType.pasteValues = 1;
+		metadataType.merge = 1;
+		metadataType.splitFirst = 1;
+		metadataType.rowColShift = 1;
+		metadataType.clearFormats = 1;
+		metadataType.clearComments = 1;
+		metadataType.assign = 1;
+		metadataType.coerce = 1;
+		return metadataType;
+	};
+	CMetadataType.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.name = r.GetString2();
+		}
+		if (r.GetBool()) {
+			this.minSupportedVersion = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.ghostRow = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.ghostCol = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.edit = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.delete = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.copy = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteAll = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteFormulas = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteValues = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteFormats = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteComments = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteDataValidation = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteBorders = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteColWidths = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.pasteNumberFormats = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.merge = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.splitFirst = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.splitAll = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.rowColShift = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.clearAll = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.clearFormats = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.clearContents = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.clearComments = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.assign = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.coerce = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.cellMeta = r.GetBool();
+		}
+	};
+	CMetadataType.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.name) {
+			w.WriteBool(true);
+			w.WriteString2(this.name);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.minSupportedVersion) {
+			w.WriteBool(true);
+			w.WriteLong(this.minSupportedVersion);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.ghostRow) {
+			w.WriteBool(true);
+			w.WriteBool(this.ghostRow);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.ghostCol) {
+			w.WriteBool(true);
+			w.WriteBool(this.ghostCol);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.edit) {
+			w.WriteBool(true);
+			w.WriteBool(this.edit);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.delete) {
+			w.WriteBool(true);
+			w.WriteBool(this.delete);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.copy) {
+			w.WriteBool(true);
+			w.WriteBool(this.copy);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteAll) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteAll);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteFormulas) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteFormulas);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteValues) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteValues);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteFormats) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteFormats);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteComments) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteComments);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteDataValidation) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteDataValidation);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteBorders) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteBorders);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteColWidths) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteColWidths);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.pasteNumberFormats) {
+			w.WriteBool(true);
+			w.WriteBool(this.pasteNumberFormats);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.merge) {
+			w.WriteBool(true);
+			w.WriteBool(this.merge);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.splitFirst) {
+			w.WriteBool(true);
+			w.WriteBool(this.splitFirst);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.splitAll) {
+			w.WriteBool(true);
+			w.WriteBool(this.splitAll);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.rowColShift) {
+			w.WriteBool(true);
+			w.WriteBool(this.rowColShift);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.clearAll) {
+			w.WriteBool(true);
+			w.WriteBool(this.clearAll);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.clearFormats) {
+			w.WriteBool(true);
+			w.WriteBool(this.clearFormats);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.clearContents) {
+			w.WriteBool(true);
+			w.WriteBool(this.clearContents);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.clearComments) {
+			w.WriteBool(true);
+			w.WriteBool(this.clearComments);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.assign) {
+			w.WriteBool(true);
+			w.WriteBool(this.assign);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.coerce) {
+			w.WriteBool(true);
+			w.WriteBool(this.coerce);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.cellMeta) {
+			w.WriteBool(true);
+			w.WriteBool(this.cellMeta);
+		} else {
+			w.WriteBool(false);
+		}
+	};
 
 	function CMetadataString() {
 		this.v = null;
@@ -18061,6 +19071,19 @@ function RangeDataManagerElem(bbox, data)
 		res.v = this.v;
 
 		return res;
+	};
+	CMetadataString.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.v = r.GetString2();
+		}
+	};
+	CMetadataString.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.v) {
+			w.WriteBool(true);
+			w.WriteString2(this.v);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMdx() {
@@ -18085,6 +19108,68 @@ function RangeDataManagerElem(bbox, data)
 		res.f = this.f;
 
 		return res;
+	};
+	CMdx.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.mdxTuple = new CMdxTuple();
+			this.mdxTuple.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.mdxSet = new CMdxSet();
+			this.mdxSet.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.mdxKPI = new CMdxKPI();
+			this.mdxKPI.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.mdxMemeberProp = new CMdxMemeberProp();
+			this.mdxMemeberProp.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.n = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.f = r.GetBool();
+		}
+	};
+	CMdx.prototype.Write_ToBinary2 = function(w) {
+		if (this.mdxTuple) {
+			w.WriteBool(true);
+			this.mdxTuple.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.mdxSet) {
+			w.WriteBool(true);
+			this.mdxSet.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.mdxKPI) {
+			w.WriteBool(true);
+			this.mdxKPI.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.mdxMemeberProp) {
+			w.WriteBool(true);
+			this.mdxMemeberProp.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.n) {
+			w.WriteBool(true);
+			w.WriteLong(this.n);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.f) {
+			w.WriteBool(true);
+			w.WriteBool(this.f);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMdxTuple() {
@@ -18115,9 +19200,126 @@ function RangeDataManagerElem(bbox, data)
 		res.st = this.st;
 		res.b = this.b;
 
-		res.metadataStringIndexes = this.metadataStringIndexes && this.metadataStringIndexes.clone();
+		if (this.metadataStringIndexes) {
+			res.metadataStringIndexes = [];
+			for (let i = 0; i < this.metadataStringIndexes.length; i++) {
+				res.metadataStringIndexes.push(this.metadataStringIndexes[i].clone());
+			}
+		}
 
 		return res;
+	};
+	CMdxTuple.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.c = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.ct = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.si = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.fi = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.bc = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.fc = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.i = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.u = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.st = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.b = r.GetBool();
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.metadataStringIndexes = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataStringIndex();
+				elem.Read_FromBinary2(r);
+				this.metadataStringIndexes.push(elem);
+			}
+		}
+	};
+	CMdxTuple.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.c) {
+			w.WriteBool(true);
+			w.WriteLong(this.c);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.ct) {
+			w.WriteBool(true);
+			w.WriteLong(this.ct);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.si) {
+			w.WriteBool(true);
+			w.WriteLong(this.si);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.fi) {
+			w.WriteBool(true);
+			w.WriteLong(this.fi);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.bc) {
+			w.WriteBool(true);
+			w.WriteLong(this.bc);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.fc) {
+			w.WriteBool(true);
+			w.WriteLong(this.fc);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.i) {
+			w.WriteBool(true);
+			w.WriteBool(this.i);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.u) {
+			w.WriteBool(true);
+			w.WriteBool(this.u);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.st) {
+			w.WriteBool(true);
+			w.WriteBool(this.st);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.b) {
+			w.WriteBool(true);
+			w.WriteBool(this.b);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.metadataStringIndexes) {
+			w.WriteBool(true);
+			w.WriteLong(this.metadataStringIndexes.length);
+			for (var i = 0; i < this.metadataStringIndexes.length; ++i) {
+				this.metadataStringIndexes[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMdxSet() {
@@ -18134,9 +19336,63 @@ function RangeDataManagerElem(bbox, data)
 		res.c = this.c;
 		res.o = this.o;
 
-		res.metadataStringIndexes = this.metadataStringIndexes && this.metadataStringIndexes.clone();
+		if (this.metadataStringIndexes) {
+			res.metadataStringIndexes = [];
+			for (let i = 0; i < this.metadataStringIndexes.length; i++) {
+				res.metadataStringIndexes.push(this.metadataStringIndexes[i].clone());
+			}
+		}
 
 		return res;
+	};
+	CMdxSet.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.ns = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.c = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.o = r.GetLong();
+		}
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.metadataStringIndexes = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataStringIndex();
+				elem.Read_FromBinary2(r);
+				this.metadataStringIndexes.push(elem);
+			}
+		}
+	};
+	CMdxSet.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.ns) {
+			w.WriteBool(true);
+			w.WriteLong(this.ns);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.c) {
+			w.WriteBool(true);
+			w.WriteLong(this.c);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.o) {
+			w.WriteBool(true);
+			w.WriteLong(this.o);
+		} else {
+			w.WriteBool(false);
+		}
+		if (this.metadataStringIndexes) {
+			w.WriteBool(true);
+			w.WriteLong(this.metadataStringIndexes.length);
+			for (var i = 0; i < this.metadataStringIndexes.length; ++i) {
+				this.metadataStringIndexes[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMetadataStringIndex() {
@@ -18152,6 +19408,28 @@ function RangeDataManagerElem(bbox, data)
 
 		return res;
 	};
+	CMetadataStringIndex.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.x = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.s = r.GetBool();
+		}
+	};
+	CMetadataStringIndex.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.x) {
+			w.WriteBool(true);
+			w.WriteLong(this.x);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.s) {
+			w.WriteBool(true);
+			w.WriteBool(this.s);
+		} else {
+			w.WriteBool(false);
+		}
+	};
 
 	function CMdxMemeberProp() {
 		this.n = null;
@@ -18165,6 +19443,28 @@ function RangeDataManagerElem(bbox, data)
 		res.np = this.np;
 
 		return res;
+	};
+	CMdxMemeberProp.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.n = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.np = r.GetLong();
+		}
+	};
+	CMdxMemeberProp.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.n) {
+			w.WriteBool(true);
+			w.WriteLong(this.n);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.np) {
+			w.WriteBool(true);
+			w.WriteLong(this.np);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMdxKPI() {
@@ -18181,16 +19481,64 @@ function RangeDataManagerElem(bbox, data)
 
 		return res;
 	};
+	CMdxKPI.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.n = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.np = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.p = r.GetLong();
+		}
+	};
+	CMdxKPI.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.n) {
+			w.WriteBool(true);
+			w.WriteLong(this.n);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.np) {
+			w.WriteBool(true);
+			w.WriteLong(this.np);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.p) {
+			w.WriteBool(true);
+			w.WriteLong(this.p);
+		} else {
+			w.WriteBool(false);
+		}
+	};
 
 	function CMetadataBlock() {
 		this.elems = null;
+		this.t = null;
+		this.v = null;
 	}
 	CMetadataBlock.prototype.clone = function () {
 		let res = new CMetadataBlock();
 
 		res.elems = this.elems;
+		res.t = this.t;
+		res.v = this.v;
 
 		return res;
+	};
+	CMetadataBlock.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.elems = r.GetLong();
+		}
+	};
+	CMetadataBlock.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.elems) {
+			w.WriteBool(true);
+			w.WriteLong(this.elems);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMetadataRecord() {
@@ -18205,6 +19553,28 @@ function RangeDataManagerElem(bbox, data)
 
 		return res;
 	};
+	CMetadataRecord.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.t = r.GetLong();
+		}
+		if (r.GetBool()) {
+			this.v = r.GetLong();
+		}
+	};
+	CMetadataRecord.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.t) {
+			w.WriteBool(true);
+			w.WriteLong(this.t);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.v) {
+			w.WriteBool(true);
+			w.WriteLong(this.v);
+		} else {
+			w.WriteBool(false);
+		}
+	};
 
 	function CFutureMetadataBlock() {
 		this.extLst = null;
@@ -18212,9 +19582,36 @@ function RangeDataManagerElem(bbox, data)
 	CFutureMetadataBlock.prototype.clone = function () {
 		let res = new CFutureMetadataBlock();
 
-		res.extLst = this.extLst && this.extLst.clone();
+		if (this.extLst) {
+			res.extLst = [];
+			for (let i = 0; i < this.extLst.length; i++) {
+				res.extLst.push(this.extLst[i].clone());
+			}
+		}
 
 		return res;
+	};
+	CFutureMetadataBlock.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			var length = r.GetLong();
+			this.extLst = [];
+			for (var i = 0; i < length; ++i) {
+				var elem = new CMetadataBlockExt();
+				elem.Read_FromBinary2(r);
+				this.extLst.push(elem);
+			}
+		}
+	};
+	CFutureMetadataBlock.prototype.Write_ToBinary2 = function(w) {
+		if (this.extLst) {
+			w.WriteBool(true);
+			w.WriteLong(this.extLst.length);
+			for (var i = 0; i < this.extLst.length; ++i) {
+				this.extLst[i].Write_ToBinary2(w);
+			}
+		} else {
+			w.WriteBool(false);
+		}
 	};
 
 	function CMetadataBlockExt() {
@@ -18224,10 +19621,35 @@ function RangeDataManagerElem(bbox, data)
 	CMetadataBlockExt.prototype.clone = function () {
 		let res = new CMetadataBlockExt();
 
+
 		res.richValueBlock = this.richValueBlock && this.richValueBlock.clone();
 		res.dynamicArrayProperties = this.dynamicArrayProperties && this.dynamicArrayProperties.clone();
 
 		return res;
+	};
+	CMetadataBlockExt.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.richValueBlock = new CRichValueBlock();
+			this.richValueBlock.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.dynamicArrayProperties = new CDynamicArrayProperties();
+			this.dynamicArrayProperties.Read_FromBinary2(r);
+		}
+	};
+	CMetadataBlockExt.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.richValueBlock) {
+			w.WriteBool(true);
+			this.richValueBlock.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.dynamicArrayProperties) {
+			w.WriteBool(true);
+			this.dynamicArrayProperties.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
 	};
 	//TODO move to extensions?
 	function CDynamicArrayProperties() {
@@ -18242,17 +19664,29 @@ function RangeDataManagerElem(bbox, data)
 
 		return res;
 	};
-
-	function CRichValueBlock() {
-		this.i = null;
-	}
-	CRichValueBlock.prototype.clone = function () {
-		let res = new CRichValueBlock();
-
-		res.i = this.i;
-
-		return res;
+	CDynamicArrayProperties.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.fDynamic = r.GetBool();
+		}
+		if (r.GetBool()) {
+			this.fCollapsed = r.GetBool();
+		}
 	};
+	CDynamicArrayProperties.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.fDynamic) {
+			w.WriteBool(true);
+			w.WriteBool(this.fDynamic);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.fCollapsed) {
+			w.WriteBool(true);
+			w.WriteBool(this.fCollapsed);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
 
 	function CCustomFunctionEngine(wb) {
 		this.wb = wb;
@@ -18488,14 +19922,7 @@ function RangeDataManagerElem(bbox, data)
 	};
 
 	CCustomFunctionEngine.prototype.clear = function () {
-		if (AscCommonExcel.cFormulaFunctionGroup["Custom"] && AscCommonExcel.cFormulaFunctionGroup["Custom"].length) {
-			let aCustomFunc = AscCommonExcel.cFormulaFunctionGroup["Custom"];
-			for (let i = 0; i < aCustomFunc.length; i++) {
-				let sName = aCustomFunc[i].prototype.name;
-				AscCommonExcel.removeCustomFunction(sName);
-			}
-			AscCommonExcel.cFormulaFunctionGroup["Custom"] = [];
-
+		if (AscCommonExcel.removeCustomFunctions()) {
 			this.wb.initFormulasList && this.wb.initFormulasList();
 			if (this.wb && this.wb.Api) {
 				this.wb.Api.formulasList = AscCommonExcel.getFormulasInfo();
@@ -18787,7 +20214,7 @@ function RangeDataManagerElem(bbox, data)
 
 		return this.funcsMapInfo[name];
 	};
-	
+
 	CCustomFunctionEngine.prototype.getDescription = function (name, ignoreLocale) {
 		let res = null;
 
@@ -20033,6 +21460,555 @@ function RangeDataManagerElem(bbox, data)
 	};
 
 
+	// RichValue Types
+	function CRichValueTypeReservedKeyFlag() {
+		this.value = null;
+		this.name = null;
+	}
+	CRichValueTypeReservedKeyFlag.prototype.clone = function() {
+		let res = new CRichValueTypeReservedKeyFlag();
+		res.value = this.value;
+		res.name = this.name;
+		return res;
+	};
+	CRichValueTypeReservedKeyFlag.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.name = r.GetString2();
+		}
+		if (r.GetBool()) {
+			this.value = r.GetBool();
+		}
+	};
+	CRichValueTypeReservedKeyFlag.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.name) {
+			w.WriteBool(true);
+			w.WriteString2(this.name);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.value) {
+			w.WriteBool(true);
+			w.WriteBool(this.value);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValueTypeReservedKey() {
+		this.name = null;
+		this.arrItems = []; //  CRichValueTypeReservedKeyFlag
+	}
+	CRichValueTypeReservedKey.prototype.clone = function() {
+		let res = new CRichValueTypeReservedKey();
+		res.name = this.name;
+		if (this.arrItems) {
+			res.arrItems = [];
+			for (let i = 0; i < this.arrItems.length; ++i) {
+				res.arrItems.push(this.arrItems[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueTypeReservedKey.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.name = r.GetString2();
+		}
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValueTypeReservedKeyFlag();
+			item.Read_FromBinary2(r);
+			this.arrItems.push(item);
+		}
+	};
+	CRichValueTypeReservedKey.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.name) {
+			w.WriteBool(true);
+			w.WriteString2(this.name);
+		} else {
+			w.WriteBool(false);
+		}
+		w.WriteLong(this.arrItems ? this.arrItems.length : 0);
+		for (let i = 0; i < (this.arrItems ? this.arrItems.length : 0); ++i) {
+			this.arrItems[i].Write_ToBinary2(w);
+		}
+	};
+
+	function CRichValueTypeKeyFlags() {
+		this.arrItems = []; //  CRichValueTypeReservedKey
+	}
+	CRichValueTypeKeyFlags.prototype.clone = function() {
+		let res = new CRichValueTypeKeyFlags();
+		if (this.arrItems) {
+			res.arrItems = [];
+			for (let i = 0; i < this.arrItems.length; ++i) {
+				res.arrItems.push(this.arrItems[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueTypeKeyFlags.prototype.Read_FromBinary2 = function(r) {
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValueTypeReservedKey();
+			item.Read_FromBinary2(r);
+			this.arrItems.push(item);
+		}
+	};
+	CRichValueTypeKeyFlags.prototype.Write_ToBinary2 = function(w) {
+		w.WriteLong(this.arrItems ? this.arrItems.length : 0);
+		for (let i = 0; i < (this.arrItems ? this.arrItems.length : 0); ++i) {
+			this.arrItems[i].Write_ToBinary2(w);
+		}
+	};
+
+	function CRichValueType() {
+		this.name = null;
+		this.keyFlags = null; // CRichValueTypeKeyFlags
+		this.extLst = null;
+	}
+	CRichValueType.prototype.clone = function() {
+		let res = new CRichValueType();
+		res.name = this.name;
+		if (this.keyFlags) {
+			res.keyFlags = this.keyFlags.clone();
+		}
+		res.extLst = this.extLst;
+		return res;
+	};
+	CRichValueType.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.name = r.GetString2();
+		}
+		if (r.GetBool()) {
+			this.keyFlags = new CRichValueTypeKeyFlags();
+			this.keyFlags.Read_FromBinary2(r);
+		}
+	};
+	CRichValueType.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.name) {
+			w.WriteBool(true);
+			w.WriteString2(this.name);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.keyFlags) {
+			w.WriteBool(true);
+			this.keyFlags.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValueTypes() {
+		this.arrItems = []; //  CRichValueType
+	}
+	CRichValueTypes.prototype.clone = function() {
+		let res = new CRichValueTypes();
+		if (this.arrItems) {
+			res.arrItems = [];
+			for (let i = 0; i < this.arrItems.length; ++i) {
+				res.arrItems.push(this.arrItems[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueTypes.prototype.Read_FromBinary2 = function(r) {
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValueType();
+			item.Read_FromBinary2(r);
+			this.arrItems.push(item);
+		}
+	};
+	CRichValueTypes.prototype.Write_ToBinary2 = function(w) {
+		w.WriteLong(this.arrItems ? this.arrItems.length : 0);
+		for (let i = 0; i < (this.arrItems ? this.arrItems.length : 0); ++i) {
+			this.arrItems[i].Write_ToBinary2(w);
+		}
+	};
+
+	function CRichValueGlobalType() {
+		this.keyFlags = null; // CRichValueTypeKeyFlags
+		this.extLst = null;
+	}
+	CRichValueGlobalType.prototype.clone = function() {
+		let res = new CRichValueGlobalType();
+		if (this.keyFlags) {
+			res.keyFlags = this.keyFlags.clone();
+		}
+		res.extLst = this.extLst;
+		return res;
+	};
+	CRichValueGlobalType.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.keyFlags = new CRichValueTypeKeyFlags();
+			this.keyFlags.Read_FromBinary2(r);
+		}
+	};
+	CRichValueGlobalType.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.keyFlags) {
+			w.WriteBool(true);
+			this.keyFlags.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValueTypesInfo() {
+		this.global = null; // CRichValueGlobalType
+		this.types = null; // CRichValueTypes
+		this.extLst = null;
+	}
+
+	CRichValueTypesInfo.prototype.getType = function () {
+		return UndoRedoDataTypes.RichValueTypesInfo;
+	};
+
+	CRichValueTypesInfo.prototype.clone = function() {
+		let res = new CRichValueTypesInfo();
+		if (this.global) {
+			res.global = this.global.clone();
+		}
+		if (this.types) {
+			res.types = this.types.clone();
+		}
+		res.extLst = this.extLst;
+		return res;
+	};
+	CRichValueTypesInfo.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.global = new CRichValueGlobalType();
+			this.global.Read_FromBinary2(r);
+		}
+		if (r.GetBool()) {
+			this.types = new CRichValueTypes();
+			this.types.Read_FromBinary2(r);
+		}
+	};
+	CRichValueTypesInfo.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.global) {
+			w.WriteBool(true);
+			this.global.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.types) {
+			w.WriteBool(true);
+			this.types.Write_ToBinary2(w);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+// RichValue Structures
+	function CRichValueKey() {
+		this.t = null;
+		this.n = null;
+	}
+	CRichValueKey.prototype.clone = function() {
+		let res = new CRichValueKey();
+		res.t = this.t;
+		res.n = this.n;
+		return res;
+	};
+	CRichValueKey.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.t = r.GetByte();
+		}
+		if (r.GetBool()) {
+			this.n = r.GetString2();
+		}
+	};
+	CRichValueKey.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.t) {
+			w.WriteBool(true);
+			w.WriteByte(this.t);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.n) {
+			w.WriteBool(true);
+			w.WriteString2(this.n);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValueStructure() {
+		this.t = null;
+		this.children = []; //  CRichValueKey
+	}
+
+	CRichValueStructure.prototype.getOptionByName = function(val) {
+		for (let i = 0; i < this.children.length; i++) {
+			if (this.children[i].n === val) {
+				return {obj: this.children[i], index: i};
+			}
+		}
+	};
+	CRichValueStructure.prototype.clone = function() {
+		let res = new CRichValueStructure();
+		res.t = this.t;
+		if (this.children) {
+			res.children = [];
+			for (let i = 0; i < this.children.length; ++i) {
+				res.children.push(this.children[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueStructure.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.t = r.GetString2();
+		}
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValueKey();
+			item.Read_FromBinary2(r);
+			this.children.push(item);
+		}
+	};
+	CRichValueStructure.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.t) {
+			w.WriteBool(true);
+			w.WriteString2(this.t);
+		} else {
+			w.WriteBool(false);
+		}
+		w.WriteLong(this.children ? this.children.length : 0);
+		for (let i = 0; i < (this.children ? this.children.length : 0); ++i) {
+			this.children[i].Write_ToBinary2(w);
+		}
+	};
+
+	function CRichValueStructures() {
+		this.count = null;
+		this.extLst = null;
+		this.children = []; //  CRichValueStructure
+	}
+
+	CRichValueStructures.prototype.getType = function () {
+		return UndoRedoDataTypes.RichValueStructures;
+	};
+	CRichValueStructures.prototype.getValueStructure = function(index) {
+		return this.children && this.children[index];
+	};
+	CRichValueStructures.prototype.clone = function() {
+		let res = new CRichValueStructures();
+		res.count = this.count;
+		res.extLst = this.extLst;
+		if (this.children) {
+			res.children = [];
+			for (let i = 0; i < this.children.length; ++i) {
+				res.children.push(this.children[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueStructures.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.count = r.GetLong();
+		}
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValueStructure();
+			item.Read_FromBinary2(r);
+			this.children.push(item);
+		}
+	};
+	CRichValueStructures.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.count) {
+			w.WriteBool(true);
+			w.WriteLong(this.count);
+		} else {
+			w.WriteBool(false);
+		}
+		w.WriteLong(this.children ? this.children.length : 0);
+		for (let i = 0; i < (this.children ? this.children.length : 0); ++i) {
+			this.children[i].Write_ToBinary2(w);
+		}
+	};
+
+// RichValue Data
+	function CRichValueFallback() {
+		this.t = null;
+		this.content = null;
+	}
+	CRichValueFallback.prototype.clone = function() {
+		let res = new CRichValueFallback();
+		res.t = this.t;
+		res.content = this.content;
+		return res;
+	};
+	CRichValueFallback.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.content = r.GetString2();
+		}
+		if (r.GetBool()) {
+			this.t = r.GetByte();
+		}
+	};
+	CRichValueFallback.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.content) {
+			w.WriteBool(true);
+			w.WriteString2(this.content);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.t) {
+			w.WriteBool(true);
+			w.WriteByte(this.t);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValue() {
+		this.s = null;
+		this.fb = null; // CRichValueFallback
+		this.arrV = [];
+	}
+
+	CRichValue.prototype.getRowOffset = function(structure) {
+		if (structure) {
+			let oOffsetRowStr = structure.getOptionByName('rwOffset');
+			if (oOffsetRowStr) {
+				return this.arrV && this.arrV[oOffsetRowStr.index];
+			}
+		}
+		return null;
+	};
+
+	CRichValue.prototype.getColOffset = function(structure) {
+		if (structure) {
+			let oOffsetRowStr = structure.getOptionByName('colOffset');
+			if (oOffsetRowStr) {
+				return this.arrV && this.arrV[oOffsetRowStr.index];
+			}
+		}
+		return null;
+	};
+	CRichValue.prototype.clone = function() {
+		let res = new CRichValue();
+		res.s = this.s;
+		if (this.arrV) {
+			res.arrV = this.arrV.slice();
+		}
+		if (this.fb) {
+			res.fb = new CRichValueFallback();
+			res.fb.t = this.fb.t;
+			res.fb.content = this.fb.content;
+		}
+		return res;
+	};
+	CRichValue.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.s = r.GetULong();
+		}
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			this.arrV.push(r.GetString2());
+		}
+		if (r.GetBool()) {
+			this.fb = new CRichValueFallback();
+			if (r.GetBool()) {
+				this.fb.content = r.GetString2();
+			}
+			if (r.GetBool()) {
+				this.fb.t = r.GetByte();
+			}
+		}
+	};
+	CRichValue.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.s) {
+			w.WriteBool(true);
+			w.WriteULong(this.s);
+		} else {
+			w.WriteBool(false);
+		}
+		w.WriteLong(this.arrV ? this.arrV.length : 0);
+		for (let i = 0; i < (this.arrV ? this.arrV.length : 0); ++i) {
+			w.WriteString2(this.arrV[i]);
+		}
+		if (null != this.fb) {
+			w.WriteBool(true);
+			if (null != this.fb.content) {
+				w.WriteBool(true);
+				w.WriteString2(this.fb.content);
+			} else {
+				w.WriteBool(false);
+			}
+			if (null != this.fb.t) {
+				w.WriteBool(true);
+				w.WriteByte(this.fb.t);
+			} else {
+				w.WriteBool(false);
+			}
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
+	function CRichValueData() {
+		this.pData = []; //CRichValue
+	}
+
+	CRichValueData.prototype.getType = function () {
+		return UndoRedoDataTypes.RichValueData;
+	};
+
+	CRichValueData.prototype.getRichValue = function(index) {
+		return this.pData && this.pData[index];
+	};
+	CRichValueData.prototype.clone = function() {
+		let res = new CRichValueData();
+		if (this.pData) {
+			res.pData = [];
+			for (let i = 0; i < this.pData.length; ++i) {
+				res.pData.push(this.pData[i].clone());
+			}
+		}
+		return res;
+	};
+	CRichValueData.prototype.Read_FromBinary2 = function(r) {
+		let length = r.GetLong();
+		for (let i = 0; i < length; ++i) {
+			let item = new CRichValue();
+			item.Read_FromBinary2(r);
+			this.pData.push(item);
+		}
+	};
+	CRichValueData.prototype.Write_ToBinary2 = function(w) {
+		w.WriteLong(this.pData ? this.pData.length : 0);
+		for (let i = 0; i < (this.pData ? this.pData.length : 0); ++i) {
+			this.pData[i].Write_ToBinary2(w);
+		}
+	};
+
+	function CRichValueBlock() {
+		this.i = null;
+	}
+	CRichValueBlock.prototype.clone = function () {
+		let res = new CRichValueBlock();
+
+		res.i = this.i;
+
+		return res;
+	};
+	CRichValueBlock.prototype.Read_FromBinary2 = function(r) {
+		if (r.GetBool()) {
+			this.i = r.GetLong();
+		}
+	};
+	CRichValueBlock.prototype.Write_ToBinary2 = function(w) {
+		if (null != this.i) {
+			w.WriteBool(true);
+			w.WriteLong(this.i);
+		} else {
+			w.WriteBool(false);
+		}
+	};
+
 
 	//----------------------------------------------------------export----------------------------------------------------
 	var prot;
@@ -20130,6 +22106,7 @@ function RangeDataManagerElem(bbox, data)
     prot["asc_getFontStrikeout"] = prot.asc_getFontStrikeout;
     prot["asc_getFontSubscript"] = prot.asc_getFontSubscript;
     prot["asc_getFontSuperscript"] = prot.asc_getFontSuperscript;
+    prot["asc_getFontVerticalAlign"] = prot.asc_getFontVerticalAlign;
 	prot["asc_getNumFormat"] = prot.asc_getNumFormat;
 	prot["asc_getNumFormatInfo"] = prot.asc_getNumFormatInfo;
 	prot["asc_getHorAlign"] = prot.asc_getHorAlign;
@@ -20405,6 +22382,8 @@ function RangeDataManagerElem(bbox, data)
 	prot["asc_getName"] = prot.asc_getName;
 	prot["asc_getArguments"] = prot.asc_getArguments;
 	prot["asc_setArguments"] = prot.asc_setArguments;
+	prot["asc_getActiveArgPos"] = prot.asc_getActiveArgPos;
+	prot["asc_getActiveArgsCount"] = prot.asc_getActiveArgsCount
 
 
 	window["Asc"]["asc_CExternalReference"] = window["Asc"].asc_CExternalReference = asc_CExternalReference;
@@ -20431,6 +22410,7 @@ function RangeDataManagerElem(bbox, data)
 	window["AscCommonExcel"].CT_Connection = CT_Connection;
 	window["AscCommonExcel"].CT_Filter = CT_Filter;
 
+	window["AscCommonExcel"].CChartExternalReference = CChartExternalReference;
 	window["AscCommonExcel"].ExternalReference = ExternalReference;
 	window["AscCommonExcel"].ExternalSheetDataSet = ExternalSheetDataSet;
 	window["AscCommonExcel"].ExternalRow = ExternalRow;
@@ -20612,5 +22592,20 @@ function RangeDataManagerElem(bbox, data)
 	window['AscCommonExcel'].CXmlColumnPr = CXmlColumnPr;
 	window['AscCommonExcel'].CSingleXmlCells = CSingleXmlCells;
 
+	window["AscCommonExcel"].CRichValueTypeReservedKeyFlag = CRichValueTypeReservedKeyFlag;
+	window["AscCommonExcel"].CRichValueTypeReservedKey = CRichValueTypeReservedKey;
+	window["AscCommonExcel"].CRichValueTypeKeyFlags = CRichValueTypeKeyFlags;
+	window["AscCommonExcel"].CRichValueType = CRichValueType;
+	window["AscCommonExcel"].CRichValueTypes = CRichValueTypes;
+	window["AscCommonExcel"].CRichValueGlobalType = CRichValueGlobalType;
+	window["AscCommonExcel"].CRichValueTypesInfo = CRichValueTypesInfo;
+
+	window["AscCommonExcel"].CRichValueKey = CRichValueKey;
+	window["AscCommonExcel"].CRichValueStructure = CRichValueStructure;
+	window["AscCommonExcel"].CRichValueStructures = CRichValueStructures;
+
+	window["AscCommonExcel"].CRichValueFallback = CRichValueFallback;
+	window["AscCommonExcel"].CRichValue = CRichValue;
+	window["AscCommonExcel"].CRichValueData = CRichValueData;
 
 })(window);

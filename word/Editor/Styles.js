@@ -39,7 +39,6 @@ window['AscWord'] = window['AscWord'] || {};
 
 var align_Left = AscCommon.align_Left;
 var align_Right = AscCommon.align_Right;
-var History = AscCommon.History;
 
 var linerule_Auto = Asc.linerule_Auto;
 var c_oAscShdClear = Asc.c_oAscShdClear;
@@ -60,7 +59,7 @@ var smallcaps_Koef = 0.8; // Коэффициент изменения разм�
 var smallcaps_and_script_koef = AscCommon.vaKSize * smallcaps_Koef; // суммарный коэффициент, когда текст одновременно и в индексе, и написан малыми прописными
 
 var g_dKoef_pt_to_mm = 25.4 / 72;
-var g_dKoef_pc_to_mm = g_dKoef_pt_to_mm / 12;
+var g_dKoef_pc_to_mm = g_dKoef_pt_to_mm * 12;
 var g_dKoef_in_to_mm = 25.4;
 var g_dKoef_twips_to_mm = g_dKoef_pt_to_mm / 20;
 var g_dKoef_mm_to_pt = 1 / g_dKoef_pt_to_mm;
@@ -72,6 +71,7 @@ var g_dKoef_pt_to_twips = 20;
 var g_dKoef_twips_to_emu = 1 / g_dKoef_emu_to_twips;
 var g_dKoef_twips_to_pt = 1 / g_dKoef_pt_to_twips;
 var g_dKoef_em_to_mm = 4.21752;
+const g_dKoef_pc_to_pt = 12;
 
 var tblwidth_Auto = 0x00;
 var tblwidth_Mm   = 0x01;
@@ -389,7 +389,7 @@ CStyle.prototype =
 
 		this.TextPr = New;
 
-		History.Add(new CChangesStyleTextPr(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTextPr(this, Old, New));
 	},
 
 	Set_ParaPr : function(Value, isHandleNumbering)
@@ -432,7 +432,7 @@ CStyle.prototype =
 
 		this.TablePr = New;
 
-		History.Add(new CChangesStyleTablePr(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTablePr(this, Old, New));
 	},
 
 	Set_TableRowPr : function(Value)
@@ -443,7 +443,7 @@ CStyle.prototype =
 
 		this.TableRowPr = New;
 
-		History.Add(new CChangesStyleTableRowPr(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableRowPr(this, Old, New));
 	},
 
 	Set_TableCellPr : function(Value)
@@ -454,7 +454,7 @@ CStyle.prototype =
 
 		this.TableCellPr = New;
 
-		History.Add(new CChangesStyleTableCellPr(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableCellPr(this, Old, New));
 	},
 
 	Set_TableBand1Horz : function(Value)
@@ -465,7 +465,7 @@ CStyle.prototype =
 
 		this.TableBand1Horz = New;
 
-		History.Add(new CChangesStyleTableBand1Horz(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableBand1Horz(this, Old, New));
 	},
 
 	Set_TableBand1Vert : function(Value)
@@ -476,7 +476,7 @@ CStyle.prototype =
 
 		this.TableBand1Vert = New;
 
-		History.Add(new CChangesStyleTableBand1Vert(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableBand1Vert(this, Old, New));
 	},
 
     Set_TableBand2Horz : function(Value)
@@ -487,7 +487,7 @@ CStyle.prototype =
 
         this.TableBand2Horz = New;
 
-        History.Add(new CChangesStyleTableBand2Horz(this, Old, New));
+        AscCommon.History.Add(new CChangesStyleTableBand2Horz(this, Old, New));
     },
 
 	Set_TableBand2Vert : function(Value)
@@ -498,7 +498,7 @@ CStyle.prototype =
 
 		this.TableBand2Vert = New;
 
-		History.Add(new CChangesStyleTableBand2Vert(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableBand2Vert(this, Old, New));
 	},
 
 	Set_TableFirstCol : function(Value)
@@ -509,7 +509,7 @@ CStyle.prototype =
 
 		this.TableFirstCol = New;
 
-		History.Add(new CChangesStyleTableFirstCol(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableFirstCol(this, Old, New));
 	},
 
 	Set_TableFirstRow : function(Value)
@@ -520,7 +520,7 @@ CStyle.prototype =
 
 		this.TableFirstRow = New;
 
-		History.Add(new CChangesStyleTableFirstRow(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableFirstRow(this, Old, New));
 	},
 
 	Set_TableLastCol : function(Value)
@@ -531,7 +531,7 @@ CStyle.prototype =
 
 		this.TableLastCol = New;
 
-		History.Add(new CChangesStyleTableLastCol(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableLastCol(this, Old, New));
 	},
 
 	Set_TableLastRow : function(Value)
@@ -542,7 +542,7 @@ CStyle.prototype =
 
 		this.TableLastRow = New;
 
-		History.Add(new CChangesStyleTableLastRow(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableLastRow(this, Old, New));
 	},
 
 	Set_TableTLCell : function(Value)
@@ -553,7 +553,7 @@ CStyle.prototype =
 
 		this.TableTLCell = New;
 
-		History.Add(new CChangesStyleTableTLCell(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableTLCell(this, Old, New));
 	},
 
 	Set_TableTRCell : function(Value)
@@ -564,7 +564,7 @@ CStyle.prototype =
 
 		this.TableTRCell = New;
 
-		History.Add(new CChangesStyleTableTRCell(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableTRCell(this, Old, New));
 	},
 
 	Set_TableBLCell : function(Value)
@@ -575,7 +575,7 @@ CStyle.prototype =
 
 		this.TableBLCell = New;
 
-		History.Add(new CChangesStyleTableBLCell(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableBLCell(this, Old, New));
 	},
 
 	Set_TableBRCell : function(Value)
@@ -586,7 +586,7 @@ CStyle.prototype =
 
 		this.TableBRCell = New;
 
-		History.Add(new CChangesStyleTableBRCell(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableBRCell(this, Old, New));
 	},
 
 	Set_TableWholeTable : function(Value)
@@ -597,12 +597,12 @@ CStyle.prototype =
 
 		this.TableWholeTable = New;
 
-		History.Add(new CChangesStyleTableWholeTable(this, Old, New));
+		AscCommon.History.Add(new CChangesStyleTableWholeTable(this, Old, New));
 	},
 
 	Set_Name : function(Value)
 	{
-		History.Add(new CChangesStyleName(this, this.Name, Value));
+		AscCommon.History.Add(new CChangesStyleName(this, this.Name, Value));
 		this.Name = Value;
 	},
 
@@ -613,7 +613,7 @@ CStyle.prototype =
 
 	Set_BasedOn : function(Value)
 	{
-		History.Add(new CChangesStyleBasedOn(this, this.BasedOn, Value));
+		AscCommon.History.Add(new CChangesStyleBasedOn(this, this.BasedOn, Value));
 		this.BasedOn = Value;
 	},
 
@@ -624,7 +624,7 @@ CStyle.prototype =
 
 	Set_Next : function(Value)
 	{
-		History.Add(new CChangesStyleNext(this, this.Next, Value));
+		AscCommon.History.Add(new CChangesStyleNext(this, this.Next, Value));
 		this.Next = Value;
 	},
 
@@ -635,7 +635,7 @@ CStyle.prototype =
 
 	Set_Link : function(Value)
 	{
-		History.Add(new CChangesStyleLink(this, this.Link, Value));
+		AscCommon.History.Add(new CChangesStyleLink(this, this.Link, Value));
 		this.Link = Value;
 	},
 
@@ -646,7 +646,7 @@ CStyle.prototype =
 
 	Set_Type : function(Value)
 	{
-		History.Add(new CChangesStyleType(this, this.Type, Value));
+		AscCommon.History.Add(new CChangesStyleType(this, this.Type, Value));
 		this.Type = Value;
 	},
 
@@ -657,31 +657,31 @@ CStyle.prototype =
 
 	Set_QFormat : function(Value)
 	{
-		History.Add(new CChangesStyleQFormat(this, this.qFormat, Value));
+		AscCommon.History.Add(new CChangesStyleQFormat(this, this.qFormat, Value));
 		this.qFormat = Value;
 	},
 
 	Set_UiPriority : function(Value)
 	{
-		History.Add(new CChangesStyleUiPriority(this, this.uiPriority, Value));
+		AscCommon.History.Add(new CChangesStyleUiPriority(this, this.uiPriority, Value));
 		this.uiPriority = Value;
 	},
 
 	Set_Hidden : function(Value)
 	{
-		History.Add(new CChangesStyleHidden(this, this.hidden, Value));
+		AscCommon.History.Add(new CChangesStyleHidden(this, this.hidden, Value));
 		this.hidden = Value;
 	},
 
 	Set_SemiHidden : function(Value)
 	{
-		History.Add(new CChangesStyleSemiHidden(this, this.semiHidden, Value));
+		AscCommon.History.Add(new CChangesStyleSemiHidden(this, this.semiHidden, Value));
 		this.semiHidden = Value;
 	},
 
 	Set_UnhideWhenUsed : function(Value)
 	{
-		History.Add(new CChangesStyleUnhideWhenUsed(this, this.unhideWhenUsed, Value));
+		AscCommon.History.Add(new CChangesStyleUnhideWhenUsed(this, this.unhideWhenUsed, Value));
 		this.unhideWhenUsed = Value;
 	},
 
@@ -6049,7 +6049,7 @@ CStyle.prototype =
 
 	Refresh_RecalcData2 : function()
 	{
-		var oHistory = History;
+		var oHistory = AscCommon.History;
 		if (!oHistory)
 			return;
 
@@ -6059,7 +6059,7 @@ CStyle.prototype =
 
 	RecalculateRelatedParagraphs : function()
 	{
-		var oHistory = History;
+		var oHistory = AscCommon.History;
 		if (!oHistory)
 			return;
 
@@ -6369,6 +6369,7 @@ CStyle.prototype =
         }
     }
 };
+CStyle.prototype.constructor = CStyle;
 CStyle.fromObject = function(obj)
 {
 	if (!obj || !obj.Name)
@@ -6479,7 +6480,7 @@ CStyle.prototype.SetStyleId = function(styleId)
 	if (styleId === this.StyleId)
 		return;
 
-	History.Add(new CChangesStyleStyleId(this, this.StyleId, styleId));
+	AscCommon.History.Add(new CChangesStyleStyleId(this, this.StyleId, styleId));
 	this.StyleId = styleId;
 };
 CStyle.prototype.GetStyleId = function()
@@ -7078,7 +7079,7 @@ CStyle.prototype.IsExpressStyle = function(oStyles)
  */
 CStyle.prototype.SetCustom = function(isCustom)
 {
-	History.Add(new CChangesStyleCustom(this, this.Name, isCustom));
+	AscCommon.History.Add(new CChangesStyleCustom(this, this.Name, isCustom));
 	this.Custom = isCustom;
 };
 /**
@@ -7918,7 +7919,7 @@ CStyles.prototype =
 	Add : function(Style)
 	{
 		var Id = Style.Get_Id();
-		History.Add(new CChangesStylesAdd(this, Id, Style));
+		AscCommon.History.Add(new CChangesStylesAdd(this, Id, Style));
 		this.Style[Id] = Style;
 		Style.SetParent(this);
 		this.Update_Interface(Id);
@@ -7941,7 +7942,7 @@ CStyles.prototype =
 			return;
 		
 		this.Style[Id].SetParent(null);
-		History.Add(new CChangesStylesRemove(this, Id, this.Style[Id]));
+		AscCommon.History.Add(new CChangesStylesRemove(this, Id, this.Style[Id]));
 		delete this.Style[Id];
 		this.Update_Interface(Id);
 	},
@@ -7991,7 +7992,7 @@ CStyles.prototype =
 
 	Set_DefaultParaPr : function(ParaPr)
 	{
-		History.Add(new CChangesStylesChangeDefaultParaPr(this, this.Default.ParaPr, ParaPr));
+		AscCommon.History.Add(new CChangesStylesChangeDefaultParaPr(this, this.Default.ParaPr, ParaPr));
 		this.Default.ParaPr.InitDefault();
 		this.Default.ParaPr.Merge(ParaPr);
 
@@ -8006,7 +8007,7 @@ CStyles.prototype =
 
 	Set_DefaultTextPr : function(TextPr)
 	{
-		History.Add(new CChangesStylesChangeDefaultTextPr(this, this.Default.TextPr, TextPr));
+		AscCommon.History.Add(new CChangesStylesChangeDefaultTextPr(this, this.Default.TextPr, TextPr));
 		this.Default.TextPr = new AscWord.CTextPr();
 		this.Default.TextPr.InitDefault();
 		this.Default.TextPr.Merge(TextPr);
@@ -8610,6 +8611,7 @@ CStyles.prototype =
         }
     }
 };
+CStyles.prototype.constructor = CStyles;
 /**
  * Получаем стиль по идентификатору
  * @param sStyleId {string}
@@ -10086,6 +10088,17 @@ CDocumentShd.prototype.GetSimpleColor = function(oTheme, oColorMap)
 	}
 
 	return oResultColor;
+};
+CDocumentShd.prototype.GetAlpha = function(theme, colorMap)
+{
+	let unifill = this.ThemeFill;
+	if (unifill)
+	{
+		unifill.check(theme, colorMap);
+		let rgba = unifill.getRGBAColor();
+		return (rgba.A !== undefined && rgba.A !== null) ? rgba.A : 255;
+	}
+	return 255;
 };
 CDocumentShd.prototype.private_GetPctShdColor = function(nPct, strokeColor, fillColor)
 {
@@ -15644,241 +15657,6 @@ CParaInd.prototype.IsEqual = function(oInd)
 	return (IsEqualNullableFloatNumbers(this.Left, oInd.Left) && IsEqualNullableFloatNumbers(this.Right, oInd.Right) && IsEqualNullableFloatNumbers(this.FirstLine, oInd.FirstLine));
 };
 
-function CParaSpacing()
-{
-    this.Line              = undefined; // Расстояние между строками внутри абзаца
-    this.LineRule          = undefined; // Тип расстрояния между строками
-    this.Before            = undefined; // Дополнительное расстояние до абзаца
-    this.BeforePct         = undefined; // Расстояние до абзаца в процентах от высоты строки
-    this.BeforeAutoSpacing = undefined; // Использовать ли автоматический расчет расстояния до параграфа
-    this.After             = undefined; // Дополнительное расстояние после абзаца
-    this.AfterPct          = undefined; // Расстояние после абзаца в процентах от высоты строки
-    this.AfterAutoSpacing  = undefined; // Использовать ли автоматический расчет расстояния после параграфа
-}
-
-CParaSpacing.prototype =
-{
-    Copy : function()
-    {
-        var Spacing = new CParaSpacing();
-        Spacing.Line              = this.Line;
-        Spacing.LineRule          = this.LineRule;
-        Spacing.Before            = this.Before;
-        Spacing.BeforeAutoSpacing = this.BeforeAutoSpacing;
-        Spacing.After             = this.After;
-        Spacing.AfterAutoSpacing  = this.AfterAutoSpacing;
-        Spacing.BeforePct         = this.BeforePct;
-        Spacing.AfterPct          = this.AfterPct;
-        return Spacing;
-    },
-
-    Merge : function(Spacing)
-    {
-        if ( undefined != Spacing.Line )
-            this.Line = Spacing.Line;
-
-        if ( undefined != Spacing.LineRule )
-            this.LineRule = Spacing.LineRule;
-
-        if ( undefined != Spacing.Before )
-            this.Before = Spacing.Before;
-
-        if ( undefined != Spacing.BeforeAutoSpacing )
-            this.BeforeAutoSpacing = Spacing.BeforeAutoSpacing;
-
-        if ( undefined != Spacing.After )
-            this.After = Spacing.After;
-
-        if ( undefined != Spacing.AfterAutoSpacing )
-            this.AfterAutoSpacing = Spacing.AfterAutoSpacing;
-
-        if ( undefined != Spacing.BeforePct )
-            this.BeforePct = Spacing.BeforePct;
-
-        if ( undefined != Spacing.AfterPct )
-            this.AfterPct = Spacing.AfterPct;
-    },
-
-	Is_Equal : function(Spacing)
-	{
-		return this.IsEqual(Spacing);
-	},
-
-    Set_FromObject : function(Spacing)
-    {
-        this.Line              = Spacing.Line;
-        this.LineRule          = Spacing.LineRule;
-        this.Before            = Spacing.Before;
-        this.BeforeAutoSpacing = Spacing.BeforeAutoSpacing;
-        this.After             = Spacing.After;
-        this.AfterAutoSpacing  = Spacing.AfterAutoSpacing;
-        this.BeforePct         = Spacing.BeforePct;
-        this.AfterPct          = Spacing.AfterPct;
-    },
-
-    Write_ToBinary : function(Writer)
-    {
-        var StartPos = Writer.GetCurPosition();
-        Writer.Skip(4);
-        var Flags = 0;
-
-        if ( undefined != this.Line )
-        {
-            Writer.WriteDouble( this.Line );
-            Flags |= 1;
-        }
-
-        if ( undefined != this.LineRule )
-        {
-            Writer.WriteByte( this.LineRule );
-            Flags |= 2;
-        }
-
-        if ( undefined != this.Before )
-        {
-            Writer.WriteDouble( this.Before );
-            Flags |= 4;
-        }
-
-        if ( undefined != this.After )
-        {
-            Writer.WriteDouble( this.After );
-            Flags |= 8;
-        }
-
-        if ( undefined != this.AfterAutoSpacing )
-        {
-            Writer.WriteBool( this.AfterAutoSpacing );
-            Flags |= 16;
-        }
-
-        if ( undefined != this.BeforeAutoSpacing )
-        {
-            Writer.WriteBool( this.BeforeAutoSpacing );
-            Flags |= 32;
-        }
-
-        if ( undefined != this.BeforePct )
-        {
-            Writer.WriteLong( this.BeforePct );
-            Flags |= 64;
-        }
-
-        if ( undefined != this.AfterPct )
-        {
-            Writer.WriteLong( this.AfterPct );
-            Flags |= 128;
-        }
-
-        var EndPos = Writer.GetCurPosition();
-        Writer.Seek( StartPos );
-        Writer.WriteLong( Flags );
-        Writer.Seek( EndPos );
-    },
-
-    Read_FromBinary : function(Reader)
-    {
-        var Flags = Reader.GetLong();
-
-        if ( Flags & 1 )
-            this.Line = Reader.GetDouble();
-
-        if ( Flags & 2 )
-            this.LineRule = Reader.GetByte();
-
-        if ( Flags & 4 )
-            this.Before = Reader.GetDouble();
-
-        if ( Flags & 8 )
-            this.After = Reader.GetDouble();
-
-        if ( Flags & 16 )
-            this.AfterAutoSpacing = Reader.GetBool();
-
-        if ( Flags & 32 )
-            this.BeforeAutoSpacing = Reader.GetBool();
-
-        if ( Flags & 64 )
-            this.BeforePct = Reader.GetLong();
-
-        if ( Flags & 128 )
-            this.AfterPct = Reader.GetLong();
-    }
-};
-CParaSpacing.prototype.Get_Diff = function(Spacing)
-{
-    var DiffSpacing = new CParaSpacing();
-
-    if (this.Line !== Spacing.Line)
-        DiffSpacing.Line = this.Line;
-
-    if (this.LineRule !== Spacing.LineRule)
-        DiffSpacing.LineRule = this.LineRule;
-
-    if (this.Before !== Spacing.Before)
-        DiffSpacing.Before = this.Before;
-
-    if (this.BeforeAutoSpacing !== Spacing.BeforeAutoSpacing)
-        DiffSpacing.BeforeAutoSpacing = this.BeforeAutoSpacing;
-
-    if (this.After !== Spacing.After)
-        DiffSpacing.After = this.After;
-
-    if (this.AfterAutoSpacing !== Spacing.AfterAutoSpacing)
-        DiffSpacing.AfterAutoSpacing = this.AfterAutoSpacing;
-
-    if (this.BeforePct !== Spacing.BeforePct)
-        DiffSpacing.BeforePct = this.BeforePct;
-
-    if (this.AfterPct !== Spacing.AfterPct)
-        DiffSpacing.AfterPct = this.AfterPct;
-
-
-    return DiffSpacing;
-};
-CParaSpacing.prototype.Is_Empty = function()
-{
-	if (undefined !== this.Line
-		|| undefined !== this.LineRule
-		|| undefined !== this.Before
-		|| undefined !== this.BeforeAutoSpacing
-		|| undefined !== this.After
-		|| undefined !== this.AfterAutoSpacing
-		|| undefined !== this.BeforePct
-		|| undefined !== this.AfterPct)
-		return false;
-
-	return true;
-};
-CParaSpacing.prototype.IsEmpty = function()
-{
-	return this.Is_Empty();
-};
-CParaSpacing.prototype.IsEqual = function(oSpacing)
-{
-	return (this.Line === oSpacing.Line
-		&& this.LineRule === oSpacing.LineRule
-		&& IsEqualNullableFloatNumbers(this.Before, oSpacing.Before)
-		&& IsEqualNullableFloatNumbers(this.After, oSpacing.After)
-		&& IsEqualNullableFloatNumbers(this.AfterPct, oSpacing.AfterPct)
-		&& IsEqualNullableFloatNumbers(this.BeforePct, oSpacing.BeforePct)
-		&& this.BeforeAutoSpacing === oSpacing.BeforeAutoSpacing
-		&& this.AfterAutoSpacing === oSpacing.AfterAutoSpacing);
-};
-CParaSpacing.prototype.SetLineTwips = function (val) {
-	if (null !== val && undefined !== val) {
-		if (val < 0) {
-			val = Math.abs(val);
-			this.LineRule = Asc.linerule_Exact;
-		}
-		if (Asc.linerule_Auto === this.LineRule) {
-			this.Line = val / 240;
-		} else {
-			this.Line = g_dKoef_twips_to_mm * val;
-		}
-	}
-};
-
 function CNumPr(numId, iLvl)
 {
     this.NumId = numId;
@@ -16391,7 +16169,7 @@ function CParaPr()
 	this.KeepLines         = undefined;          // Неразрывный параграф
 	this.KeepNext          = undefined;          // Не разъединять со следующим параграфом
 	this.PageBreakBefore   = undefined;          // Разрыв страницы перед параграфом
-	this.Spacing           = new CParaSpacing(); // Расстояния между строками внутри параграфа и между параграфами
+	this.Spacing           = new AscWord.ParaSpacing(); // Расстояния между строками внутри параграфа и между параграфами
 	this.Shd               = undefined;          // Заливка параграфа
 	this.Brd               = {
 		First   : undefined,            // Является ли данный параграф первым в группе параграфов с одинаковыми краями и настройками границ
@@ -16712,7 +16490,7 @@ CParaPr.prototype.InitDefault = function(nCompatibilityMode)
 	this.KeepLines                 = false;
 	this.KeepNext                  = false;
 	this.PageBreakBefore           = false;
-	this.Spacing                   = new CParaSpacing();
+	this.Spacing                   = new AscWord.ParaSpacing();
 	this.Spacing.Line              = 1;
 	this.Spacing.LineRule          = linerule_Auto;
 	this.Spacing.Before            = 0;
@@ -16756,7 +16534,7 @@ CParaPr.prototype.Set_FromObject = function(ParaPr)
 	this.KeepNext        = ParaPr.KeepNext;
 	this.PageBreakBefore = ParaPr.PageBreakBefore;
 
-	this.Spacing = new CParaSpacing();
+	this.Spacing = new AscWord.ParaSpacing();
 	if (undefined != ParaPr.Spacing)
 		this.Spacing.Set_FromObject(ParaPr.Spacing);
 
@@ -16909,7 +16687,7 @@ CParaPr.prototype.Compare = function(ParaPr)
 	if (ParaPr.PageBreakBefore === this.PageBreakBefore)
 		Result_ParaPr.PageBreakBefore = ParaPr.PageBreakBefore;
 
-	Result_ParaPr.Spacing = new CParaSpacing();
+	Result_ParaPr.Spacing = new AscWord.ParaSpacing();
 	if (undefined != this.Spacing && undefined != ParaPr.Spacing)
 	{
 		if (undefined != this.Spacing.After && undefined != ParaPr.Spacing.After && Math.abs(this.Spacing.After - ParaPr.Spacing.After) < 0.001)
@@ -17199,7 +16977,7 @@ CParaPr.prototype.Read_FromBinary = function(Reader)
 
 	if (Flags & 64)
 	{
-		this.Spacing = new CParaSpacing();
+		this.Spacing = new AscWord.ParaSpacing();
 		this.Spacing.Read_FromBinary(Reader);
 	}
 
@@ -18007,6 +17785,7 @@ window["AscCommonWord"].g_dKoef_twips_to_pt = g_dKoef_twips_to_pt;
 window["AscCommonWord"].g_dKoef_twips_to_emu = g_dKoef_twips_to_emu;
 window["AscCommonWord"].g_dKoef_em_to_mm = g_dKoef_em_to_mm;
 window["AscCommonWord"].g_dKoef_pt_to_twips = g_dKoef_pt_to_twips;
+window["AscCommonWord"].g_dKoef_pc_to_pt = g_dKoef_pc_to_pt;
 window["AscCommonWord"].border_Single = border_Single;
 window["AscCommonWord"].Default_Tab_Stop = Default_Tab_Stop;
 window["AscCommonWord"].highlight_None = highlight_None;
@@ -18018,14 +17797,17 @@ window["AscCommonWord"].wrap_NotBeside = wrap_NotBeside;
 window["AscCommonWord"].wrap_Through = wrap_Through;
 window["AscCommonWord"].wrap_Tight = wrap_Tight;
 
-window["AscWord"].CTextPr = CTextPr;
-window["AscWord"].CParaPr = CParaPr;
-window["AscWord"].CStyle  = CStyle;
-window["AscWord"].CNumPr  = CNumPr;
-window["AscWord"].NumPr   = CNumPr;
-window["AscWord"].CBorder = CDocumentBorder;
-window["AscWord"].CShd    = CDocumentShd;
-window["AscWord"].CStyles = CStyles;
+window["AscWord"].CTextPr  = CTextPr;
+window["AscWord"].CParaPr  = CParaPr;
+window["AscWord"].CStyle   = CStyle;
+window["AscWord"].CNumPr   = CNumPr;
+window["AscWord"].NumPr    = CNumPr;
+window["AscWord"].CBorder  = CDocumentBorder;
+window["AscWord"].CShd     = CDocumentShd;
+window["AscWord"].Shd      = CDocumentShd;
+window["AscWord"].CStyles  = CStyles;
+window["AscWord"].CParaInd = CParaInd;
+
 
 
 // Создаем глобальные дефолтовые стили, чтобы быстро можно было отдать дефолтовые настройки

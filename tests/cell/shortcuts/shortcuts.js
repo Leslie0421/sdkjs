@@ -113,7 +113,7 @@ QUnit.config.autostart = false;
 	function AddChart()
 	{
 		ws.getRange4(0, 0).fillData([['1']]);
-		const props = editor.asc_getChartObject(Asc.c_oAscChartTypeSettings.lineNormal);
+		const props = editor.asc_getChartSettings(Asc.c_oAscChartTypeSettings.lineNormal);
 		props.left = 0;
 		props.top = 0;
 		props.width = 100;
@@ -523,6 +523,17 @@ QUnit.config.autostart = false;
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Italic);
 		assert.false(cellEditor._getFragments(0, 11).every((e) => e.format.getItalic()), 'Check cell editor italic format');
 
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getVerticalAlign() === AscCommon.vertalign_SuperScript), 'Check cell editor superscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getVerticalAlign() === AscCommon.vertalign_Baseline), 'Check cell editor baseline format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getVerticalAlign() === AscCommon.vertalign_SuperScript), 'Check cell editor superscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
+		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getVerticalAlign() === AscCommon.vertalign_SubScript), 'Check cell editor subscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
+		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getVerticalAlign() === AscCommon.vertalign_Baseline), 'Check cell editor baseline format');
+
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline);
 		assert.true(cellEditor._getFragments(0, 11).every((e) => e.format.getUnderline() === Asc.EUnderline.underlineSingle), 'Check cell editor underline format');
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline);
@@ -641,7 +652,7 @@ QUnit.config.autostart = false;
 		AscCommon.AscBrowser.isOpera = true;
 		assert.strictEqual(ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.EditOpenCellEditor) & keydownresult_PreventDefault, keydownresult_PreventDefault);
 		AscCommon.AscBrowser.isOpera = false;
-		assert.strictEqual(ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Print) & keydownresult_PreventDefault, keydownresult_PreventDefault);
+		assert.strictEqual(ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.PrintPreviewAndPrint) & keydownresult_PreventDefault, keydownresult_PreventDefault);
 	});
 
 	QUnit.test('Check select all', (assert) =>
@@ -712,7 +723,7 @@ QUnit.config.autostart = false;
 			editor.asc_unregisterCallback(sSendEvent, Check);
 		}
 
-		ExecuteTestWithCatchEvent('asc_onPrint', () => true, true, Asc.c_oAscSpreadsheetShortcutType.Print);
+		ExecuteTestWithCatchEvent('asc_onPrint', () => true, true, Asc.c_oAscSpreadsheetShortcutType.PrintPreviewAndPrint);
 		ExecuteTestWithCatchEvent('asc_onContextMenu', () => true, true, tableEvents[tableHotkeyTypes.contextMenu][0]);
 
 
@@ -1067,28 +1078,28 @@ QUnit.config.autostart = false;
 		ClearShapeAndAddParagraph('Hello world');
 
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check align left");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingCenterPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.CenterPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Center, "Check turn on center para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingCenterPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.CenterPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check turn on center para");
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingJustifyPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.JustifyPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Justify, "Check turn on justify para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingJustifyPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.JustifyPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check turn on justify para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingJustifyPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.JustifyPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Justify, "Check turn on justify para");
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingLeftPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.LeftPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check turn on left para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingLeftPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.LeftPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Justify, "Check turn on left para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingLeftPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.LeftPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check turn on left para");
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingRightPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.RightPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Right, "Check turn on right para");
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingRightPara);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.RightPara);
 		assert.strictEqual(GetDirectGraphicParaPr().GetJc(), AscCommon.align_Left, "Check turn on right para");
 	});
 
@@ -1112,14 +1123,14 @@ QUnit.config.autostart = false;
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline);
 		assert.strictEqual(GetDirectGraphicTextPr().GetUnderline(), false, 'Check turn off underline');
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingSuperscript);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
 		assert.strictEqual(GetDirectGraphicTextPr().GetVertAlign(), AscCommon.vertalign_SuperScript, 'Check turn on superscript');
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingSuperscript);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
 		assert.strictEqual(GetDirectGraphicTextPr().GetVertAlign(), AscCommon.vertalign_Baseline, 'Check turn off superscript');
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingSubscript);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
 		assert.strictEqual(GetDirectGraphicTextPr().GetVertAlign(), AscCommon.vertalign_SubScript, 'Check turn on subscript');
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingSubscript);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
 		assert.strictEqual(GetDirectGraphicTextPr().GetVertAlign(), AscCommon.vertalign_Baseline, 'Check turn off subscript');
 
 		// defaultSize = 10
@@ -1146,10 +1157,10 @@ QUnit.config.autostart = false;
 	QUnit.test('Check add various characters', (assert) =>
 	{
 		const {paragraph} = ClearShapeAndAddParagraph('');
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingEnDash);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.EnDash);
 		assert.strictEqual(GetParagraphText(paragraph), String.fromCharCode(0x2013), 'Check add en dash');
 
-		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.DrawingEnDash);
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.EnDash);
 		assert.strictEqual(GetParagraphText(paragraph), String.fromCharCode(0x2013, 0x2013), 'Check add en dash');
 	});
 
@@ -1625,6 +1636,17 @@ QUnit.config.autostart = false;
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline);
 		assert.false(GetCellFormatting(0, 0).asc_getFontUnderline(), 'Check turn off underline format');
 
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontVerticalAlign(), AscCommon.vertalign_SuperScript, 'Check cell editor superscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontVerticalAlign(), AscCommon.vertalign_Baseline, 'Check cell editor baseline format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Superscript);
+		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontVerticalAlign(), AscCommon.vertalign_SuperScript, 'Check cell editor superscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
+		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontVerticalAlign(), AscCommon.vertalign_SubScript, 'Check cell editor subscript format');
+		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.Subscript);
+		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontVerticalAlign(), AscCommon.vertalign_Baseline, 'Check cell editor baseline format');
+
 		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontSize(), 11, "Check init font size");
 		ExecuteShortcut(Asc.c_oAscSpreadsheetShortcutType.IncreaseFontSize);
 		assert.strictEqual(GetCellFormatting(0, 0).asc_getFontSize(), 12, "Check increase font size");
@@ -1875,5 +1897,134 @@ QUnit.config.autostart = false;
 		assert.strictEqual(ws.getRange4(0, 2).getValueWithFormat(), '3', 'Check calculating value');
 		assert.strictEqual(wsName.getRange4(0, 2).getValueWithFormat(), '2', 'Check calculating value');
 		RemoveWorksheets([0]);
+	});
+
+	QUnit.module('Test BiDi cell editor', {
+		afterEach: function ()
+		{
+			CloseCellEditor();
+		}
+	});
+
+	QUnit.test('Arrow keys swap in RTL text', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('\u05E9\u05DC\u05D5\u05DD');
+
+		assert.strictEqual(cellEditor.cursorPos, 4, 'Cursor at end after entering Hebrew text');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveToRightChar);
+		assert.strictEqual(cellEditor.cursorPos, 3, 'Right arrow in RTL moves to prev char');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveToRightChar);
+		assert.strictEqual(cellEditor.cursorPos, 2, 'Right arrow in RTL moves to prev char again');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveCursorLeftChar);
+		assert.strictEqual(cellEditor.cursorPos, 3, 'Left arrow in RTL moves to next char');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveCursorLeftChar);
+		assert.strictEqual(cellEditor.cursorPos, 4, 'Left arrow in RTL moves to next char again');
+	});
+
+	QUnit.test('Cursor visual position in RTL text', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('\u05E9\u05DC\u05D5\u05DD');
+
+		let tr = cellEditor.textRender;
+		let offsetBegin = tr.calcCharOffset(0);
+		let offsetEnd = tr.calcCharOffset(4);
+
+		assert.ok(offsetBegin !== null, 'Offset at pos=0 is not null');
+		assert.ok(offsetEnd !== null, 'Offset at pos=4 is not null');
+		assert.ok(offsetBegin.left > offsetEnd.left, 'In RTL: cursor at pos=0 is visually to the right of cursor at pos=4');
+
+		let offsetMid = tr.calcCharOffset(2);
+		assert.ok(offsetMid.left > offsetEnd.left && offsetMid.left < offsetBegin.left,
+			'Cursor at pos=2 is between pos=0 and pos=4');
+	});
+
+	QUnit.test('Hit-testing in RTL text', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('\u05E9\u05DC\u05D5\u05DD');
+
+		let tr = cellEditor.textRender;
+		let zoom = cellEditor.getZoom();
+		let offsetBegin = tr.calcCharOffset(0);
+		let offsetEnd = tr.calcCharOffset(4);
+
+		let posAtRight = tr.getCharPosByXY(offsetBegin.left, 1, 0, zoom);
+		assert.strictEqual(posAtRight, 0, 'Click at right edge of RTL text gives pos=0');
+
+		let posAtLeft = tr.getCharPosByXY(offsetEnd.left, 1, 0, zoom);
+		assert.strictEqual(posAtLeft, 4, 'Click at left edge of RTL text gives pos=4');
+	});
+
+	QUnit.test('Selection rects in RTL text', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('\u05E9\u05DC\u05D5\u05DD');
+
+		let rects = cellEditor._collectSelectionRects(0, 1, 3);
+		assert.strictEqual(rects.length, 1, 'Pure RTL selection produces one contiguous rect');
+		assert.ok(rects[0].w > 0, 'Selection rect has positive width');
+	});
+
+	QUnit.test('Mixed LTR/RTL cursor positions', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('AB\u05E9\u05DCCD');
+
+		let tr = cellEditor.textRender;
+		let offset0 = tr.calcCharOffset(0);
+		let offset2 = tr.calcCharOffset(2);
+		let offset4 = tr.calcCharOffset(4);
+		let offset6 = tr.calcCharOffset(6);
+
+		assert.ok(offset0.left < offset2.left, 'LTR part: pos=0 is left of pos=2');
+		assert.ok(offset2.left >= offset4.left, 'RTL part: pos=2 boundary is at or right of pos=4 boundary');
+		assert.ok(offset4.left < offset6.left, 'LTR part after RTL: pos=4 is left of pos=6');
+	});
+
+	QUnit.test('Cursor at BiDi boundary with trailing edge hint', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('AB\u05E9\u05DCCD');
+
+		let tr = cellEditor.textRender;
+
+		tr.cursorAtTrailingEdge = true;
+		let offsetTrailing = tr.calcCharOffset(2);
+
+		tr.cursorAtTrailingEdge = false;
+		let offsetLeading = tr.calcCharOffset(2);
+
+		tr.cursorAtTrailingEdge = undefined;
+
+		assert.ok(offsetTrailing !== null && offsetLeading !== null,
+			'Both cursor positions at BiDi boundary are valid');
+	});
+
+	QUnit.test('Home/End keys work in RTL text', (assert) =>
+	{
+		Select(0, 0, 0, 0, 0, 0);
+		OpenCellEditor();
+		EnterText('\u05E9\u05DC\u05D5\u05DD');
+
+		cellEditor._moveCursor(-11, 2);
+		assert.strictEqual(cellEditor.cursorPos, 2, 'Cursor moved to pos=2');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveToStartLine);
+		assert.strictEqual(cellEditor.cursorPos, 0, 'Home moves to logical start (pos=0)');
+
+		ExecuteCellEditorHotkey(cellEditorHotkeyTypes.moveToEndLine);
+		assert.strictEqual(cellEditor.cursorPos, 4, 'End moves to logical end (pos=4)');
 	});
 })(window);

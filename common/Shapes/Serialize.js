@@ -631,7 +631,6 @@ function BinaryPPTYLoader()
 
                     var indexL = s.GetULong();
                     this.presentation.Slides[_slideNum].setLayout(this.aSlideLayouts[indexL]);
-                    this.presentation.Slides[_slideNum].Master = this.aSlideLayouts[indexL].Master;
                     _slideNum++;
                 }
             }
@@ -1814,18 +1813,18 @@ function BinaryPPTYLoader()
 
     this.ReadRect = function(bIsMain)
     {
-        var _ret = {};
+        let _ret = {};
 
-        var s = this.stream;
+        let s = this.stream;
 
-        var _rec_start = s.cur;
-        var _end_rec = _rec_start + s.GetLong() + 4;
+        let _rec_start = s.cur;
+        let _end_rec = _rec_start + s.GetLong() + 4;
 
         s.Skip2(1); // start attributes
 
         while (true)
         {
-            var _at = s.GetUChar();
+            let _at = s.GetUChar();
             if (_at == g_nodeAttributeEnd)
                 break;
 
@@ -1886,19 +1885,17 @@ function BinaryPPTYLoader()
 
         if (_ret.l > _ret.r)
         {
-            var tmp = _ret.l;
+            let tmp = _ret.l;
             _ret.l = _ret.r;
             _ret.r = tmp;
         }
         if (_ret.t > _ret.b)
         {
-            var tmp = _ret.t;
+            let tmp = _ret.t;
             _ret.t = _ret.b;
             _ret.b = tmp;
         }
-        var ret = new AscFormat.CSrcRect();
-        ret.setLTRB(_ret.l, _ret.t, _ret.r, _ret.b);
-        return ret;
+        return new AscFormat.CSrcRect(_ret.l, _ret.t, _ret.r, _ret.b);
     };
 
     this.ReadGradLin = function()
@@ -3221,7 +3218,7 @@ function BinaryPPTYLoader()
                                 s.Skip2(4); // dpi
                                 break;
                             case 1:
-                                s.Skip2(1); // rotWithShape
+                                uni_fill.fill.rotWithShape = s.GetBool();
                                 break;
                             default:
                                 break;
@@ -3306,8 +3303,10 @@ function BinaryPPTYLoader()
                             }
                             case 3:
                             {
-                                var _e2 = s.cur + s.GetLong() + 4;
+                                const stretch = new AscFormat.CBlipFillStretch();
+                                uni_fill.fill.setStretch(stretch);
 
+                                var _e2 = s.cur + s.GetLong() + 4;
                                 while (s.cur < _e2)
                                 {
                                     var _t = s.GetUChar();
@@ -3316,9 +3315,9 @@ function BinaryPPTYLoader()
                                     {
                                         case 0:
                                         {
-                                            var _srcRect = this.ReadRect(false);
-                                            if (_srcRect != null)
-                                                uni_fill.fill.setSrcRect(_srcRect);
+                                            const fillRect = this.ReadRect(true);
+                                            if (fillRect != null)
+                                                stretch.setFillRect(fillRect);
                                             break;
                                         }
                                         default:
@@ -3407,7 +3406,10 @@ function BinaryPPTYLoader()
 
                                     s.Skip2(1); // start attr
                                     s.Skip2(1); // pos type
-                                    _gs.pos = s.GetLong();
+                                    let pos = s.GetLong();
+                                    pos = AscCommon.clampNumber(pos, 0, 100000);
+                                    _gs.pos = pos;
+
                                     s.Skip2(1); // end attr
 
                                     s.Skip2(1);
@@ -6456,7 +6458,18 @@ function BinaryPPTYLoader()
                 }
             }
 
-            geom.AddPathCommand(0, extrusionOk, (fill == 4) ? "none" : "norm", stroke, w, h);
+			let fillMode;
+			switch (fill) {
+				case Asc.c_oAscPathFillMode.DARKEN:       fillMode = "darken"; break;
+				case Asc.c_oAscPathFillMode.DARKEN_LESS:  fillMode = "darkenLess"; break;
+				case Asc.c_oAscPathFillMode.LIGHTEN:      fillMode = "lighten"; break;
+				case Asc.c_oAscPathFillMode.LIGHTEN_LESS: fillMode = "lightenLess"; break;
+				case Asc.c_oAscPathFillMode.NONE:         fillMode = "none"; break;
+				case Asc.c_oAscPathFillMode.NORM:         fillMode = "norm"; break;
+				default:                                  fillMode = "norm";
+			}
+
+			geom.AddPathCommand(0, extrusionOk, fillMode, stroke, w, h);
             var isKoords = false;
 
             while (s.cur < _e)
@@ -6738,6 +6751,11 @@ function BinaryPPTYLoader()
                     this.ResetImageId(shape, rIdOverride);
                     break;
                 }
+                case 0xFF:
+                {
+                    shape.ReadRedactIds(s);
+                    break;
+                }
                 default:
                 {
                     s.SkipRecord();
@@ -6895,6 +6913,11 @@ function BinaryPPTYLoader()
                             }
                         }
                     }
+                    break;
+                }
+                case 0xFF:
+                {
+                    shape.ReadRedactIds(s);
                     break;
                 }
                 default:
@@ -7188,6 +7211,11 @@ function BinaryPPTYLoader()
                     this.ResetImageId(pic, rIdOverride);
                     break;
                 }
+                case 0xFF:
+                {
+                    pic.ReadRedactIds(s);
+                    break;
+                }
                 default:
                 {
                     this.stream.SkipRecord();
@@ -7249,6 +7277,11 @@ function BinaryPPTYLoader()
                 case 0xA1:
                 {
                     shape.readMacro(s);
+                    break;
+                }
+                case 0xFF:
+                {
+                    shape.ReadRedactIds(s);
                     break;
                 }
                 default:
@@ -7382,7 +7415,7 @@ function BinaryPPTYLoader()
 
         s.Skip2(1); // start attributes
 
-        while (true)
+        while (s.cur < _end_rec)
         {
             var _at = s.GetUChar();
             if (_at == g_nodeAttributeEnd)
@@ -7421,6 +7454,10 @@ function BinaryPPTYLoader()
                 case 1:
                 {
                     _xfrm = this.ReadXfrm();
+                    // has no rotate in other editors
+                    if (false == Asc.editor.isPdfEditor()) {
+                        _xfrm.setRot(0);
+                    }
                     break;
                 }
                 case 2:
@@ -7440,7 +7477,7 @@ function BinaryPPTYLoader()
                         _stream.pos = s.pos;
                         _stream.cur = s.cur;
                         _stream.size = s.size;
-                        _chart = new AscFormat.CChartSpace();
+                        _chart = Asc.editor.isPdfEditor() ? new AscPDF.CPdfChartSpace() : new AscFormat.CChartSpace();
                         _chart.setBDeleted(false);
                         AscCommon.pptx_content_loader.ImageMapChecker = this.ImageMapChecker;
                         AscCommon.pptx_content_loader.Reader.ImageMapChecker = this.ImageMapChecker;
@@ -7499,7 +7536,6 @@ function BinaryPPTYLoader()
                 case 8://smartArt
                 {
                     _smartArt = this.ReadSmartArt();
-										this.smartarts.push(_smartArt);
                     break;
                 }
                 case 9:
@@ -7518,6 +7554,17 @@ function BinaryPPTYLoader()
                 case 0xA1:
                 {
                     _graphic_frame.readMacro(s);
+                    break;
+                }
+                case 0xFF:
+                {
+                    if (_table) {
+                        _graphic_frame.ReadRedactIds(s);
+                    }
+                    else if (_chart) {
+                        _chart.ReadRedactIds(s);
+                    }
+                    
                     break;
                 }
                 default:
@@ -7592,6 +7639,7 @@ function BinaryPPTYLoader()
         }
         else if(_smartArt != null)
         {
+					this.smartarts.push(_smartArt);
             _smartArt.checkEmptySpPrAndXfrm(_xfrm);
             if(AscCommon.isRealObject(_nvGraphicFramePr) )
             {
@@ -7614,16 +7662,19 @@ function BinaryPPTYLoader()
     this.ReadSmartArt = function(CDrawing)
     {
         var s = this.stream;
-        var _smartArt;
+        var _smartArt = null;
         if(typeof AscFormat.SmartArt !== "undefined" && !CDrawing)
         {
-            _smartArt = new AscFormat.SmartArt();
-            _smartArt.fromPPTY(this);
-            _smartArt.setBDeleted(false);
-						_smartArt.generateDefaultStructures();
-            _smartArt.checkDataModel();
-            _smartArt.checkNodePointsAfterRead();
-						_smartArt.correctUngeneratedSmartArtContent();
+            const _tempSmartArt = Asc.editor.isPdfEditor() ? new AscPDF.CPdfSmartArt() : new AscFormat.SmartArt();
+					_tempSmartArt.fromPPTY(this);
+						if (_tempSmartArt.isCorretDataModel()) {
+							_smartArt = _tempSmartArt;
+							_smartArt.setBDeleted(false);
+							_smartArt.generateDefaultStructures();
+							_smartArt.checkDataModel();
+							_smartArt.checkNodePointsAfterRead();
+							_smartArt.correctUngeneratedSmartArtContent();
+						}
         }
         else
         {
@@ -7651,7 +7702,9 @@ function BinaryPPTYLoader()
             }
         }
         s.Seek2(_end_rec);
-        _smartArt.setType(_smartArt.getTypeOfSmartArt());
+				if (_smartArt) {
+					_smartArt.setType(_smartArt.getTypeOfSmartArt());
+				}
         return _smartArt;
     };
 
@@ -9125,6 +9178,64 @@ function BinaryPPTYLoader()
         //checkTextPr(rPr);
         return rPr;
     };
+    this.ReadPdfRunFontInfo = function()
+    {
+        let oPdfFontInfo = {};
+
+        let s = this.stream;
+        let _end_rec = s.cur + s.GetULong() + 4;
+
+        s.Skip2(1); // start attributes
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:
+                {
+                    oPdfFontInfo.name = s.GetString2();
+                    break;
+                }
+                case 1:
+                {
+                    oPdfFontInfo.index = s.GetLong();
+                    break;
+                }
+                case 2:
+                {
+                    oPdfFontInfo.left = s.GetULong();
+                    break;
+                }
+                case 3:
+                {
+                    oPdfFontInfo.right = s.GetULong();
+                    break;
+                }
+                case 4:
+                {
+                    oPdfFontInfo.gids = s.GetString2();
+                    break;
+                }
+                case 5:
+                {
+                    oPdfFontInfo.lefts = s.GetString2();
+                    break;
+                }
+                case 6:
+                {
+                    oPdfFontInfo.isActual = s.GetBool();
+                    break;
+                }
+            }
+        }
+
+        s.Seek2(_end_rec);
+        return oPdfFontInfo;
+    };
 
 	this.CorrectHyperlink = function (hyper) {
 		if (hyper.action == null || hyper.action == "") {
@@ -10142,6 +10253,7 @@ function BinaryPPTYLoader()
                         txbody.content.Internal_Content_Add(txbody.content.Content.length, _paragraph);
 
                     }
+                    this.fixEmptyParagraphsTextPr(txbody.content);
                     break;
                 }
                 default:
@@ -10210,7 +10322,7 @@ function BinaryPPTYLoader()
                         txbody.content.Internal_Content_Add(txbody.content.Content.length, _paragraph);
 
                     }
-
+                    this.fixEmptyParagraphsTextPr(txbody.content);
 
                     break;
                 }
@@ -10262,6 +10374,7 @@ function BinaryPPTYLoader()
                         var _paragraph = this.ReadParagraph(content);
                         content.Internal_Content_Add(content.Content.length, _paragraph);
                     }
+                    this.fixEmptyParagraphsTextPr(content);
                     break;
                 }
                 default:
@@ -10280,6 +10393,8 @@ function BinaryPPTYLoader()
         var par = new AscWord.Paragraph(DocumentContent, true);
 
         var EndPos = 0;
+        var bHasEndParaRPr = false;
+        var bHasRuns = false;
 
         var s = this.stream;
 
@@ -10298,6 +10413,7 @@ function BinaryPPTYLoader()
                 }
                 case 1:
                 {
+                    bHasEndParaRPr = true;
                     var OldImgCount = 0;
                     if(this.IsUseFullUrl)
                     {
@@ -10367,14 +10483,32 @@ function BinaryPPTYLoader()
                                 }
 
                                 var _run = null;
+
+                                // for pdf only
+                                let oPdfFontInfo;
+
                                 while (s.cur < _end)
                                 {
                                     var _rec = s.GetUChar();
 
                                     if (0 == _rec)
                                         _run = this.ReadRunProperties();
+                                    else if (111 == _rec)
+                                        oPdfFontInfo = this.ReadPdfRunFontInfo();
                                     else
                                         s.SkipRecord();
+                                }
+
+                                if (oPdfFontInfo && _run) {
+									if (!Asc.editor.embeddedFontsMap) {
+										Asc.editor.embeddedFontsMap = {};
+									}
+
+									if (!oPdfFontInfo.isActual) {
+										Asc.editor.embeddedFontsMap[AscFonts.getEmbeddedFontPrefix() + oPdfFontInfo.name] = _run.GetFontFamily();
+									}
+
+                                    _run.RFonts.SetAll((!oPdfFontInfo.isActual ? AscFonts.getEmbeddedFontPrefix() : "") + oPdfFontInfo.name, -1);
                                 }
 
                                 s.Seek2(_end);
@@ -10420,7 +10554,22 @@ function BinaryPPTYLoader()
                                     }
                                 }
 
-                                new_run.AddText(_text);
+                                if (oPdfFontInfo) {
+                                    let aPoses = oPdfFontInfo.lefts.split(";").map(function(posX) {
+                                        return posX * g_dKoef_emu_to_mm;
+                                    });
+
+                                    let aWidths = [];
+									let nSpacing = _run.GetSpacing();
+                                    for (let i = 0; i < aPoses.length - 2; i++) {
+                                        aWidths.push(aPoses[i + 1] - aPoses[i] - nSpacing);
+                                    }
+
+                                    new_run.AddPdfOriginText(oPdfFontInfo.gids.split(";").slice(0, -1), _text, aWidths, text_pr.GetFontSize());
+                                }
+                                else {
+                                    new_run.AddText(_text);
+                                }
 
                                 if (hyperlink !== null)
                                 {
@@ -10597,6 +10746,9 @@ function BinaryPPTYLoader()
                             }
                         }
                     }
+                    if (_c > 0) {
+                        bHasRuns = true;
+                    }
                     break;
                 }
                 default:
@@ -10606,9 +10758,51 @@ function BinaryPPTYLoader()
                 }
             }
         }
+
+        if (!bHasEndParaRPr && !bHasRuns) {
+            par.bNeedCopyTextPrFromPrev = true;
+        }
+
         s.Seek2(_end_rec);
         par.Correct_Content();
         return par;
+    };
+
+    this.fixEmptyParagraphsTextPr = function(content) {
+        if (!content || !content.Content || content.Content.length < 2)
+            return;
+
+        for (let i = 1; i < content.Content.length; i++) {
+            const para = content.Content[i];
+            const prevPara = content.Content[i - 1];
+
+            if (!para || !prevPara)
+                continue;
+
+            if (!para.bNeedCopyTextPrFromPrev)
+                continue;
+
+            let prevLastRun = null;
+            for (let j = prevPara.Content.length - 1; j >= 0; j--) {
+                const item = prevPara.Content[j];
+                if (item && item.Type === para_Run && !item.IsParaEndRun() && item.Pr) {
+                    prevLastRun = item;
+                    break;
+                }
+            }
+
+            if (prevLastRun && prevLastRun.Pr) {
+                const textPr = prevLastRun.Pr.Copy();
+                para.TextPr.Apply_TextPr(textPr);
+                if (para.Content[0] && para.Content[0].Set_Pr) {
+                    para.Content[0].Set_Pr(textPr.Copy());
+                }
+            }
+        }
+
+        for (let i = 0; i < content.Content.length; i++) {
+            delete content.Content[i].bNeedCopyTextPrFromPrev;
+        }
     };
 
     // ------------------------------------------
@@ -10716,8 +10910,6 @@ function BinaryPPTYLoader()
                 return oThis.Reader.ReadColorMod();
             });
         };
-
-
         this.ReadTheme = function(reader, stream) {
             var oThis = this;
             return this.ReadPPTXElement(reader, stream, function() {
@@ -10912,6 +11104,13 @@ function BinaryPPTYLoader()
             });
         };
 
+		this.ReadHyperlink = function (reader, stream) {
+			const oThis = this;
+			return this.ReadPPTXElement(reader, stream, function () {
+				oThis.stream.GetUChar(); // skip PPTX record type (must always be 0)
+				return oThis.Reader.ReadHyperlink();
+			});
+		};
 		this.ReadRunProperties = function(stream, type) {
             var oThis = this;
             return this.ReadPPTXElement(undefined, stream, function() {

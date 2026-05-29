@@ -179,6 +179,7 @@ function (window, undefined) {
 	AscDFH.changesFactory[AscDFH.historyitem_PathSetFill] = AscDFH.CChangesDrawingsString;
 	AscDFH.changesFactory[AscDFH.historyitem_PathSetPathH] = AscDFH.CChangesDrawingsLong;
 	AscDFH.changesFactory[AscDFH.historyitem_PathSetPathW] = AscDFH.CChangesDrawingsLong;
+	AscDFH.changesFactory[AscDFH.historyitem_PathSetParent] = AscDFH.CChangesDrawingsObject;
 	AscDFH.changesFactory[AscDFH.historyitem_PathAddPathCommand] = CChangesDrawingsAddPathCommand;
 
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_PathSetStroke] = function (oClass, value) {
@@ -196,6 +197,9 @@ function (window, undefined) {
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_PathSetPathW] = function (oClass, value) {
 		oClass.pathW = value;
 	};
+	AscDFH.drawingsChangesMap[AscDFH.historyitem_PathSetParent] = function (oClass, value) {
+		oClass.parent = value;
+	};
 
 
 	function Path() {
@@ -205,6 +209,7 @@ function (window, undefined) {
 		this.fill = null;
 		this.pathH = null;
 		this.pathW = null;
+		this.parent = null;
 
 		this.ArrPathCommandInfo = [];
 		this.ArrPathCommand = [];
@@ -363,6 +368,13 @@ function (window, undefined) {
 		AscCommon.History.CanAddChanges() && AscCommon.History.Add(new AscDFH.CChangesDrawingsLong(this, AscDFH.historyitem_PathSetPathW, this.pathW, pr));
 		this.pathW = pr;
 	};
+	Path.prototype.setParent = function (parent) {
+		if (AscCommon.History.CanAddChanges()) {
+			const changes = new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_PathSetParent, this.parent, parent);
+			AscCommon.History.Add(changes);
+		}
+		this.parent = parent;
+	};
 	Path.prototype.addPathCommand = function (cmd) {
 		AscCommon.History.CanAddChanges() && AscCommon.History.Add(new CChangesDrawingsAddPathCommand(this, cmd, this.ArrPathCommandInfo.length));
 		this.ArrPathCommandInfo.push(cmd);
@@ -419,6 +431,74 @@ function (window, undefined) {
 			degree: degree
 		});
 	};
+	/**
+	 * Normalizes coordinates in ArrPathCommandInfo by scaling them relative to shape size
+	 * @param {number} shapeWidth - shape width to normalize by
+	 * @param {number} shapeHeight - shape height to normalize by
+	 * @param {number} pathWidth - destination path width to scale to
+	 * @param {number} pathHeight - destination path height to scale to
+	 */
+	Path.prototype.normalizeCoordinates = function (shapeWidth, shapeHeight, pathWidth, pathHeight) {
+		if (shapeWidth === 0 || shapeHeight === 0) {
+			return;
+		}
+
+		let command;
+		let controlPoint;
+		
+		for (let i = 0; i < this.ArrPathCommandInfo.length; i++) {
+			command = this.ArrPathCommandInfo[i];
+			
+			switch (command.id) {
+				case moveTo:
+				case lineTo:
+					command.X = Math.round((command.X / shapeWidth) * pathWidth);
+					command.Y = Math.round((command.Y / shapeHeight) * pathHeight);
+					break;
+					
+				case arcTo:
+					command.wR = Math.round((command.wR / shapeWidth) * pathWidth);
+					command.hR = Math.round((command.hR / shapeHeight) * pathHeight);
+					break;
+					
+				case bezier3:
+					command.X0 = Math.round((command.X0 / shapeWidth) * pathWidth);
+					command.Y0 = Math.round((command.Y0 / shapeHeight) * pathHeight);
+					command.X1 = Math.round((command.X1 / shapeWidth) * pathWidth);
+					command.Y1 = Math.round((command.Y1 / shapeHeight) * pathHeight);
+					break;
+					
+				case bezier4:
+					command.X0 = Math.round((command.X0 / shapeWidth) * pathWidth);
+					command.Y0 = Math.round((command.Y0 / shapeHeight) * pathHeight);
+					command.X1 = Math.round((command.X1 / shapeWidth) * pathWidth);
+					command.Y1 = Math.round((command.Y1 / shapeHeight) * pathHeight);
+					command.X2 = Math.round((command.X2 / shapeWidth) * pathWidth);
+					command.Y2 = Math.round((command.Y2 / shapeHeight) * pathHeight);
+					break;
+					
+				case ellipticalArcTo:
+					command.x = Math.round((command.x / shapeWidth) * pathWidth);
+					command.y = Math.round((command.y / shapeHeight) * pathHeight);
+					command.a = Math.round((command.a / shapeWidth) * pathWidth);
+					command.b = Math.round((command.b / shapeHeight) * pathHeight);
+					break;
+					
+				case nurbsTo:
+					for (let j = 0; j < command.controlPoints.length; j++) {
+						controlPoint = command.controlPoints[j];
+						controlPoint.x = Math.round((controlPoint.x / shapeWidth) * pathWidth);
+						controlPoint.y = Math.round((controlPoint.y / shapeHeight) * pathHeight);
+					}
+					break;
+					
+				case close:
+					//no coordinates to normalize
+					break;
+			}
+		}
+	};
+	
 	Path.prototype.calculateCommandCoord = function (oGdLst, sFormula, dFormulaCoeff, dNumberCoeff) {
 		let dVal;
 		dVal = oGdLst[sFormula];
@@ -441,6 +521,10 @@ function (window, undefined) {
 		endAngle   = (360 + endAngle)   % 360;
 		ctrlAngle  = (360 + ctrlAngle)  % 360;
 
+		if (startAngle === endAngle) {
+			return 0;
+		}
+
 		// different sweeps depending on where the control point is
 		let sweep;
 		if (startAngle < endAngle) {
@@ -457,9 +541,6 @@ function (window, undefined) {
 			if (endAngle < ctrlAngle && ctrlAngle < startAngle) {
 				// negative sweep - clockwise
 				sweep = endAngle - startAngle;
-			}
-			else if (startAngle === endAngle && startAngle === ctrlAngle) {
-				sweep = 0;
 			}
 			else {
 				// positive sweep - anti-clockwise
@@ -521,10 +602,24 @@ function (window, undefined) {
 		b = controlPoint.y;
 
 		// http://visguy.com/vgforum/index.php?topic=2464.0
-		let d2 = d * d;
-		let cx = ((x0 - x) * (x0 + x) * (y - b) - (x - a) * (x + a) * (y0 - y) + d2 * (y0 - y) * (y - b) * (y0 - b)) / (2.0 * ((x0 - x) * (y - b) - (x - a) * (y0 - y)));
-		let cy = ((x0 - x) * (x - a) * (x0 - a) / d2 + (x - a) * (y0 - y) * (y0 + y) - (x0 - x) * (y - b) * (y + b)) / (2.0 * ((x - a) * (y0 - y) - (x0 - x) * (y - b)));
 		// can also be helpful https://stackoverflow.com/questions/6729056/mapping-svg-arcto-to-html-canvas-arcto
+		let onErrorResult = {wR: NaN, hR: NaN, stAng: NaN, swAng: NaN, ellipseRotation: NaN}
+		if (d === 0) {
+			return onErrorResult;
+		}
+		let d2 = d * d;
+
+		let cxDenominator = 2.0 * ((x0 - x) * (y - b) - (x - a) * (y0 - y));
+		if (cxDenominator === 0) {
+			return onErrorResult;
+		}
+		let cx = ((x0 - x) * (x0 + x) * (y - b) - (x - a) * (x + a) * (y0 - y) + d2 * (y0 - y) * (y - b) * (y0 - b)) / cxDenominator;
+
+		let cyDenominator = 2.0 * ((x - a) * (y0 - y) - (x0 - x) * (y - b));
+		if (cyDenominator === 0) {
+			return onErrorResult;
+		}
+		let cy = ((x0 - x) * (x - a) * (x0 - a) / d2 + (x - a) * (y0 - y) * (y0 + y) - (x0 - x) * (y - b) * (y + b)) / cyDenominator;
 
 		let rx = Math.sqrt(Math.pow(x0 - cx, 2) + Math.pow(y0 - cy, 2) * d2);
 		let ry = rx / d;
@@ -563,6 +658,7 @@ function (window, undefined) {
 		return {wR: wR, hR: hR, stAng: stAng, swAng: swAng, ellipseRotation: ellipseRotationInC};
 	}
 
+	const COL_EPS_K = 2e-8;
 	/**
 	 * Determines whether three points are collinear using an adaptive tolerance proportional to the coordinate scale.
 	 * @param {number} ax
@@ -573,7 +669,6 @@ function (window, undefined) {
 	 * @param {number} cy
 	 * @returns {boolean}
 	 */
-	const COL_EPS_K = 3.6e-5;
 	function isCollinear(ax, ay, bx, by, cx, cy) {
 		// Fast path: any two points coincide – degenerate triangle considered collinear
 		if ((ax === bx && ay === by) || (ax === cx && ay === cy) || (bx === cx && by === cy)) {
@@ -589,7 +684,9 @@ function (window, undefined) {
 			Math.abs(bx - ax), Math.abs(by - ay),
 			Math.abs(cx - ax), Math.abs(cy - ay)
 		);
-		const tol = COL_EPS_K * (scale || 1);
+		const scaleSquared = Math.pow(scale || 1, 2);
+
+		const tol = COL_EPS_K * scaleSquared;
 		return Math.abs(cross) <= tol;
 	}
 
@@ -785,6 +882,21 @@ function (window, undefined) {
 					break;
 				}
 				case ellipticalArcTo: {
+					function onBadParams(path, x, y, a, b) {
+						AscCommon.consoleLog("tranform ellipticalArcTo to line. 2 catch.");
+						path.ArrPathCommand.push({id: lineTo, X: a, Y: b}); // go to control point first
+						path.ArrPathCommand.push({id: lineTo, X: x, Y: y});
+						lastX = x;
+						lastY = y;
+					}
+
+					if (isNaN(lastY)) {
+						lastY = 0;
+					}
+					if (isNaN(lastX)) {
+						lastX = 0;
+					}
+
 					// https://learn.microsoft.com/en-us/office/client-developer/visio/ellipticalarcto-row-geometry-section
 					// but with a length in EMUs units and an angle in C-units, which will be expected clockwise as in other functions.
 					let x, y, a, b, c, d;
@@ -792,6 +904,23 @@ function (window, undefined) {
 					y = this.calculateCommandCoord(gdLst, cmd.y, ch, dCustomPathCoeffH);
 					a = this.calculateCommandCoord(gdLst, cmd.a, cw, dCustomPathCoeffW);
 					b = this.calculateCommandCoord(gdLst, cmd.b, ch, dCustomPathCoeffH);
+
+					// check if command arguments are wrong. Wrong arguments may refer to huge ellipse. It editor it can
+					// break scroll bars. So as visio does let's transform elliptical arc to line.
+					// see bug https://bugzilla.onlyoffice.com/show_bug.cgi?id=75317
+					// files from 4 to 6 should not be caught
+
+					// three points on one line refers to bad arguments
+					// see files:
+					// 1 simple lines and ellipses.vsdx
+					// 3 swAng ~=0 testFlatCurve.vsdx
+					// 7 triangleSquare === 0 cehck test Diagonal.vsdx
+					// 8 small square + NaN params in result, isCollinear cathces.vsdx
+					let isCollinearCheck = isCollinear(lastX, lastY, a, b, x, y);
+					if (isCollinearCheck) {
+						onBadParams(this, x, y, a, b);
+						break;
+					}
 
 					c = gdLst[cmd.c];
 					if (c === undefined) {
@@ -809,31 +938,10 @@ function (window, undefined) {
 					// -286.47888333333333 —-> 73.52111666666667
 					// -572.9577833333333 —-> 147.04221666666672
 					// so c in degrees is from -180 to 180
-					c = Math.atan2(ch * Math.sin(c * cToRad), cw * Math.cos(c * cToRad)) / cToRad;
-
-					let cRadians = c * cToRad2;
-
-					if (isNaN(lastY)) {
-						lastY = 0;
-					}
-					if (isNaN(lastX)) {
-						lastX = 0;
-					}
+					let cRadians = Math.atan2(ch * Math.sin(c * cToRad), cw * Math.cos(c * cToRad));
 
 					// change ellipticalArcTo params to draw arc using old params
 					let newParams = transformEllipticalArcParams(lastX, lastY, x, y, a, b, cRadians, d);
-
-					// check if command arguments are wrong. Wrong arguments may refer to huge ellipse. It editor it can
-					// break scroll bars. So as visio does let's transform elliptical arc to line.
-					// see bug https://bugzilla.onlyoffice.com/show_bug.cgi?id=75317
-					// files from 4 to 6 should not be caught
-
-					// ~0 swing angle refers to bad arguments. check it
-					// see files:
-					// 1 simple lines and ellipses.vsdx
-					// 2 swAng === 0 check  testFlatCurve Huge D.vsdx
-					// 3 swAng ~=0 testFlatCurve.vsdx
-					let swAngCheck = AscFormat.fApproxEqual(newParams.swAng, 0, 1e-7);
 
 					// NaN in newParams refers to bad arguments.
 					// see files:
@@ -842,32 +950,33 @@ function (window, undefined) {
 					// 8 small square + NaN params in result, isCollinear cathces.vsdx
 					let isNaNInParams = isNaN(newParams.swAng) || isNaN(newParams.stAng) ||
 							isNaN(newParams.wR) || isNaN(newParams.hR) || isNaN(newParams.ellipseRotation);
+					if (isNaNInParams) {
+						onBadParams(this, x, y, a, b);
+						break;
+					}
 
-					// three points on one line refers to bad arguments
+					// ~0 swing angle refers to bad arguments. check it
 					// see files:
 					// 1 simple lines and ellipses.vsdx
+					// 2 swAng === 0 check  testFlatCurve Huge D.vsdx
 					// 3 swAng ~=0 testFlatCurve.vsdx
-					// 7 triangleSquare === 0 cehck test Diagonal.vsdx
-					// 8 small square + NaN params in result, isCollinear cathces.vsdx
-					let isCollinearCheck = isCollinear(lastX, lastY, a, b, x, y);
+					let swAngCheck = AscFormat.fApproxEqual(newParams.swAng, 0, 1e-7);
+					if (swAngCheck) {
+						onBadParams(this, x, y, a, b);
+						break;
+					}
 
-					if (swAngCheck || isNaNInParams || isCollinearCheck) {
-						AscCommon.consoleLog("tranform ellipticalArcTo to line. 2 catch.");
-						this.ArrPathCommand.push({id: lineTo, X: a, Y: b}); // go to control point first
-						this.ArrPathCommand.push({id: lineTo, X: x, Y: y});
-					}
-					else {
-						this.ArrPathCommand.push({
-							id: ellipticalArcTo,
-							stX: lastX,
-							stY: lastY,
-							wR: newParams.wR,
-							hR: newParams.hR,
-							stAng: newParams.stAng * cToRad,
-							swAng: newParams.swAng * cToRad,
-							ellipseRotation: newParams.ellipseRotation * cToRad
-						});
-					}
+
+					this.ArrPathCommand.push({
+						id: ellipticalArcTo,
+						stX: lastX,
+						stY: lastY,
+						wR: newParams.wR,
+						hR: newParams.hR,
+						stAng: newParams.stAng * cToRad,
+						swAng: newParams.swAng * cToRad,
+						ellipseRotation: newParams.ellipseRotation * cToRad
+					});
 
 					lastX = x;
 					lastY = y;
@@ -1828,7 +1937,7 @@ function (window, undefined) {
 					break;
 				}
 				case close: {
-					if (!bConvertCurvesOnly & oLastMoveTo) {
+					if (!bConvertCurvesOnly && oLastMoveTo) {
 						let dXM = oTransform.TransformPointX(oLastMoveTo.X, oLastMoveTo.Y);
 						let dYM = oTransform.TransformPointY(oLastMoveTo.X, oLastMoveTo.Y);
 						let dLastXM = oTransform.TransformPointX(dLastX, dLastY);
@@ -1844,6 +1953,93 @@ function (window, undefined) {
 					oPath.close();
 					break;
 				}
+
+
+				case ellipticalArcTo: {
+					let oPathAccumulator = new AscFormat.PathAccumulator();
+					ArcToCurvers(oPathAccumulator, oCmd.stX, oCmd.stY, oCmd.wR, oCmd.hR, oCmd.stAng, oCmd.swAng, oCmd.ellipseRotation);
+					let aArcToCommands = oPathAccumulator.pathCommand;
+					for (let nArcCmd = 0; nArcCmd < aArcToCommands.length; ++nArcCmd) {
+						let oArcToCmd = aArcToCommands[nArcCmd];
+						switch (oArcToCmd.id) {
+							case AscFormat.moveTo: {
+								break;
+							}
+							case AscFormat.bezier4: {
+								dX0 = oTransform.TransformPointX(oArcToCmd.X0, oArcToCmd.Y0) * 36000 >> 0;
+								dY0 = oTransform.TransformPointY(oArcToCmd.X0, oArcToCmd.Y0) * 36000 >> 0;
+								dX1 = oTransform.TransformPointX(oArcToCmd.X1, oArcToCmd.Y1) * 36000 >> 0;
+								dY1 = oTransform.TransformPointY(oArcToCmd.X1, oArcToCmd.Y1) * 36000 >> 0;
+								dX2 = oTransform.TransformPointX(oArcToCmd.X2, oArcToCmd.Y2) * 36000 >> 0;
+								dY2 = oTransform.TransformPointY(oArcToCmd.X2, oArcToCmd.Y2) * 36000 >> 0;
+								oPath.cubicBezTo(dX0, dY0, dX1, dY1, dX2, dY2);
+
+								dLastX = oArcToCmd.X2;
+								dLastY = oArcToCmd.Y2;
+								break;
+							}
+						}
+					}
+					break;
+				}
+				case nurbsTo: {
+					oCmd.bezierArray.forEach(function (bezier) {
+							if (oCmd.degree === 2) {
+								let cp1x = bezier.controlPoints[0].x;
+								let cp1y = bezier.controlPoints[0].y;
+								let endx = bezier.endPoint.x;
+								let endy = bezier.endPoint.y;
+
+								dX0 = oTransform.TransformPointX(cp1x, cp1y) * 36000 >> 0;
+								dY0 = oTransform.TransformPointY(cp1x, cp1y) * 36000 >> 0;
+								dX1 = oTransform.TransformPointX(endx, endy) * 36000 >> 0;
+								dY1 = oTransform.TransformPointY(endx, endy) * 36000 >> 0;
+								oPath.cubicBezTo(dX0, dY0, dX1, dY1, dX1, dY1);
+								dLastX = endx;
+								dLastY = endy;
+							}
+							else if (oCmd.degree === 3) {
+								let cp1x = bezier.controlPoints[0].x;
+								let cp1y = bezier.controlPoints[0].y;
+								let cp2x = bezier.controlPoints[1].x;
+								let cp2y = bezier.controlPoints[1].y;
+								let endx = bezier.endPoint.x;
+								let endy = bezier.endPoint.y;
+
+
+								dX0 = oTransform.TransformPointX(cp1x, cp1y) * 36000 >> 0;
+								dY0 = oTransform.TransformPointY(cp1x, cp1y) * 36000 >> 0;
+								dX1 = oTransform.TransformPointX(cp2x, cp2y) * 36000 >> 0;
+								dY1 = oTransform.TransformPointY(cp2x, cp2y) * 36000 >> 0;
+								dX2 = oTransform.TransformPointX(endx, endy) * 36000 >> 0;
+								dY2 = oTransform.TransformPointY(endx, endy) * 36000 >> 0;
+								oPath.cubicBezTo(dX0, dY0, dX1, dY1, dX2, dY2);
+								dLastX = endx;
+								dLastY = endy;
+							}
+							else {
+								let startPoint = bezier.startPoint;
+								let controlPoints = bezier.controlPoints;
+								let endPoint = bezier.endPoint;
+								let pointsToCheck = controlPoints.concat(endPoint);
+								pointsToCheck = pointsToCheck.concat(startPoint);
+								for (let pt = 0; pt < pointsToCheck.length; ++pt) {
+									let oPt = pointsToCheck[pt];
+									dX0 = oTransform.TransformPointX(dLastX + (oPt.x - dLastX) * (1 / 3), dLastY + (oPt.y - dLastY) * (1 / 3)) * 36000 >> 0;
+									dY0 = oTransform.TransformPointY(dLastX + (oPt.x - dLastX) * (1 / 3), dLastY + (oPt.y - dLastY) * (1 / 3)) * 36000 >> 0;
+									dX1 = oTransform.TransformPointX(dLastX + (oPt.x - dLastX) * (2 / 3), dLastY + (oPt.y - dLastY) * (2 / 3)) * 36000 >> 0;
+									dY1 = oTransform.TransformPointY(dLastX + (oPt.x - dLastX) * (2 / 3), dLastY + (oPt.y - dLastY) * (2 / 3)) * 36000 >> 0;
+									dX2 = oTransform.TransformPointX(oPt.x, oPt.y) * 36000 >> 0;
+									dY2 = oTransform.TransformPointY(oPt.x, oPt.y) * 36000 >> 0;
+									(bConvertCurvesOnly) ? oPath.lnTo(dX2, dY2) : oPath.cubicBezTo(dX0, dY0, dX1, dY1, dX2, dY2);
+									dLastX = oPt.x;
+									dLastY = oPt.y;
+								}
+							}
+						});
+					break;
+				}
+
 			}
 		}
 		oPath.recalculate({}, true);
@@ -1950,7 +2146,368 @@ function (window, undefined) {
 		}
 		return true;
 	};
+	Path.prototype.isClosed = function (epsilon) {
+		const hasCloseCommand = this.ArrPathCommand.some(function (command) {
+			return command.id === AscFormat.close;
+		});
 
+		if (hasCloseCommand) {
+			return true;
+		}
+
+		if (AscFormat.isRealNumber(epsilon)) {
+			let firstPointCommand = null;
+			for (let i = 0; i < this.ArrPathCommand.length; i++) {
+				const command = this.ArrPathCommand[i];
+				if (command.id === AscFormat.moveTo || command.id === AscFormat.lineTo) {
+					firstPointCommand = command;
+					break;
+				}
+			}
+
+			const firstPoint = firstPointCommand ? { x: firstPointCommand.X, y: firstPointCommand.Y } : null;
+			const lastPoint = this.getEndPoint();
+
+			if (firstPoint && lastPoint && Math.abs(firstPoint.x - lastPoint.x) <= epsilon && Math.abs(firstPoint.y - lastPoint.y) <= epsilon) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	function getNonDuplicateCommands(path) {
+		const commands = [];
+		let prevCommand = null;
+
+		function isDuplicate(cmd1, cmd2) {
+			if (cmd1.id !== cmd2.id)
+				return false;
+
+			if (cmd1.id === AscFormat.moveTo || cmd1.id === AscFormat.lineTo)
+				return cmd1.X === cmd2.X && cmd1.Y === cmd2.Y;
+
+			if (cmd1.id === AscFormat.bezier3)
+				return cmd1.X0 === cmd2.X0 && cmd1.Y0 === cmd2.Y0 &&
+					cmd1.X1 === cmd2.X1 && cmd1.Y1 === cmd2.Y1;
+
+			if (cmd1.id === AscFormat.bezier4)
+				return cmd1.X0 === cmd2.X0 && cmd1.Y0 === cmd2.Y0 &&
+					cmd1.X1 === cmd2.X1 && cmd1.Y1 === cmd2.Y1 &&
+					cmd1.X2 === cmd2.X2 && cmd1.Y2 === cmd2.Y2;
+
+			if (cmd1.id === AscFormat.arcTo)
+				return cmd1.wR === cmd2.wR && cmd1.hR === cmd2.hR &&
+					cmd1.stAng === cmd2.stAng && cmd1.swAng === cmd2.swAng;
+
+			return false;
+		}
+
+		path.ArrPathCommand.forEach(function (command) {
+			if (prevCommand) {
+				if (command.id === AscFormat.moveTo && prevCommand.id === AscFormat.moveTo) {
+					prevCommand = command;
+					return;
+				}
+
+				if (isDuplicate(prevCommand, command)) {
+					return;
+				}
+			}
+
+			commands.push(command);
+			prevCommand = command;
+		});
+
+		return commands;
+	}
+
+	Path.prototype.getContinuousSubpaths = function () {
+		return AscFormat.ExecuteNoHistory(
+			function () {
+
+				const convertedPath = new AscFormat.Path();
+				const transform = new AscCommon.CMatrix();
+				this.convertToBezierCurves(convertedPath, transform, true);
+				// convertedPath contains cubicBezierTo, lineTo, and moveTo commands only
+
+				const subpaths = [];
+				let currentSubpath;
+
+				// Since we only draw geometries that start with a "moveTo" command,
+				// the first command in the 'commands' array is guaranteed to be "moveTo"
+				const commands = getNonDuplicateCommands(convertedPath);
+				commands.forEach(function (command, index) {
+					if (command.id === AscFormat.moveTo) {
+						if (currentSubpath) {
+							subpaths.push(currentSubpath);
+						}
+						currentSubpath = new Path();
+					}
+					currentSubpath.ArrPathCommand.push(command);
+				});
+
+				if (currentSubpath) {
+					subpaths.push(currentSubpath);
+				}
+
+				return subpaths;
+			}, this, []
+		);
+	};
+
+	function getClosestIntersectionWithPath(circleCenter, circleRadius, pathCommands, searchFromEnd) {
+		let prevPoint;
+		const allIntersections = [];
+
+		for (let i = 0; i < pathCommands.length; i++) {
+			const command = pathCommands[i];
+			let intersections = [];
+
+			if (command.id === AscFormat.moveTo) {
+				prevPoint = { x: command.X, y: command.Y };
+				continue;
+			}
+
+			if (command.id === AscFormat.lineTo) {
+				intersections = getCircleIntersectionsWithLine(circleCenter, circleRadius, prevPoint, { x: command.X, y: command.Y });
+				prevPoint = { x: command.X, y: command.Y };
+			}
+
+			if (command.id === AscFormat.bezier4) {
+				intersections = getCircleIntersectionsWithBezierCurve(
+					circleCenter, circleRadius,
+					prevPoint,
+					{ x: command.X0, y: command.Y0 },
+					{ x: command.X1, y: command.Y1 },
+					{ x: command.X2, y: command.Y2 }
+				);
+				prevPoint = { x: command.X2, y: command.Y2 };
+			}
+
+			if (intersections.length > 0) {
+				allIntersections.push(intersections);
+			}
+		}
+
+		if (allIntersections.length === 0) {
+			return null;
+		}
+
+		const targetIntersections = searchFromEnd
+			? allIntersections[allIntersections.length - 1]
+			: allIntersections[0];
+
+		const closestPoint = targetIntersections.reduce(function (best, current) {
+			const isCurrentBetter = searchFromEnd
+				? current.t > best.t
+				: current.t < best.t;
+			return isCurrentBetter ? current : best;
+		}, targetIntersections[0]);
+
+		return closestPoint;
+	}
+
+	function getCircleIntersectionsWithLine(circleCenter, circleRadius, lineStart, lineEnd) {
+		const cx = circleCenter.x, cy = circleCenter.y;
+		const x1 = lineStart.x, y1 = lineStart.y;
+		const x2 = lineEnd.x, y2 = lineEnd.y;
+
+		const dx = x2 - x1;
+		const dy = y2 - y1;
+
+		// At² + Bt + C = 0
+		const A = Math.pow(dx, 2) + Math.pow(dy, 2);
+		const B = 2 * (dx * (x1 - cx) + dy * (y1 - cy));
+		const C = (x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy) - Math.pow(circleRadius, 2);
+
+		const D = Math.pow(B, 2) - 4 * A * C;
+		if (D < 0) {
+			return [];
+		}
+
+		const sqrtD = Math.sqrt(D);
+		const t1 = (-B - sqrtD) / (2 * A);
+		const t2 = (-B + sqrtD) / (2 * A);
+
+		const intersections = [];
+
+		// Проверяем, находятся ли точки пересечения в пределах отрезка (t в диапазоне [0,1])
+		if (t1 >= 0 && t1 <= 1) {
+			intersections.push({
+				t: t1,
+				x: x1 + t1 * dx,
+				y: y1 + t1 * dy
+			});
+		}
+		if (t2 >= 0 && t2 <= 1) {
+			intersections.push({
+				t: t2,
+				x: x1 + t2 * dx,
+				y: y1 + t2 * dy
+			});
+		}
+
+		return intersections;
+	}
+
+	function getCircleIntersectionsWithBezierCurve(circleCenter, circleRadius, p0, p1, p2, p3) {
+
+		// Method of Newton-Raphson (keldysh.ru/comma/html/nonlinear/newton.html)
+		function findIntersection() {
+			const intersections = [];
+			const epsilon = 1e-6;
+			const maxIterations = 100;
+			const step = 0.01;
+
+			for (let t = 0; t <= 1; t += step) {
+				const tLow = t;
+				const tHigh = t + step;
+
+				const lowPoint = getBezierCurvePointAt(tLow, p0, p1, p2, p3);
+				const highPoint = getBezierCurvePointAt(tHigh, p0, p1, p2, p3);
+
+				const lowDist = getLineLength(lowPoint, circleCenter) - circleRadius;
+				const highDist = getLineLength(highPoint, circleCenter) - circleRadius;
+
+				if (Math.abs(lowDist) < epsilon) {
+					intersections.push(lowPoint);
+				}
+				if (Math.abs(highDist) < epsilon) {
+					intersections.push(highPoint);
+				}
+
+				if (lowDist * highDist < 0) {
+					let tNew = (tLow + tHigh) / 2;
+
+					for (let i = 0; i < maxIterations; i++) {
+						const point = getBezierCurvePointAt(tNew, p0, p1, p2, p3);
+						const dist = getLineLength(point, circleCenter) - circleRadius;
+
+						if (Math.abs(dist) < epsilon) {
+							intersections.push(point);
+							break;
+						}
+
+						const dt = 1e-4;
+						const pointDt = getBezierCurvePointAt(tNew + dt, p0, p1, p2, p3);
+						const distDt = getLineLength(pointDt, circleCenter) - circleRadius;
+						const derivative = (distDt - dist) / dt;
+
+						if (Math.abs(derivative) < epsilon) {
+							break;
+						}
+
+						tNew = tNew - dist / derivative;
+
+						if (tNew < 0 || tNew > 1) {
+							break;
+						};
+					}
+				}
+			}
+			return intersections;
+		}
+
+		return findIntersection();
+	}
+
+	function getBezierCurvePointAt(t, p0, p1, p2, p3) {
+		const x = Math.pow(1 - t, 3) * p0.x + 3 * Math.pow(1 - t, 2) * t * p1.x + 3 * (1 - t) * Math.pow(t, 2) * p2.x + Math.pow(t, 3) * p3.x;
+		const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y;
+		return { x: x, y: y, t: t };
+	}
+
+	Path.prototype.getEndPoint = function () {
+		const commands = this.ArrPathCommand;
+		for (let i = commands.length - 1; i >= 0; i--) {
+			const command = commands[i];
+			if (command.id === lineTo) {
+				return { x: command.X, y: command.Y };
+			}
+			if (command.id === bezier4) {
+				return { x: command.X2, y: command.Y2 };
+			}
+		}
+		return null;
+	};
+
+	Path.prototype.getStartPoint = function () {
+		const commands = this.ArrPathCommand;
+		if (commands.length === 0) {
+			return null;
+		}
+		const firstCommand = commands[0];
+		if (firstCommand.id === moveTo) {
+			return { x: firstCommand.X, y: firstCommand.Y };
+		}
+		return null;
+	};
+
+	Path.prototype.getHeadArrowAngle = function (arrowLength) {
+		// This path should contain cubicBezierTo, lineTo, and moveTo commands only,
+		// describe a continuous curve and start with the "moveTo" command
+
+		if (!AscFormat.isRealNumber(arrowLength)) {
+			arrowLength = 0.01;
+		}
+
+		const commands = this.ArrPathCommand;
+		if (commands.length <= 1) {
+			return null;
+		}
+
+		const arrowTipPoint = { x: commands[0].X, y: commands[0].Y };
+		const arrowBasePoint = getClosestIntersectionWithPath(arrowTipPoint, arrowLength, commands, false);
+
+		if (!arrowBasePoint) {
+			return null;
+		}
+
+		const diffX = arrowTipPoint.x - arrowBasePoint.x;
+		const diffY = arrowTipPoint.y - arrowBasePoint.y;
+
+		const angleInRadians = Math.atan2(diffY, diffX);
+		const angleInDegrees = angleInRadians * 180 / Math.PI;
+		return angleInDegrees;
+	};
+	Path.prototype.getTailArrowAngle = function (arrowLength) {
+		// This path should contain cubicBezierTo, lineTo, and moveTo commands only,
+		// describe a continuous curve and start with the "moveTo" command
+
+		if (!AscFormat.isRealNumber(arrowLength)) {
+			arrowLength = 0.01;
+		}
+
+		const commands = this.ArrPathCommand;
+		if (commands.length <= 1) {
+			return null;
+		}
+
+		const pathEndPoint = this.getEndPoint();
+
+		const arrowTipPoint = { x: pathEndPoint.x, y: pathEndPoint.y };
+		const arrowBasePoint = getClosestIntersectionWithPath(arrowTipPoint, arrowLength, commands, true);
+
+		if (!arrowBasePoint) {
+			return null;
+		}
+
+		const diffX = arrowTipPoint.x - arrowBasePoint.x;
+		const diffY = arrowTipPoint.y - arrowBasePoint.y;
+
+		const angleInRadians = Math.atan2(diffY, diffX);
+		const angleInDegrees = angleInRadians * 180 / Math.PI;
+		return angleInDegrees;
+	};
+	Path.prototype.isValid = function () {
+		if(this.ArrPathCommand.length === 0) return false;
+		let oFirstCmd = this.ArrPathCommand[0];
+		return oFirstCmd.id === moveTo;
+	};
+
+
+	Path.prototype.clear = function () {};
 	function CPathCmd() {
 		AscFormat.CBaseNoIdObject.call(this);
 		this.pts = [];
@@ -1983,7 +2540,7 @@ function (window, undefined) {
 		this.fill = null;
 		this.pathH = null;
 		this.pathW = null;
-
+		this.parent = null;
 
 		this.startPos = 0;
 
@@ -1993,6 +2550,9 @@ function (window, undefined) {
 		this.lastY = null;
 	}
 
+	Path2.prototype.setParent = function (oParent) {
+		this.parent = oParent;
+	};
 	Path2.prototype.getMemoryLength = function () {
 		return this.getArrPathCommand()[this.startPos];
 	};
@@ -2589,6 +3149,13 @@ function (window, undefined) {
 			_ctx.lineWidth = _lineWidth;
 
 			if ((_lineWidth & 0x01) == 0x01) bIsEven = true;
+
+			if (_graphics.dash_no_smart) {
+				for (let index = 0; index < _graphics.dash_no_smart.length; index++) _graphics.dash_no_smart[index] = (_graphics.m_oCoordTransform.sx * _graphics.dash_no_smart[index] + 0.5) >> 0;
+
+				_graphics.m_oContext.setLineDash(_graphics.dash_no_smart);
+				_graphics.dash_no_smart = null;
+			}
 		}
 
 		let bIsDrawLast = false;
@@ -2614,10 +3181,6 @@ function (window, undefined) {
 						}
 						_ctx.moveTo(_x, _y);
 
-						if (_graphics.ArrayPoints != null) {
-							_graphics.ArrayPoints.push({x: X, y: Y});
-						}
-
 						i += 3;
 						break;
 					}
@@ -2632,10 +3195,6 @@ function (window, undefined) {
 							_y -= 0.5;
 						}
 						_ctx.lineTo(_x, _y);
-
-						if (_graphics.ArrayPoints != null) {
-							_graphics.ArrayPoints.push({x: X, y: Y});
-						}
 
 						i += 3;
 						break;
@@ -3078,6 +3637,100 @@ function (window, undefined) {
 		oPath.recalculate({}, true);
 	};
 
+	Path2.prototype.isValid = function () {
+		if(this.isEmpty()) return false;
+		let path = this.getArrPathCommand();
+		return path[this.startPos + 1] === moveTo;
+	};
+	Path2.prototype.getArrPathCommandObjects = function () {
+		let i = 0;
+		let len = this.getMemoryLength();
+		let path = this.getArrPathCommand();
+		let arrPathCommand = [];
+		while (i < len) {
+			let cmd = path[this.startPos + i + 1];
+			switch (cmd) {
+				case moveTo: {
+					arrPathCommand.push({id:moveTo, X: path[this.startPos + i + 2], Y: path[this.startPos + i + 3]});
+					i += 3;
+					break;
+				}
+				case lineTo: {
+					arrPathCommand.push({id:lineTo, X: path[this.startPos + i + 2], Y: path[this.startPos + i + 3]});
+					i += 3;
+					break;
+				}
+				case bezier3: {
+
+					arrPathCommand.push({
+						id:bezier3,
+						X0: path[this.startPos + i + 2],
+						Y0: path[this.startPos + i + 3],
+						X1: path[this.startPos + i + 4],
+						Y1: path[this.startPos + i + 5]
+					});
+					i += 5;
+					break;
+				}
+				case bezier4: {
+					arrPathCommand.push({
+						id:bezier4,
+						X0: path[this.startPos + i + 2],
+						Y0: path[this.startPos + i + 3],
+						X1: path[this.startPos + i + 4],
+						Y1: path[this.startPos + i + 5],
+						X2: path[this.startPos + i + 6],
+						Y2: path[this.startPos + i + 7]
+					});
+					i += 7;
+					break;
+				}
+				case arcTo: {
+					arrPathCommand.push({
+						id:arcTo,
+						stX: path[this.startPos + i + 2],
+						stY: path[this.startPos + i + 3],
+						wR: path[this.startPos + i + 4],
+						hR: path[this.startPos + i + 5],
+						stAng: path[this.startPos + i + 6],
+						swAng: path[this.startPos + i + 7]
+					});
+					i += 7;
+					break;
+				}
+				case close: {
+					arrPathCommand.push({id: close});
+					i += 1;
+					break;
+				}
+			}
+		}
+		return arrPathCommand;
+	};
+	Path2.prototype.executeWithPathCommands = function(fMethod, params) {
+		this.ArrPathCommand = this.getArrPathCommandObjects();
+		let result = fMethod.apply(this, params);
+		this.ArrPathCommand = undefined;
+		return result;
+	};
+	Path2.prototype.getContinuousSubpaths = function () {
+		return this.executeWithPathCommands(Path.prototype.getContinuousSubpaths, []);
+	};
+	Path2.prototype.getHeadArrowAngle = function (arrowLength) {
+		return this.executeWithPathCommands(Path.prototype.getHeadArrowAngle, [arrowLength]);
+	};
+	Path2.prototype.getTailArrowAngle = function (arrowLength) {
+		return this.executeWithPathCommands(Path.prototype.getTailArrowAngle, [arrowLength]);
+	};
+	Path2.prototype.getEndPoint = function () {
+		return this.executeWithPathCommands(Path.prototype.getEndPoint, []);
+	};
+	Path2.prototype.getStartPoint = function () {
+		return this.executeWithPathCommands(Path.prototype.getStartPoint, []);
+	};
+	Path2.prototype.isClosed = function (epsilon) {
+		return this.executeWithPathCommands(Path.prototype.isClosed, [epsilon]);
+	};
 	Path2.prototype.Write_ToBinary = function(writer) {
 		AscFormat.writeBool(writer, this.extrusionOk);
 		AscFormat.writeString(writer, this.fill);

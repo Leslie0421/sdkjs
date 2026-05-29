@@ -15,7 +15,9 @@
 			"vendor/string.js",
 			"vendor/array.js",
 			"common/editorscommon.js",
-            "common/BulletPreviewDrawer.js",
+			"common/externalChartCollector.js",
+			"common/frameManager.js",
+			"common/BulletPreviewDrawer.js",
 			"common/HistoryCommon.js",
 			"common/TableId.js",
 			"common/TableIdChanges.js",
@@ -27,6 +29,7 @@
 			"common/CollaborativeEditingBase.js",
 			"slide/Editor/CollaborativeEditing.js",
 			"common/macros.js",
+			"common/macro-recorder.js",
 			"common/apiBase.js",
 			"common/apiBase_plugins.js",
 			"word/apiCommon.js",
@@ -48,7 +51,7 @@
 			"common/collaboration/deleted-text-recovery.js",
 			
 			"common/custom-xml/serialize-custom-xml.js",
-			
+
 			"common/nameMap.js",
 			"common/downloaderfiles.js",
 			"common/NumFormat.js",
@@ -110,6 +113,7 @@
 			"common/Drawings/Format/TextBody.js",
 			"slide/Editor/Format/TextBodyPrototype.js",
 			"common/Drawings/Format/GraphicFrame.js",
+		  	"common/Drawings/Format/Controls.js",
 			"common/Charts/charts.js",
 			"common/Charts/DrawingObjects.js",
 			"common/Charts/3DTransformation.js",
@@ -150,15 +154,18 @@
 			"common/intervalTree.js",
 
 			"cell/model/SheetMemory.js",
+			"cell/model/FormulaObjects/parserFormula.js",
 			"cell/model/WorkbookElems.js",
 			"cell/model/Workbook.js",
 			"cell/model/Serialize.js",
 			"cell/model/CellInfo.js",
 			"cell/model/HeaderFooter.js",
 			"cell/view/DrawingObjectsController.js",
+			"cell/view/HandlerList.js",
 			
 			"word/Editor/Paragraph/RunContent/Types.js",
 			"word/Math/mathTypes.js",
+			"word/Editor/Styles/para-spacing.js",
 			"word/Editor/Styles.js",
 			"word/Math/math-settings.js",
 			"word/Editor/StructuredDocumentTags/sdt-settings.js",
@@ -195,8 +202,14 @@
 			"word/Editor/Table/TableCell.js",
 			"word/Editor/Table/TableCellChanges.js",
 			"word/Editor/Common.js",
-			"word/Editor/Sections.js",
-			"word/Editor/SectionsChanges.js",
+			"word/Editor/sections/document-sections.js",
+			"word/Editor/sections/footnote-pr.js",
+			"word/Editor/sections/line-numbering.js",
+			"word/Editor/sections/sect-pr.js",
+			"word/Editor/sections/sect-pr-changes.js",
+			"word/Editor/sections/section-columns.js",
+			"word/Editor/sections/section-page.js",
+
 
 			"word/Drawing/Graphics.js",
 			"word/Drawing/ShapeDrawer.js",
@@ -270,11 +283,11 @@
 			"word/Editor/Run.js",
 			"word/Editor/PresentationField.js",
 			"word/Editor/RunChanges.js",
+			"word/Math/mathText.js",
+			"word/Math/mathContent.js",
 			"word/Math/NamesOfLiterals.js",
 			"word/Math/LaTeXParser.js",
 			"word/Math/UnicodeParser.js",
-			"word/Math/mathText.js",
-			"word/Math/mathContent.js",
 			"word/Math/base.js",
 			"word/Math/fraction.js",
 			"word/Math/degree.js",
@@ -285,6 +298,7 @@
 			"word/Math/operators.js",
 			"word/Math/accent.js",
 			"word/Math/borderBox.js",
+			"word/Math/math-ml.js",
 			"word/Math/mathTrackHandler.js",
 			"word/Editor/FlowObjects.js",
 			"word/Editor/Paragraph.js",
@@ -298,6 +312,10 @@
 			"word/Editor/Layout/PrintView.js",
 			"word/Editor/Layout/ReadView.js",
 			"word/Editor/document/document-background.js",
+			"word/Editor/document/document-page.js",
+			"word/Editor/document/document-page-column.js",
+			"word/Editor/document/document-page-section.js",
+			"word/Editor/document/element-section.js",
 			"word/Editor/DocumentContentBase.js",
 			"word/Editor/Document.js",
 			"word/Editor/document-composite-input.js",
@@ -356,13 +374,24 @@
 			"word/Editor/custom-xml/custom-xml-changes.js",
 			"word/Editor/custom-xml/custom-xml-manager.js",
 			"word/Editor/custom-xml/data-binding.js",
-			
+			"slide/Editor/Shortcuts.js",
+
+			"word/Editor/api/document-column-props.js",
+			"word/Editor/api/document-columns-props.js",
+			"word/Editor/api/document-section-props.js",
+
 			"slide/Editor/Format/ImagePrototype.js",
 			"slide/Editor/Format/GroupPrototype.js",
 			"slide/Editor/Format/ChartSpacePrototype.js",
 			"common/Drawings/Format/LockedCanvas.js",
 			"slide/apiCommon.js",
-
+			
+			"word/Editor/document-visitor.js",
+			
+			"word/Editor/annotations/custom-text-annotator/custom-text-annotator.js",
+			"word/Editor/annotations/custom-text-annotator/range-marks.js",
+			"word/Editor/annotations/custom-text-annotator/text-annotator-manager.js",
+			
 			"word/apiBuilder.js",
 			"slide/apiBuilder.js",
 			"word/fromToJSON.js",
@@ -379,7 +408,16 @@
 			"common/Native/native_graphics.js",
 			
 			"vendor/easysax.js",
-			"common/openxml.js"
+			"common/openxml.js",
+			
+			
+			"common/Drawings/gif-player.js",
+		
+			"vendor/gifuct-js/bytestream.js",
+			"vendor/gifuct-js/dataparser.js",
+			"vendor/gifuct-js/gif.js",
+			"vendor/gifuct-js/parsers.js",
+			"vendor/gifuct-js/schema.js"
 		],
 		"desktop": {
 			"min": [

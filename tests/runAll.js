@@ -46,6 +46,7 @@ const allTests = [
 	'cell/spreadsheet-calculation/conditionalFormattingTests.html',
 	'cell/spreadsheet-calculation/ExternalReference.html',
 	'cell/spreadsheet-calculation/SheetMemoryTest.html',
+	'cell/js-api/js-api.html',
 
 	'word/unit-tests/paragraphContentPos.html',
 	'word/unit-tests/deleted-text-recovery.html',
@@ -60,6 +61,7 @@ const allTests = [
 	'word/document-calculation/table/flowTablePosition.html',
 	'word/document-calculation/table/pageBreak.html',
 	'word/document-calculation/table/table-flow.html',
+	'word/document-calculation/table/table-grid.html',
 	'word/document-calculation/table/table-header.html',
 	'word/document-calculation/textShaper/textShaper.html',
 	'word/document-calculation/text-hyphenator/text-hyphenator.html',
@@ -80,8 +82,10 @@ const allTests = [
 	'word/revisions/paragraph.html',
 	'word/merge-documents/mergeDocuments.html',
 	'word/math-autocorrection/math-autocorrection.html',
+	'word/math-ml/math-ml.html',
 	'word/change-case/change-case.html',
-	'word/builder/api/replace-text-smart.html',
+	'word/js-api/js-api.html',
+	'word/js-api/js-api-forms.html',
 
 	'cell/shortcuts/shortcuts.html',
 	'slide/shortcuts/shortcuts.html',

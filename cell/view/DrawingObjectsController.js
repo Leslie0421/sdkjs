@@ -81,6 +81,13 @@ AscCommon.CContentChangesElement.prototype.Refresh_BinaryData = function()
 		this.m_pData.Binary.Pos = Binary_Pos;
 		this.m_pData.Binary.Len = Binary_Len;
 	}
+	else if(this.m_pData.Data && this.m_pData.Item)
+	{
+		this.m_pData.Data.UseArray = true;
+		this.m_pData.Data.PosArray = this.m_aPositions;
+
+		History.Refresh_SpreadsheetChanges(this.m_pData.Item);
+	}
 };
 
 function CheckIdSatetShapeAdd(state)
@@ -371,7 +378,7 @@ DrawingObjectsController.prototype.handleOleObjectDoubleClick = function(drawing
         if(oleObject.m_oMathObject) {
             Asc.editor.sendEvent("asc_onConvertEquationToMath", oleObject);
         } else if (oleObject.canEditTableOleObject()) {
-            Asc.editor.asc_doubleClickOnTableOleObject(oleObject);
+            Asc.editor.asc_editOleTableInFrameEditor();
         } else {
             oleObject.runPlugin();
         }
@@ -390,6 +397,7 @@ DrawingObjectsController.prototype.handleOleObjectDoubleClick = function(drawing
 DrawingObjectsController.prototype.addChartDrawingObject = function(options)
 {
     History.Create_NewPoint();
+    Asc.editor.wb.StartAction(AscDFH.historydescription_Spreadsheet_AddChart);
     var chart = this.getChartSpace(options, false);
     if(chart)
     {
@@ -462,6 +470,7 @@ DrawingObjectsController.prototype.addChartDrawingObject = function(options)
         this.startRecalculate();
         this.drawingObjects.sendGraphicObjectProps();
     }
+    Asc.editor.wb.FinalizeAction(AscDFH.historydescription_Spreadsheet_AddChart, chart.chart);
 	return chart;
 };
 

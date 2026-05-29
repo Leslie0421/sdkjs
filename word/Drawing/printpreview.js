@@ -186,11 +186,12 @@
 						h = height;
 					}
 
-					this.pageImage = viewer.GetPrintPage(this.page, w, h);
+					this.pageImage = viewer.GetPrintPage(this.page, w, h, this.printContentType);
 				}
 
 				break;
 			}
+			case AscCommon.c_oEditorId.Visio:
 			case AscCommon.c_oEditorId.Presentation:
 			{
 				let w_mm = this.api.WordControl.m_oLogicDocument.GetWidthMM();

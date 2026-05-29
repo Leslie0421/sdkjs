@@ -42,7 +42,6 @@
 		var c_oAscSizeRelFromH = AscCommon.c_oAscSizeRelFromH;
 		var c_oAscSizeRelFromV = AscCommon.c_oAscSizeRelFromV;
 		var isRealObject = AscCommon.isRealObject;
-		var History = AscCommon.History;
 		var global_MatrixTransformer = AscCommon.global_MatrixTransformer;
 
 		var CShape = AscFormat.CShape;
@@ -222,12 +221,12 @@
 		};
 
 		CGroupShape.prototype.setNvGrpSpPr = function (pr) {
-			History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetNvGrpSpPr, this.nvGrpSpPr, pr));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetNvGrpSpPr, this.nvGrpSpPr, pr));
 			this.nvGrpSpPr = pr;
 		};
 
 		CGroupShape.prototype.setSpPr = function (pr) {
-			History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetSpPr, this.spPr, pr));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetSpPr, this.spPr, pr));
 			this.spPr = pr;
 			if (pr) {
 				pr.setParent(this);
@@ -239,7 +238,7 @@
 		CGroupShape.prototype.addToSpTree = function (pos, item) {
 			if (!AscFormat.isRealNumber(pos))
 				pos = this.spTree.length;
-			History.Add(new AscDFH.CChangesDrawingsContent(this, AscDFH.historyitem_GroupShapeAddToSpTree, pos, [item], true));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsContent(this, AscDFH.historyitem_GroupShapeAddToSpTree, pos, [item], true));
 			this.handleUpdateSpTree();
 			if (item.group !== this) {
 				item.setGroup(this);
@@ -248,12 +247,12 @@
 		};
 
 		CGroupShape.prototype.setParent = function (pr) {
-			History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetParent, this.parent, pr));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetParent, this.parent, pr));
 			this.parent = pr;
 		};
 
 		CGroupShape.prototype.setGroup = function (group) {
-			History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetGroup, this.group, group));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetGroup, this.group, group));
 			this.group = group;
 		};
 
@@ -276,7 +275,7 @@
 
 		CGroupShape.prototype.removeFromSpTreeByPos = function (pos) {
 			var aSplicedShape = this.spTree.splice(pos, 1);
-			History.Add(new AscDFH.CChangesDrawingsContent(this, AscDFH.historyitem_GroupShapeRemoveFromSpTree, pos, aSplicedShape, false));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsContent(this, AscDFH.historyitem_GroupShapeRemoveFromSpTree, pos, aSplicedShape, false));
 			this.handleUpdateSpTree();
 			return aSplicedShape[0];
 		};
@@ -563,9 +562,9 @@
 			return this.invertTransform;
 		};
 
-		CGroupShape.prototype.getResultScaleCoefficients = function () {
+		CGroupShape.prototype.getResultScaleCoefficients = function (isSkipParaDrawingCoefficient) {
 			if (this.recalcInfo.recalculateScaleCoefficients) {
-				var cx, cy;
+				var cx = 1, cy = 1;
 				if (this.spPr && this.spPr.xfrm && this.spPr.xfrm.isNotNullForGroup()) {
 
 					var dExtX = this.spPr.xfrm.extX, dExtY = this.spPr.xfrm.extY;
@@ -580,50 +579,41 @@
 							}
 						}
 
-						var metricExtX, metricExtY;
-						//  if(!(this instanceof AscFormat.CGroupShape))
-						{
-							if (AscFormat.checkNormalRotate(rot)) {
-								dExtX = metrics.extX;
-								dExtY = metrics.extY;
-							} else {
-								dExtX = metrics.extY;
-								dExtY = metrics.extX;
-							}
+						if (AscFormat.checkNormalRotate(rot)) {
+							dExtX = metrics.extX;
+							dExtY = metrics.extY;
+						} else {
+							dExtX = metrics.extY;
+							dExtY = metrics.extX;
 						}
 					}
 
 					if (this.spPr.xfrm.chExtX > 0)
 						cx = dExtX / this.spPr.xfrm.chExtX;
-					else
-						cx = 1;
 
 					if (this.spPr.xfrm.chExtY > 0)
 						cy = dExtY / this.spPr.xfrm.chExtY;
-					else
-						cy = 1;
-				} else {
-					cx = 1;
-					cy = 1;
 				}
 				if (isRealObject(this.group)) {
-					var group_scale_coefficients = this.group.getResultScaleCoefficients();
+					var group_scale_coefficients = this.group.getResultScaleCoefficients(true);
 					cx *= group_scale_coefficients.cx;
 					cy *= group_scale_coefficients.cy;
-				} else {
-					let oParaDrawing = AscFormat.getParaDrawing(this);
-					if (oParaDrawing) {
-						let dScaleCoefficient = oParaDrawing.GetScaleCoefficient();
-						cx *= dScaleCoefficient;
-						cy *= dScaleCoefficient;
-					}
 				}
 
 				this.scaleCoefficients.cx = cx;
 				this.scaleCoefficients.cy = cy;
 				this.recalcInfo.recalculateScaleCoefficients = false;
 			}
-			return this.scaleCoefficients;
+			const scaleCoefficients = {cx: this.scaleCoefficients.cx, cy: this.scaleCoefficients.cy};
+			if (!isSkipParaDrawingCoefficient) {
+				let oParaDrawing = AscFormat.getParaDrawing(this);
+				if (oParaDrawing) {
+					let dScaleCoefficient = oParaDrawing.GetScaleCoefficient();
+					scaleCoefficients.cx *= dScaleCoefficient;
+					scaleCoefficients.cy *= dScaleCoefficient;
+				}
+			}
+			return scaleCoefficients;
 		};
 
 		CGroupShape.prototype.getCompiledTransparent = function () {
@@ -1251,6 +1241,21 @@
 		};
 
 		CGroupShape.prototype.updateCoordinatesAfterInternalResize = function () {
+			if (this.drawingBase && !this.group && this.drawingBase.worksheet) {
+				var metrics = this.drawingBase.getGraphicObjectMetrics();
+				var rot = this.spPr.xfrm.rot == null ? 0 : this.spPr.xfrm.rot;
+				if (AscFormat.checkNormalRotate(rot)) {
+					this.spPr.xfrm.setOffX(metrics.x);
+					this.spPr.xfrm.setOffY(metrics.y);
+					this.spPr.xfrm.setExtX(metrics.extX);
+					this.spPr.xfrm.setExtY(metrics.extY);
+				} else {
+					this.spPr.xfrm.setOffX(metrics.x + metrics.extX / 2 - metrics.extY / 2);
+					this.spPr.xfrm.setOffY(metrics.y + metrics.extY / 2 - metrics.extX / 2);
+					this.spPr.xfrm.setExtX(metrics.extY);
+					this.spPr.xfrm.setExtY(metrics.extX);
+				}
+			}
 			this.normalize();
 			for (var i = 0; i < this.spTree.length; ++i) {
 				if (this.spTree[i].isGroup())
@@ -1424,7 +1429,7 @@
 		};
 
 		CGroupShape.prototype.setNvSpPr = function (pr) {
-			History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetNvGrpSpPr, this.nvGrpSpPr, pr));
+			AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_GroupShapeSetNvGrpSpPr, this.nvGrpSpPr, pr));
 			this.nvGrpSpPr = pr;
 		};
 
@@ -1493,7 +1498,12 @@
 		CGroupShape.prototype.Refresh_RecalcData = function (oData) {
 			if (oData) {
 				switch (oData.Type) {
-
+					case AscDFH.historyitem_AutoShapes_AddToDrawingObjects: {
+						if (!this.bDeleted) {
+							this.addToRecalculate();
+						}
+						break;
+					}
 					case AscDFH.historyitem_ShapeSetBDeleted: {
 						if (!this.bDeleted) {
 							this.addToRecalculate();

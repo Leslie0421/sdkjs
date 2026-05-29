@@ -808,9 +808,11 @@
 			if (0 === this.r1 && gc_nMaxRow0 === this.r2) {
 				//full sheet is 1:1048576 but row is valid for it
 				row = 0;
-			} else if (0 === this.c1 && gc_nMaxCol0 === this.c2) {
+			}
+			if (0 === this.c1 && gc_nMaxCol0 === this.c2) {
 				col = 0;
 			}
+			
 			var isAbsRow1 = this.isAbsRow(this.refType1);
 			var isAbsCol1 = this.isAbsCol(this.refType1);
 			var isAbsRow2 = this.isAbsRow(this.refType2);
@@ -1865,6 +1867,114 @@
 			});
 		};
 
+		MultiplyRange.prototype.getUnionRanges = function() {
+			let ranges = this.ranges;
+			if (!ranges || ranges.length === 0) {
+				return [];
+			}
+
+			if (ranges.length === 1) {
+				return [ranges[0].clone()];
+			}
+
+			const rangesByRow = new Array(ranges.length);
+
+			for (let i = 0; i < ranges.length; i++) {
+				rangesByRow[i] = ranges[i].clone(true);
+			}
+
+			// First sorting - by row starting position
+			rangesByRow.sort(function(a, b) { return a.r1 - b.r1; });
+
+			// First merging pass - combine vertically aligned ranges
+			const result = [rangesByRow[0]];
+			let currentRange = result[0];
+
+			for (let i = 1; i < rangesByRow.length; i++) {
+				const range = rangesByRow[i];
+
+				// Check if ranges have same columns and are adjacent or overlapping rows
+				if (range.c1 === currentRange.c1 && range.c2 === currentRange.c2 &&
+					range.r1 <= currentRange.r2 + 1) {
+					// Extend current range down
+					currentRange.r2 = Math.max(currentRange.r2, range.r2);
+				} else {
+					// Start new range if can't merge
+					result.push(range);
+					currentRange = range;
+				}
+			}
+
+			// Second sorting - by column starting position
+			result.sort(function(a, b) { return a.c1 - b.c1; });
+
+			// Second merging pass - combine horizontally aligned ranges
+			const finalResult = [result[0]];
+			let currentHorRange = finalResult[0];
+
+			for (let i = 1; i < result.length; i++) {
+				const range = result[i];
+
+				// Check if ranges have same rows and are adjacent or overlapping columns
+				if (range.r1 === currentHorRange.r1 && range.r2 === currentHorRange.r2 &&
+					range.c1 <= currentHorRange.c2 + 1) {
+					// Extend current range horizontally
+					currentHorRange.c2 = Math.max(currentHorRange.c2, range.c2);
+				} else {
+					// Start new range if can't merge
+					finalResult.push(range);
+					currentHorRange = range;
+				}
+			}
+
+			// Final merging pass - handle more complex overlapping cases
+			let changed = true;
+			let iterationRanges = finalResult.slice();
+
+			// Limit iterations to avoid excessive processing
+			for (let iteration = 0; iteration < 3 && changed && iterationRanges.length > 1; iteration++) {
+				changed = false;
+				const tempRanges = [];
+
+				for (let i = 0; i < iterationRanges.length; i++) {
+					const currentRange = iterationRanges[i];
+					let merged = false;
+
+					// Try to merge with ranges already in result
+					for (let j = 0; j < tempRanges.length; j++) {
+						const tempRange = tempRanges[j];
+
+						// Check for possible merging cases (same columns or same rows with adjacency)
+						if ((tempRange.c1 === currentRange.c1 && tempRange.c2 === currentRange.c2 &&
+								(tempRange.r2 + 1 === currentRange.r1 || currentRange.r2 + 1 === tempRange.r1)) ||
+							(tempRange.r1 === currentRange.r1 && tempRange.r2 === currentRange.r2 &&
+								(tempRange.c2 + 1 === currentRange.c1 || currentRange.c2 + 1 === tempRange.c1))) {
+
+							// Merge ranges by taking the outer boundaries
+							tempRange.c1 = Math.min(tempRange.c1, currentRange.c1);
+							tempRange.r1 = Math.min(tempRange.r1, currentRange.r1);
+							tempRange.c2 = Math.max(tempRange.c2, currentRange.c2);
+							tempRange.r2 = Math.max(tempRange.r2, currentRange.r2);
+
+							merged = true;
+							changed = true;
+							break; // Exit inner loop once merged
+						}
+					}
+
+					// Add to result if couldn't merge
+					if (!merged) {
+						tempRanges.push(currentRange);
+					}
+				}
+
+				// Update working set for next iteration
+				iterationRanges = tempRanges;
+			}
+
+			return iterationRanges;
+		};
+
 		MultiplyRange.prototype.isNull = function () {
 			if (!this.ranges || 0 === this.ranges.length || (1 === this.ranges.length && this.ranges[0] == null)) {
 				return true;
@@ -2888,6 +2998,7 @@
 			this.hyperlinkModel = null != obj ? obj : new AscCommonExcel.Hyperlink();
 			// Используется только для выдачи наружу и выставлении обратно
 			this.text = null;
+			this.isFromShape = false;
 
 			return this;
 		}
@@ -2897,6 +3008,7 @@
 
 			res.hyperlinkModel = this.hyperlinkModel && this.hyperlinkModel.clone();
 			res.text = this.text;
+			res.isFromShape = this.isFromShape;
 
 			return res;
 		};
@@ -2972,7 +3084,33 @@
 			return this.hyperlinkModel.getHyperlinkType();
 		};
 		asc_CHyperlink.prototype.asc_getHyperlinkUrl = function () {
-			return this.hyperlinkModel.Hyperlink;
+			let location = this.hyperlinkModel.Location;
+			let res;
+			if (location && this.hyperlinkModel.Hyperlink) {
+				let _baseLink;
+				let hashIndex = this.hyperlinkModel.Hyperlink.indexOf("#");
+				if (hashIndex !== -1) {
+					_baseLink = this.hyperlinkModel.Hyperlink.substring(0, hashIndex);
+				} else {
+					_baseLink = this.hyperlinkModel.Hyperlink;
+				}
+
+				if (_baseLink.length > 0) {
+					let protocolIndex = _baseLink.indexOf("://");
+					if (protocolIndex !== -1) {
+						let afterProtocol = _baseLink.substring(protocolIndex + 3);
+						let slashIndex = afterProtocol.indexOf("/");
+						if (slashIndex === -1) {
+							_baseLink = _baseLink + "/";
+						}
+					}
+				}
+
+				res = _baseLink + "#" + location;
+			} else if (this.hyperlinkModel.Hyperlink) {
+				res = this.hyperlinkModel.Hyperlink;
+			}
+			return res;
 		};
 		asc_CHyperlink.prototype.asc_getTooltip = function () {
 			return this.hyperlinkModel.Tooltip;
@@ -3018,6 +3156,12 @@
 		};
 		asc_CHyperlink.prototype.asc_setText = function (val) {
 			this.text = val;
+		};
+		asc_CHyperlink.prototype.asc_getIsFromShape = function () {
+			return this.isFromShape;
+		};
+		asc_CHyperlink.prototype.asc_setIsFromShape = function (val) {
+			this.isFromShape = val;
 		};
 
 		function CPagePrint() {
@@ -3157,6 +3301,12 @@
 		};
 		asc_CAdjustPrint.prototype.asc_setEndPageIndex = function (val) {
 			this.endPageIndex = val;
+		};
+		asc_CAdjustPrint.prototype.asc_getPdfContent = function () {
+			return this.pdfContent;
+		};
+		asc_CAdjustPrint.prototype.asc_setPdfContent = function (val) {
+			this.pdfContent = val;
 		};
 
 		/** @constructor */
@@ -3744,46 +3894,6 @@
 		};
 		var g_oCacheMeasureEmpty = new CCacheMeasureEmpty();
 
-		/** @constructor */
-		function asc_CFormatCellsInfo() {
-			this.type = Asc.c_oAscNumFormatType.General;
-			this.decimalPlaces = 2;
-			this.separator = false;
-			this.symbol = null;
-			this.currency = null;
-		}
-
-		asc_CFormatCellsInfo.prototype.asc_setType = function (val) {
-			this.type = val;
-		};
-		asc_CFormatCellsInfo.prototype.asc_setDecimalPlaces = function (val) {
-			this.decimalPlaces = val;
-		};
-		asc_CFormatCellsInfo.prototype.asc_setSeparator = function (val) {
-			this.separator = val;
-		};
-		asc_CFormatCellsInfo.prototype.asc_setSymbol = function (val) {
-			this.symbol = val;
-		};
-		asc_CFormatCellsInfo.prototype.asc_setCurrencySymbol = function (val) {
-			this.currency = val;
-		};
-		asc_CFormatCellsInfo.prototype.asc_getType = function () {
-			return this.type;
-		};
-		asc_CFormatCellsInfo.prototype.asc_getDecimalPlaces = function () {
-			return this.decimalPlaces;
-		};
-		asc_CFormatCellsInfo.prototype.asc_getSeparator = function () {
-			return this.separator;
-		};
-		asc_CFormatCellsInfo.prototype.asc_getSymbol = function () {
-			return this.symbol;
-		};
-		asc_CFormatCellsInfo.prototype.asc_getCurrencySymbol = function () {
-			return this.currency;
-		};
-
 		/**
 		 * передаём в меню для того, чтобы показать иконку опций авторавертывания таблиц
 		 * @constructor
@@ -4146,6 +4256,8 @@
 		prot["asc_setSheet"] = prot.asc_setSheet;
 		prot["asc_setRange"] = prot.asc_setRange;
 		prot["asc_setText"] = prot.asc_setText;
+		prot["asc_getIsFromShape"] = prot.asc_getIsFromShape;
+		prot["asc_setIsFromShape"] = prot.asc_setIsFromShape;
 
 		window["AscCommonExcel"].CPagePrint = CPagePrint;
 		window["AscCommonExcel"].CPrintPagesData = CPrintPagesData;
@@ -4166,6 +4278,8 @@
 		prot["asc_setStartPageIndex"] = prot.asc_setStartPageIndex;
 		prot["asc_getEndPageIndex"] = prot.asc_getEndPageIndex;
 		prot["asc_setEndPageIndex"] = prot.asc_setEndPageIndex;
+		prot["asc_getPdfContent"] = prot.asc_getPdfContent;
+		prot["asc_setPdfContent"] = prot.asc_setPdfContent;
 
 		window["AscCommonExcel"].asc_CLockInfo = asc_CLockInfo;
 
@@ -4228,19 +4342,6 @@
 
 		window["AscCommonExcel"].g_oCacheMeasureEmpty = g_oCacheMeasureEmpty;
 		window["AscCommonExcel"].g_oCacheMeasureEmpty2 = g_oCacheMeasureEmpty2;
-
-		window["Asc"]["asc_CFormatCellsInfo"] = window["Asc"].asc_CFormatCellsInfo = asc_CFormatCellsInfo;
-		prot = asc_CFormatCellsInfo.prototype;
-		prot["asc_setType"] = prot.asc_setType;
-		prot["asc_setDecimalPlaces"] = prot.asc_setDecimalPlaces;
-		prot["asc_setSeparator"] = prot.asc_setSeparator;
-		prot["asc_setSymbol"] = prot.asc_setSymbol;
-		prot["asc_setCurrencySymbol"] = prot.asc_setCurrencySymbol;
-		prot["asc_getType"] = prot.asc_getType;
-		prot["asc_getDecimalPlaces"] = prot.asc_getDecimalPlaces;
-		prot["asc_getSeparator"] = prot.asc_getSeparator;
-		prot["asc_getSymbol"] = prot.asc_getSymbol;
-		prot["asc_getCurrencySymbol"] = prot.asc_getCurrencySymbol;
 
 		window["Asc"]["asc_CAutoCorrectOptions"] = window["Asc"].asc_CAutoCorrectOptions = asc_CAutoCorrectOptions;
 		prot = asc_CAutoCorrectOptions.prototype;

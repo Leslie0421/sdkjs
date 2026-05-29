@@ -58,6 +58,7 @@
 	 * @property {string} QuoteText - The quote comment text.
 	 * @property {string} Text - The comment text.
 	 * @property {string} Time - The time when the comment was posted (in milliseconds).
+	 * @property {string} UserId - The user ID of the comment author.
 	 * @property {boolean} Solved - Specifies if the comment is resolved (**true**) or not (**false**).
 	 * @property {CommentData[]} Replies - An array containing the comment replies represented as the *CommentData* object.
 	 * @see office-js-api/Examples/Plugins/{Editor}/Enumeration/CommentData.js
@@ -160,6 +161,22 @@
 		}
 
 		return arrResult;
+	};
+
+	/**
+	 * Removes the OLE object from the presentation by its internal ID.
+	 * @memberof Api
+	 * @typeofeditors ["CPE"]
+	 * @alias RemoveOleObject
+	 * @param {string} internalId - The OLE object identifier which is used to work with OLE object added to the presentation.
+	 * @since 9.1.0
+	 * @see office-js-api/Examples/Plugins/{Editor}/Api/Methods/RemoveOleObject.js
+	 */
+	Api.prototype["pluginMethod_RemoveOleObject"] = function (internalId) {
+		let logicDocument = this.WordControl.m_oLogicDocument;
+		if (logicDocument) {
+			logicDocument.RemoveDrawingObjectById(internalId);
+		}
 	};
 
 	/**

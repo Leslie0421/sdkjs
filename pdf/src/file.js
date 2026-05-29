@@ -75,6 +75,7 @@
     	this.cacheManager = null;
     	this.logging = true;
         this.type = -1;
+        this.fontsGidsMaps = {};
 
     	this.Selection = {
             Page1 : 0,
@@ -86,7 +87,9 @@
             Glyph2 : 0,
 
             quads: [],
-            IsSelection : false
+            IsSelection : false,
+            startPoint: null,
+            endPoint: null
         };
 
         this.viewer = null;
@@ -138,6 +141,14 @@
     {
         if (this.nativeFile)
             this.nativeFile["setCMap"](data);
+    };
+    CFile.prototype.getGIDByUnicode = function(fontName) {
+        if (this.fontsGidsMaps[fontName]) {
+            return this.fontsGidsMaps[fontName];
+        }
+
+        this.fontsGidsMaps[fontName] = this.nativeFile["getGIDByUnicode"](fontName);
+        return this.fontsGidsMaps[fontName];
     };
 
     CFile.prototype.getPage = function(pageIndex, width, height, isNoUseCacheManager, backgroundColor)
@@ -418,15 +429,27 @@ void main() {\n\
 			Line2 : 0,
 			Glyph2 : 0,
             quads: [],
+            startPoint: null,
+            endPoint: null,
 
 			IsSelection : false
 		}
 
+        let oDoc            = Asc.editor.getPDFDoc();
+        let oAcitveDrawing  = oDoc.activeDrawing;
+        let oDocContent     = oAcitveDrawing && oAcitveDrawing.GetDocContent();
+        oDocContent && oDocContent.RemoveSelection();
+
         this.cacheSelectionQuads([]);
-        this.viewer.getPDFDoc().TextSelectTrackHandler.Update();
+        oDoc.TextSelectTrackHandler.Update();
     };
     CFile.prototype.isSelectionUse = function() {
-        return !(this.Selection.Page1  == this.Selection.Page2 && this.Selection.Glyph1 == this.Selection.Glyph2 && this.Selection.Line1 == this.Selection.Line2);
+        let oDoc            = Asc.editor.getPDFDoc();
+        let oAcitveDrawing  = oDoc.activeDrawing;
+        let oDocContent     = oAcitveDrawing && oAcitveDrawing.GetDocContent();
+        let isSelectionUse  = !!(oDocContent && oDocContent.IsSelectionUse());
+
+        return this.Selection.IsSelection || isSelectionUse;
     };
     CFile.prototype.sortSelection = function() {
         let sel = this.Selection;
@@ -507,49 +530,114 @@ void main() {\n\
         return this.Selection;
     };
     CFile.prototype.onMouseDown = function(pageIndex, x, y) {
-        if (this.pages[pageIndex].isRecognized)
+        let isRedactTool = Asc.editor.IsRedactTool();
+        let isLinkTool   = Asc.editor.IsLinkTool();
+
+        if (this.pages[pageIndex].isRecognized && !isRedactTool && !isLinkTool)
             return;
         
         let ret = this.getNearestPos(pageIndex, x, y);
         let sel = this.Selection;
 
-        sel.Page1  = pageIndex;
-        sel.Line1  = ret.Line;
-        sel.Glyph1 = ret.Glyph;
+        let isTextSel = ret.Glyph >= 0 && ret.Line >= 0;
 
-        sel.Page2  = pageIndex;
-        sel.Line2  = ret.Line;
-        sel.Glyph2 = ret.Glyph;
+        if ((isRedactTool || isLinkTool) && !isTextSel) {
+            sel.startPoint = {
+                page: pageIndex,
+                x: x,
+                y: y
+            }
+        }
+        else {
+            sel.Page1  = pageIndex;
+            sel.Line1  = ret.Line;
+            sel.Glyph1 = ret.Glyph;
 
-        sel.IsSelection = true;
+            sel.Page2  = pageIndex;
+            sel.Line2  = ret.Line;
+            sel.Glyph2 = ret.Glyph;
+        }
+        
         this.cacheSelectionQuads([]);
 
         this.onUpdateSelection();
         this.onUpdateOverlay();
     };
     CFile.prototype.onMouseMove = function(pageIndex, x, y) {
-        if (false === this.Selection.IsSelection)
+        if (true !== this.viewer.isMouseDown)
             return;
 
         let ret = this.getNearestPos(pageIndex, x, y);
         let sel = this.Selection;
-
-        sel.Page2  = pageIndex;
-        sel.Line2  = ret.Line;
-        sel.Glyph2 = ret.Glyph;
-
+        sel.IsSelection = true;
+        
+        if ((Asc.editor.IsRedactTool() || Asc.editor.IsLinkTool()) && this.Selection.startPoint) {
+            sel.endPoint = {
+                page: pageIndex,
+                x: x,
+                y: y
+            }
+        }
+        else {
+            sel.Page2  = pageIndex;
+            sel.Line2  = ret.Line;
+            sel.Glyph2 = ret.Glyph;
+        }
+        
+		this.updateCursorType(pageIndex, x, y);
         this.onUpdateOverlay();
     };
-    CFile.prototype.onMouseUp = function() {
-        this.Selection.IsSelection = false;
-        this.viewer.getPDFDoc().TextSelectTrackHandler.Update(true);
+    CFile.prototype.updateCursorType = function(pageIndex, x, y) {
+        let ret = this.getNearestPos(pageIndex, x, y);
+        
+        if (ret.Glyph < 0 || ret.Line < 0) {
+            if (Asc.editor.IsRedactTool() || Asc.editor.IsLinkTool()) {
+                this.viewer.setCursorType("crosshair");
+            }
+            else {
+                this.viewer.setCursorType("default");
+            }
+        }
+        else {
+            this.viewer.setCursorType("text");
+        }
+    };
+    CFile.prototype.onMouseUp = function(pageIndex, x, y) {
+        if (this.viewer.MouseHandObject) {
+            return;
+        }
+        
+        let _t      = this;
+        let oDoc    = this.viewer.getPDFDoc();
+        let oViewer = this.viewer;
+
+        let isRedactTool = Asc.editor.IsRedactTool();
+        let isLinkTool   = Asc.editor.IsLinkTool();
+
+        let ret = this.getNearestPos(pageIndex, x, y);
+        let sel = this.Selection;
+        
+        let isTextSel = ret.Glyph >= 0 && ret.Line >= 0;
+
+        if ((isRedactTool || isLinkTool) && !isTextSel) {
+            sel.endPoint = {
+                page: pageIndex,
+                x: x,
+                y: y
+            }
+        }
+        else {
+            sel.Page2  = pageIndex;
+            sel.Line2  = ret.Line;
+            sel.Glyph2 = ret.Glyph;
+        }
+
+        oDoc.TextSelectTrackHandler.Update(true);
         this.onUpdateSelection();
         this.onUpdateOverlay();
 
-        if (this.viewer.Api.isMarkerFormat) {
-            let oDoc    = this.viewer.getPDFDoc();
-            let oViewer = this.viewer;
-            let oColor  = oDoc.GetMarkerColor(oViewer.Api.curMarkerType);
+        if (oViewer.Api.isMarkerFormat) {
+            let oColor = oDoc.GetMarkerColor(oViewer.Api.curMarkerType);
 
             oDoc.DoAction(function() {
                 switch (oViewer.Api.curMarkerType) {
@@ -563,7 +651,26 @@ void main() {\n\
                         oViewer.Api.SetStrikeout(oColor.r, oColor.g, oColor.b, oColor.a);
                         break;
                 }
-            }, AscDFH.historydescription_Pdf_AddHighlightAnnot);
+            }, AscDFH.historydescription_Pdf_AddAnnot);
+        }
+        else if (isRedactTool || isLinkTool) {
+            oDoc.DoAction(function() {
+                let aSelQuads = _t.getSelectionQuads();
+
+                if (isRedactTool) {
+                    oDoc.AddRedactAnnot(aSelQuads)
+                }
+                else {
+                    let isTextSelection = !(_t.Selection.startPoint && _t.Selection.endPoint);
+                    let aAnnots = oDoc.AddLinkAnnotByQuads(aSelQuads, isTextSelection);
+                    if (aAnnots.length > 0) {
+                        Asc.editor.StartLinkAnnotCreation(aAnnots.map(function(annot) {
+                            return annot.GetId();
+                        }));
+                    }
+                }
+                
+            }, AscDFH.historydescription_Pdf_AddAnnot);
         }
     };
     CFile.prototype.getNearestPos = function(pageIndex, x, y, bNeedLinePos) {
@@ -781,6 +888,10 @@ void main() {\n\
             return;
         }
 
+        let oViewer = this.viewer;
+        let oDoc = this.viewer.getPDFDoc();
+        let _t = this;
+
         stream.pos = ret.LinePos;
 
         let _lineText = "";
@@ -841,10 +952,38 @@ void main() {\n\
             }
         }
 
+        oDoc.TextSelectTrackHandler.Update(true);
+        this.onUpdateSelection();
         this.onUpdateOverlay();
+
+        if (oViewer.Api.isMarkerFormat) {
+            let oColor = oDoc.GetMarkerColor(oViewer.Api.curMarkerType);
+
+            oDoc.DoAction(function() {
+                switch (oViewer.Api.curMarkerType) {
+                    case AscPDF.ANNOTATIONS_TYPES.Highlight:
+                        oViewer.Api.SetHighlight(oColor.r, oColor.g, oColor.b, oColor.a);
+                        break;
+                    case AscPDF.ANNOTATIONS_TYPES.Underline:
+                        oViewer.Api.SetUnderline(oColor.r, oColor.g, oColor.b, oColor.a);
+                        break;
+                    case AscPDF.ANNOTATIONS_TYPES.Strikeout:
+                        oViewer.Api.SetStrikeout(oColor.r, oColor.g, oColor.b, oColor.a);
+                        break;
+                }
+            }, AscDFH.historydescription_Pdf_AddAnnot);
+        }
+        else if (oViewer.Api.isRedactTool) {
+            oDoc.DoAction(function() {
+                let aSelQuads = _t.getSelectionQuads();
+
+                oDoc.AddRedactAnnot(aSelQuads);
+            }, AscDFH.historydescription_Pdf_AddAnnot);
+        }
     };
     CFile.prototype.selectWholeRow = function(pageIndex, x, y) {
         let ret = this.getNearestPos(pageIndex, x, y);
+        let oDoc = this.viewer.getPDFDoc();
 
         let sel = this.Selection;
         sel.Glyph1 = -2;
@@ -856,6 +995,8 @@ void main() {\n\
         sel.Page2 = pageIndex;
         sel.quads = [];
         
+        oDoc.TextSelectTrackHandler.Update(true);
+        this.onUpdateSelection();
         this.onUpdateOverlay();
     };
     CFile.prototype.selectWholePage = function(pageIndex) {
@@ -864,6 +1005,9 @@ void main() {\n\
         if (!stream) {
             return;
         }
+
+        let oDoc = this.viewer.getPDFDoc();
+
         while (stream.pos < stream.size)
         {
             _numLine++;
@@ -884,6 +1028,8 @@ void main() {\n\
         sel.Page2 = pageIndex;
         sel.quads = [];
         
+        oDoc.TextSelectTrackHandler.Update(true);
+        this.onUpdateSelection();
         this.onUpdateOverlay();
     };
     CFile.prototype.selectAll = function() {
@@ -923,15 +1069,37 @@ void main() {\n\
         this.Selection.quads = aQuads;
     };
     CFile.prototype.getSelectionQuads = function() {
+        let oDoc = Asc.editor.getPDFDoc();
+        let oDrawing = oDoc.activeDrawing;
+        if (oDrawing) {
+            return oDrawing.GetSelectionQuads();
+        }
+
         let aInfo = [];
         
-        if (!this.isSelectionUse())
-        {
+        if (!this.isSelectionUse()) {
             this.cacheSelectionQuads(aInfo);
             return aInfo;
         }
-        else if (this.Selection.quads.length)
+        else if (this.Selection.quads.length) {
             return this.Selection.quads;
+        }
+        else if (this.Selection.startPoint && this.Selection.endPoint) {
+            let xMin = Math.min(this.Selection.startPoint.x, this.Selection.endPoint.x) * g_dKoef_mm_to_pt;
+            let xMax = Math.max(this.Selection.startPoint.x, this.Selection.endPoint.x) * g_dKoef_mm_to_pt;
+            let yMin = Math.min(this.Selection.startPoint.y, this.Selection.endPoint.y) * g_dKoef_mm_to_pt;
+            let yMax = Math.max(this.Selection.startPoint.y, this.Selection.endPoint.y) * g_dKoef_mm_to_pt;
+
+            let oInfo = { page: this.Selection.startPoint.page, quads: [[
+                xMin, yMin, // left up
+                xMax, yMin, // right up
+                xMin, yMax, // left down
+                xMax, yMax  // right down
+            ]]};
+            
+            aInfo.push(oInfo);
+            return aInfo;
+        }
         
         let selection = this.sortSelection();
         let Page1 = selection.Page1;
@@ -1083,6 +1251,42 @@ void main() {\n\
     };
     CFile.prototype.drawSelection = function(pageIndex, overlay, x, y)
     {
+        if ((Asc.editor.IsRedactTool() || Asc.editor.IsLinkTool()) && this.Selection.startPoint && this.Selection.endPoint) {
+            if (pageIndex < this.Selection.startPoint.page || pageIndex > this.Selection.endPoint.page) {
+                return;
+            }
+
+            let width = AscCommon.AscBrowser.convertToRetinaValue(this.viewer.drawingPages[pageIndex].W, true) >> 0;
+            let height = AscCommon.AscBrowser.convertToRetinaValue(this.viewer.drawingPages[pageIndex].H, true) >> 0;
+
+            let dKoefX = width  / this.pages[pageIndex].W;
+            let dKoefY = height / this.pages[pageIndex].H;
+            dKoefX *= (this.pages[pageIndex].Dpi / 25.4);
+            dKoefY *= (this.pages[pageIndex].Dpi / 25.4);
+
+            let xMin = x + Math.min(this.Selection.startPoint.x, this.Selection.endPoint.x) * dKoefX;
+            let xMax = x + Math.max(this.Selection.startPoint.x, this.Selection.endPoint.x) * dKoefX;
+            let yMin = y + Math.min(this.Selection.startPoint.y, this.Selection.endPoint.y) * dKoefY;
+            let yMax = y + Math.max(this.Selection.startPoint.y, this.Selection.endPoint.y) * dKoefY;
+            
+            overlay.CheckPoint(xMin, yMin);
+            overlay.CheckPoint(xMax, yMax);
+
+            let ctx = overlay.m_oContext;
+
+            let gA = ctx.globalAlpha;
+            ctx.rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            ctx.strokeStyle = 'rgba(51,102,204,255)';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 1;
+            ctx.stroke();
+            ctx.globalAlpha = gA;
+
+            ctx.rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            ctx.closePath();
+            return;
+        }
+
         if (this.pages[pageIndex].isRecognized)
             return;
         
@@ -1410,7 +1614,7 @@ void main() {\n\
     PdfPageMatch.prototype = Object.create(Array.prototype);
     PdfPageMatch.prototype.constructor = PdfPageMatch;
 
-    PdfPageMatch.prototype.Get_AbsolutePage = function() {
+    PdfPageMatch.prototype.GetAbsolutePage = function() {
         if (this[0])
             return this[0].PageNum;
         return -1;
@@ -1705,7 +1909,7 @@ void main() {\n\
                 if (endChar == Infinity)
                     off2 = _lineWidth;
 
-                if (off2 <= off1)
+                if (off2 < off1)
                     continue;
 
                 rects.push({
@@ -1715,7 +1919,7 @@ void main() {\n\
                     Char2: endChar,
                     X : _lineX + _lineAscent * _lineEy + off1 * _lineEx,
                     Y : _lineY - _lineAscent * _lineEx + off1 * _lineEy,
-                    W : off2 - off1,
+                    W : off2 - off1 || (0.5 * g_dKoef_pix_to_mm * g_dKoef_mm_to_pt),
                     H : _lineAscent + _lineDescent,
                     Ex : _lineEx,
                     Ey : _lineEy,

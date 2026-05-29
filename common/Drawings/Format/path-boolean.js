@@ -2193,7 +2193,7 @@
 			if (!n) {
 				curves.push(v);
 			} else {
-				roots.sort();
+				roots.sort(function (a, b) {return a - b});
 				let t = roots[0];
 				let parts = Curve.subdivide(v, t);
 				curves.push(parts[0]);
@@ -2613,7 +2613,7 @@
 			(cx * bx + by * cy),
 			roots, tMin, tMax
 		);
-		return roots.sort();
+		return roots.sort(function (a, b) {return a - b});
 	};
 	Curve.addLocation = function (locations, include, c1, t1, c2, t2, overlap) {
 		const excludeStart = !overlap && c1.getPrevious() === c2;
@@ -3593,7 +3593,10 @@
 
 		curves.forEach(function (curve) {
 			const v = curve.getValues();
-			const [o0, o1, o2, o3] = [v[1], v[3], v[5], v[7]];
+			const o0 = v[1];
+			const o1 = v[3];
+			const o2 = v[5];
+			const o3 = v[7];
 
 			if (y >= Math.min(o0, o1, o2, o3) && y <= Math.max(o0, o1, o2, o3)) {
 				const monoCurves = Curve.getMonoCurves(v);

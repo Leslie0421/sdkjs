@@ -59,7 +59,7 @@
 		AscFormat.CColorModifiers.prototype.RGB2HSL(r, g, b, oHSL);
 		var dKoefL = (255 - 58) / 255;
 		oHSL.L = 255 - ((dKoefL * oHSL.L) >> 0);
-		AscFormat.CColorModifiers.prototype.HSL2RGB(oHSL, oRGB);
+		AscFormat.CColorModifiers.prototype.HSL2RGB(oHSL, oRGB, true);
 		return oRGB;
 	};
 
@@ -267,6 +267,16 @@
 	CGraphicsBase.prototype.b_color2 = function(r, g, b, a)
 	{
 	};
+	
+	CGraphicsBase.prototype.put_PathOffset = function(tx, ty)
+	{
+	};
+	CGraphicsBase.prototype.put_PathScale = function(sx, sy)
+	{
+	};
+	CGraphicsBase.prototype.ResetRotation = function()
+	{
+	};
 
 	// TRANSFORM
 	CGraphicsBase.prototype.grStateIsUseBaseTransform = function()
@@ -435,6 +445,10 @@
 	CGraphicsBase.prototype.DrawSpellingLine = function(y0, x0, x1, w)
 	{
 	};
+	CGraphicsBase.prototype.drawCustomRange = function(handlerId, rangeId, x0, y0, w, h, baseLine)
+	{
+	
+	};
 
 	CGraphicsBase.prototype.drawCollaborativeChanges = function(x, y, w, h, Color)
 	{
@@ -455,6 +469,16 @@
 	CGraphicsBase.prototype.drawPermissionMark = function(x, y, h, isStart, isActive)
 	{
 	};
+	
+	CGraphicsBase.prototype.drawCommentMark = function(x, y, h, isStart)
+	{
+	};
+	
+	CGraphicsBase.prototype.drawCommentArea = function(x, y, w, h)
+	{
+		this.rect(x, y, w, h);
+		this.df();
+	};
 
 	CGraphicsBase.prototype.DrawFootnoteRect = function(x, y, w, h)
 	{
@@ -463,6 +487,8 @@
 	CGraphicsBase.prototype.DrawPresentationComment = function(type, x, y, w, h)
 	{
 	};
+	CGraphicsBase.prototype.drawBlipFillTile = function () { };
+	CGraphicsBase.prototype.drawBlipFillStretch = function () { };
 
 	// INTEGER GRID
 	CGraphicsBase.prototype.SetIntegerGrid = function(param)
@@ -790,6 +816,9 @@
 	{
 	};
 	CGraphicsBase.prototype.ClearLastFont = function()
+	{
+	};
+	CGraphicsBase.prototype.ClearCacheProps = function()
 	{
 	};
 

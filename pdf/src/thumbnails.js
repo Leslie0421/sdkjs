@@ -575,6 +575,10 @@
         if (!this.isEnabled)
             return isNeedTasks;
 
+		if (this.isNeedResize()) {
+			this.resize();
+		}
+		
         if (!isViewerTask && -1 != this.startBlock)
         {
             // смотрим, какие страницы нужно перерисовать. 
@@ -655,6 +659,10 @@
 
     CDocument.prototype.updateCurrentPage = function(pageObject)
     {
+        if (this.selectedPages.length == 0) {
+            this.keepSelectedPages = false;
+        }
+        
         this.selectPageRect = pageObject;
         if (true !== this.keepSelectedPages && false == this.selectedPages.includes(pageObject.num))
         {
@@ -686,7 +694,7 @@
 
     // rendering
     CDocument.prototype._paint= function() {
-        if (!this.canvas || !this.viewer.canInteract()) return;
+        if (!this.canvas) return;
         if (this.isNeedResize()) {
             this.resize();
         }
@@ -859,7 +867,7 @@
     };
     CDocument.prototype._deletePage = function(nPage) {
         this.pages.splice(nPage, 1);
-        this._resize();
+        this.setNeedResize(true);
     };
     CDocument.prototype._addPage = function(nPos) {
         let pages = this.viewer.file.pages;
@@ -870,7 +878,7 @@
             koef = 100 / filePage.Dpi;
 
         this.pages.splice(nPos, 0, new CPage(koef * filePage.W, koef * filePage.H));
-        this._resize();
+        this.setNeedResize(true);
     };
 
     CDocument.prototype.getStartVisiblePage = function() {
@@ -892,6 +900,10 @@
     };
     CDocument.prototype.calculateVisibleBlocks = function()
     {
+        let element = document.getElementById(this.id);
+        if (0 === element.offsetWidth || !this.canvas || this.isNeedResize())
+            return;
+
         this.startBlock = -1;
         this.endBlock = -1;
         var blocksCount = this.blocks.length;

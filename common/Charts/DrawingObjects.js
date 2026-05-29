@@ -425,39 +425,61 @@ CCellObjectInfo.prototype.initAfterSerialize = function() {
 function asc_CChartBinary(chart) {
 
     this["binary"] = null;
-    if (chart && chart.getObjectType() === AscDFH.historyitem_type_ChartSpace)
-    {
-        this["IsChartEx"] = chart.isChartEx();
-        var writer = new AscCommon.BinaryChartWriter(new AscCommon.CMemory(false)), pptx_writer;
-        if(this["IsChartEx"])
+		this["isFromPdfEditor"] = Asc.editor && Asc.editor.isPdfEditor();
+    if (chart) {
+        if (chart.getObjectType() === AscDFH.historyitem_type_ChartSpace)
         {
-            writer.WriteCT_ChartExSpace(chart);
+            this["IsChartEx"] = chart.isChartEx();
+            const writer = new AscCommon.BinaryChartWriter(new AscCommon.CMemory(false));
+            if(this["IsChartEx"])
+            {
+                writer.WriteCT_ChartExSpace(chart, undefined, true);
+            }
+            else
+            {
+                writer.WriteCT_ChartSpace(chart, undefined, true);
+            }
+            this["binary"] = writer.memory.pos + ";" + writer.memory.GetBase64Memory();
+            this["documentImageUrls"] = AscCommon.g_oDocumentUrls.urls;
         }
-        else
+        else if (chart.getObjectType() === AscDFH.historyitem_type_Chart)
         {
-            writer.WriteCT_ChartSpace(chart);
+            this["IsChartEx"] = chart.isChartEx();
+            const chartWriter = new AscCommon.BinaryChartWriter(new AscCommon.CMemory(false));
+            if (this["IsChartEx"]) {
+                chartWriter.WriteCT_ChartEx(chart);
+                if (chart.parent && chart.parent.chartData) {
+                    const chartDataWriter = new AscCommon.BinaryChartWriter(new AscCommon.CMemory(false));
+                    chartDataWriter.WriteCT_ChartData(chart.parent.chartData);
+                    this["binaryChartData"] = chartDataWriter.memory.GetBase64Memory();
+                }
+            } else {
+                chartWriter.WriteCT_Chart(chart);
+            }
+            this["binary"] = chartWriter.memory.GetBase64Memory();
+            this["documentImageUrls"] = AscCommon.g_oDocumentUrls.urls;
         }
-        this["binary"] = writer.memory.pos + ";" + writer.memory.GetBase64Memory();
-        if(chart.theme)
-        {
-            pptx_writer = new AscCommon.CBinaryFileWriter();
-            pptx_writer.WriteTheme(chart.theme);
-            this["themeBinary"] = pptx_writer.pos + ";" + pptx_writer.GetBase64Memory();
-        }
-        if(chart.colorMapOverride)
-        {
-            pptx_writer = new AscCommon.CBinaryFileWriter();
-            pptx_writer.WriteRecord1(1, chart.colorMapOverride, pptx_writer.WriteClrMap);
-            this["colorMapBinary"] = pptx_writer.pos + ";" + pptx_writer.GetBase64Memory();
-        }
-        this["urls"] = JSON.stringify(AscCommon.g_oDocumentUrls.getUrls());
-        if(chart.parent && chart.parent.docPr){
-            this["cTitle"] = chart.parent.docPr.title;
-            this["cDescription"] = chart.parent.docPr.descr;
-        }
-        else{
-            this["cTitle"] = chart.getTitle();
-            this["cDescription"] = chart.getDescription();
+
+        if (window['IS_NATIVE_EDITOR']) {
+            if(chart.theme) {
+                let pptx_writer = new AscCommon.CBinaryFileWriter();
+                pptx_writer.WriteTheme(chart.theme);
+                this["themeBinary"] = pptx_writer.pos + ";" + pptx_writer.GetBase64Memory();
+            }
+            if(chart.colorMapOverride) {
+                let pptx_writer = new AscCommon.CBinaryFileWriter();
+                pptx_writer.WriteRecord1(1, chart.colorMapOverride, pptx_writer.WriteClrMap);
+                this["colorMapBinary"] = pptx_writer.pos + ";" + pptx_writer.GetBase64Memory();
+            }
+            this["urls"] = JSON.stringify(AscCommon.g_oDocumentUrls.getUrls());
+            if(chart.parent && chart.parent.docPr){
+                this["cTitle"] = chart.parent.docPr.title;
+                this["cDescription"] = chart.parent.docPr.descr;
+            }
+            else{
+                this["cTitle"] = chart.getTitle();
+                this["cDescription"] = chart.getDescription();
+            }
         }
     }
 }
@@ -466,29 +488,70 @@ asc_CChartBinary.prototype = {
 
     asc_getBinary: function() { return this["binary"]; },
     asc_setBinary: function(val) { this["binary"] = val; },
+	asc_getBinaryChartData: function() { return this["binaryChartData"]; },
+	asc_setBinaryChartData: function(val) { this["binaryChartData"] = val; },
+	asc_setIsChartEx: function(val){this["IsChartEx"] = val;},
+	asc_getIsChartEx: function(){return this["IsChartEx"];},
+    getChartSpace: function(workSheet)
+    {
+        const binary = this["binary"];
+        const stream = AscFormat.CreateBinaryReader(binary, 0, binary.length);
+        //надо сбросить то, что остался после открытия документа
+        AscCommon.pptx_content_loader.Clear();
+        const oNewChartSpace = Asc.editor.isPdfEditor() ? new AscPDF.CPdfChartSpace() : new AscFormat.CChartSpace();
+        const oBinaryChartReader = new AscCommon.BinaryChartReader(stream);
+	    if(this["IsChartEx"]) {
+		    oBinaryChartReader.ExternalReadCT_ChartExSpace(stream.size , oNewChartSpace, workSheet);
+	    }
+	    else {
+		    oBinaryChartReader.ExternalReadCT_ChartSpace(stream.size , oNewChartSpace, workSheet);
+	    }
+        return oNewChartSpace;
+    },
+	getChart: function()
+	{
+		const binary = this["binary"];
+		const isChartEx = this["IsChartEx"];
+		const stream = AscFormat.CreateBinaryReader(binary, 0, binary.length);
+		//надо сбросить то, что остался после открытия документа
+		AscCommon.pptx_content_loader.Clear();
+		const oNewChart = new AscFormat.CChart();
+		const oBinaryChartReader = new AscCommon.BinaryChartReader(stream);
+		oBinaryChartReader.curChart = {};
+		oBinaryChartReader.bcr.Read1(stream.size, function (t, l) {
+			if (isChartEx) {
+				return oBinaryChartReader.ReadCT_ChartEx(t, l, oNewChart);
+			} else {
+				return oBinaryChartReader.ReadCT_Chart(t, l, oNewChart);
+			}
+		});
+		return oNewChart;
+	},
+	getChartData: function()
+	{
+		const binary = this["binaryChartData"];
+		if (!binary) {
+			return null;
+		}
+
+		const stream = AscFormat.CreateBinaryReader(binary, 0, binary.length);
+		//надо сбросить то, что остался после открытия документа
+		AscCommon.pptx_content_loader.Clear();
+		const oChartData = new AscFormat.CChartData();
+		const oBinaryChartReader = new AscCommon.BinaryChartReader(stream);
+		oBinaryChartReader.curChart = {};
+		oBinaryChartReader.bcr.Read1(stream.size, function (t, l) {
+				return oBinaryChartReader.ReadCT_ChartData(t, l, oChartData);
+		});
+		return oChartData;
+	},
+    getWorkbookBinary: function() { return this["workbookBinary"]; },
+    setWorkbookBinary: function(val) { this["workbookBinary"] = val; },
+
     asc_getThemeBinary: function() { return this["themeBinary"]; },
     asc_setThemeBinary: function(val) { this["themeBinary"] = val; },
     asc_setColorMapBinary: function(val){this["colorMapBinary"] = val;},
     asc_getColorMapBinary: function(){return this["colorMapBinary"];},
-    asc_setIsChartEx: function(val){this["IsChartEx"] = val;},
-    asc_getIsChartEx: function(){return this["IsChartEx"];},
-    getChartSpace: function(workSheet)
-    {
-        var binary = this["binary"];
-        var stream = AscFormat.CreateBinaryReader(this["binary"], 0, this["binary"].length);
-        //надо сбросить то, что остался после открытия документа
-        AscCommon.pptx_content_loader.Clear();
-        var oNewChartSpace = Asc.editor.isPdfEditor() ? new AscPDF.CPdfChart() : new AscFormat.CChartSpace();
-        var oBinaryChartReader = new AscCommon.BinaryChartReader(stream);
-        if(this["IsChartEx"]) {
-            oBinaryChartReader.ExternalReadCT_ChartExSpace(stream.size , oNewChartSpace, workSheet);
-        }
-        else {
-            oBinaryChartReader.ExternalReadCT_ChartSpace(stream.size , oNewChartSpace, workSheet);
-        }
-        return oNewChartSpace;
-    },
-
     getTheme: function()
     {
         var binary = this["themeBinary"];
@@ -499,7 +562,6 @@ asc_CChartBinary.prototype = {
         }
         return null;
     },
-
     getColorMap: function()
     {
         var binary = this["colorMapBinary"];
@@ -513,7 +575,6 @@ asc_CChartBinary.prototype = {
         }
         return null;
     }
-
 };
 
 /** @constructor */
@@ -1358,6 +1419,9 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                 metrics.y = this.Pos.Y;
                 metrics.extX = this.ext.cx;
                 metrics.extY = this.ext.cy;
+                if (this.worksheet && this.worksheet.getRightToLeft()) {
+                    metrics.x = this.worksheet.checkRtl(metrics.x, undefined, 3, true) - metrics.extX;
+                }
                 break;
             }
             case c_oAscCellAnchorType.cellanchorOneCell:
@@ -1414,7 +1478,8 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     DrawingBase.prototype._getGraphicObjectCoords = function()
     {
         var _t = this;
-
+        if (!this.worksheet)
+            return null;
         if ( _t.isGraphicObject() ) {
             var ret = {Pos:{}, ext: {}, from: {}, to: {}};
             var rot = AscFormat.isRealNumber(_t.graphicObject.rot) ? _t.graphicObject.rot : 0;
@@ -1447,6 +1512,10 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                 ret.ext.cy = _t.graphicObject.extX;
             }
 
+            if (this.worksheet.getRightToLeft() && this.Type === c_oAscCellAnchorType.cellanchorAbsolute) {
+                ret.Pos.X = this.worksheet.checkRtl(ret.Pos.X + ret.ext.cx, undefined, 3, true);
+            }
+
             if (this.worksheet.getRightToLeft()) {
                 let temp = fromX;
                 fromX = toX;
@@ -1474,6 +1543,8 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
 
     DrawingBase.prototype.setGraphicObjectCoords = function() {
         var _t = this;
+        if (!this.worksheet)
+            return;
         var oCoords = this._getGraphicObjectCoords();
         if(oCoords)
         {
@@ -1522,6 +1593,10 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                 this.ext.cy = _t.graphicObject.extX;
             }
 
+            if (this.worksheet.getRightToLeft() && this.Type === c_oAscCellAnchorType.cellanchorAbsolute) {
+                this.Pos.X = this.worksheet.checkRtl(this.Pos.X + this.ext.cx, undefined, 3, true);
+            }
+
             if (this.worksheet.getRightToLeft()) {
                 let temp = fromX;
                 fromX = toX;
@@ -1548,6 +1623,8 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     DrawingBase.prototype.checkBoundsFromTo = function() {
         var _t = this;
 
+        if (!this.worksheet)
+            return;
         if ( _t.isGraphicObject() && _t.graphicObject.bounds) {
 
 
@@ -1576,6 +1653,9 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             var toColCell = this.worksheet.findCellByXY(toX, toY, true, false, true);
             var toRowCell = this.worksheet.findCellByXY(toX, toY, true, true, false);
 
+            var boundsChanged = _t.boundsFromTo.to.col !== toColCell.col || _t.boundsFromTo.to.row !== toRowCell.row ||
+                _t.boundsFromTo.from.col !== fromColCell.col || _t.boundsFromTo.from.row !== fromRowCell.row;
+
             _t.boundsFromTo.from.col = fromColCell.col;
             _t.boundsFromTo.from.colOff = this.pxToMm(fromColCell.colOff);
             _t.boundsFromTo.from.row = fromRowCell.row;
@@ -1585,6 +1665,19 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             _t.boundsFromTo.to.colOff = this.pxToMm(toColCell.colOff);
             _t.boundsFromTo.to.row = toRowCell.row;
             _t.boundsFromTo.to.rowOff = this.pxToMm(toRowCell.rowOff);
+
+            if (boundsChanged && this.worksheet) {
+                if (this.worksheet._cleanPagesModeData) {
+                    this.worksheet._cleanPagesModeData();
+                }
+                if (this.worksheet.isPageBreakPreview && this.worksheet.isPageBreakPreview()) {
+                    var drawingObjects = this.getDrawingObjects();
+                    if (drawingObjects) {
+                        drawingObjects.pageBreakPreviewNeedRedraw = true;
+                        drawingObjects.showDrawingObjects();
+                    }
+                }
+            }
         }
     };
 
@@ -1759,7 +1852,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         this.graphicObject.handleObject(fCallback);
     };
     DrawingBase.prototype.initAfterSerialize = function(ws) {
-        if(!this.graphicObject) {
+        if(!this.graphicObject || !ws) {
             return;
         }
         let bIsShape = this.graphicObject.isShape();
@@ -1792,7 +1885,8 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     var ScrollOffset = function() {
 
         this.getX = function() {
-            return 2 * worksheet._getColLeft(0) - worksheet._getColLeft(worksheet.getFirstVisibleCol(true));
+            var val = 2 * worksheet._getColLeft(0) - worksheet._getColLeft(worksheet.getFirstVisibleCol(true));
+            return worksheet.getRightToLeft() ? -val : val;
         };
 
         this.getY = function() {
@@ -1838,12 +1932,19 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     // Task timer
     _this.animId = null;
     _this.drawTask = null;
+    _this.pageBreakPreviewNeedRedraw = false;
 
     function drawTaskFunction() {
         _this.drawingDocument.CheckTargetShow();
         if(_this.drawTask) {
             _this.showDrawingObjectsEx(_this.drawTask.getRect());
             _this.drawTask = null;
+        }
+        if (_this.pageBreakPreviewNeedRedraw) {
+            _this.pageBreakPreviewNeedRedraw = false;
+            if (worksheet && worksheet.draw) {
+                worksheet.draw();
+            }
         }
         _this.animId = null;
     }
@@ -2058,9 +2159,13 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             const localUrl = aImagesSync[i];
             if(api.DocInfo && api.DocInfo.get_OfflineApp()) {
                 const urlWithMedia = AscCommon.g_oDocumentUrls.mediaPrefix + localUrl;
-                if (api.imagesFromGeneralEditor && api.imagesFromGeneralEditor[urlWithMedia]) {
-                    AscCommon.g_oDocumentUrls.addImageUrl(localUrl, api.imagesFromGeneralEditor[urlWithMedia]);
-                } else {
+	            if (api.frameManager.isFrameEditor()) {
+								const sGeneralUrl = api.frameManager.getGeneralImageUrl(urlWithMedia);
+		            if (sGeneralUrl)
+		            {
+			            AscCommon.g_oDocumentUrls.addImageUrl(localUrl, sGeneralUrl);
+		            }
+	            } else {
                     AscCommon.g_oDocumentUrls.addImageUrl(localUrl, api.documentUrl + urlWithMedia);
                 }
             }
@@ -2076,7 +2181,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         }
 		_this.recalculate(true);
         worksheet.model.Drawings = aObjects;
-    };
+	};
 
     _this.checkImageBullets = function (currentSheet, arrImages) {
         const aObjects = currentSheet.model.Drawings;
@@ -2093,8 +2198,12 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         for (let localUrl in oBulletImages) {
             if(api.DocInfo && api.DocInfo.get_OfflineApp()) {
                 const urlWithMedia = AscCommon.g_oDocumentUrls.mediaPrefix + localUrl;
-                if (api.imagesFromGeneralEditor && api.imagesFromGeneralEditor[urlWithMedia]) {
-                    AscCommon.g_oDocumentUrls.addImageUrl(localUrl, api.imagesFromGeneralEditor[urlWithMedia]);
+                if (api.frameManager.isFrameEditor()) {
+									const sGeneralUrl = api.frameManager.getGeneralImageUrl(urlWithMedia);
+									if (sGeneralUrl)
+									{
+										AscCommon.g_oDocumentUrls.addImageUrl(localUrl, sGeneralUrl);
+									}
                 } else {
                     AscCommon.g_oDocumentUrls.addImageUrl(localUrl, api.documentUrl + urlWithMedia);
                 }
@@ -2304,14 +2413,21 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         if (worksheet.model !== api.wb.model.getActiveWs()) {
             return;
         }
-        if (!oUpdateRect) {
-            if(!window['IS_NATIVE_EDITOR']) {
-                _this.drawingArea.clear();
-            }
-                }
+				if (!window['IS_NATIVE_EDITOR']) {
+					if (oUpdateRect) {
+						_this.drawingArea.clearRect(oUpdateRect);
+					} else {
+						_this.drawingArea.clear();
+					}
+				}
+			api.frameManager.sendUpdateDiagram();
         for (var nDrawing = 0; nDrawing < aObjects.length; nDrawing++) {
             _this.drawingArea.drawObject(aObjects[nDrawing], oUpdateRect);
                 }
+				const aDropDowns = _this.controller.dropDowns;
+			for (var nDrawing = 0; nDrawing < aDropDowns.length; nDrawing++) {
+				_this.drawingArea.drawDropDown(aDropDowns[nDrawing], oUpdateRect);
+			}
         _this.OnUpdateOverlay();
         _this.controller.updateSelectionState(true);
         AscCommon.CollaborativeEditing.Update_ForeignCursorsPositions();
@@ -2460,7 +2576,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
 
 
 
-    _this.addImageObjectCallback = function (_image, options) {
+    _this.addImageObjectCallback = function (_image, options, imageIndex) {
         var isOption = options && options.cell;
         if (!_image.Image) {
             worksheet.model.workbook.handlers.trigger("asc_onError", c_oAscError.ID.UplImageUrl, c_oAscError.Level.NoCritical);
@@ -2483,20 +2599,40 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                     Math.max((options.height * AscCommon.g_dKoef_pix_to_mm), 1), true);
             }
             var bCorrect = _this.calculateObjectMetrics(drawingObject, mmToPx(oSize.asc_getImageWidth()), mmToPx(oSize.asc_getImageHeight()), true);
+			const isRtl = worksheet.getRightToLeft();
 
-            var coordsFrom = _this.calculateCoords(drawingObject.from);
-            var coordsTo = _this.calculateCoords(drawingObject.to);
-            if (worksheet.getRightToLeft()) {
-                let temp = coordsTo.x;
-                coordsTo.x = coordsFrom.x;
-                coordsFrom.x = temp;
-            }
+			const coordsFrom = _this.calculateCoords(drawingObject.from);
+			const coordsTo = _this.calculateCoords(drawingObject.to);
+			if (isRtl) {
+				let temp = coordsTo.x;
+				coordsTo.x = coordsFrom.x;
+				coordsFrom.x = temp;
+			}
+
+			// Offsets for case of multiple images added
+			const OFFSET_PIX = mmToPx(5);
+			if (!AscFormat.isRealNumber(imageIndex)) imageIndex = 0;
+			let offsetX = isRtl ? imageIndex * OFFSET_PIX * (-1) : imageIndex * OFFSET_PIX;
+			let offsetY = imageIndex * OFFSET_PIX;
+			coordsFrom.x += offsetX;
+			coordsTo.x += offsetX;
+			coordsFrom.y += offsetY;
+			coordsTo.y += offsetY;
+
+            worksheet.workbook.StartAction(AscDFH.historydescription_Spreadsheet_AddImageUrls, {
+                src: _image.src,
+                width: pxToMm(coordsTo.x - coordsFrom.x),
+                height: pxToMm(coordsTo.y - coordsFrom.y),
+                from: drawingObject.from
+            })
+
             if(bCorrect) {
                 _this.controller.addImageFromParams(_image.src, pxToMm(coordsFrom.x) + MOVE_DELTA, pxToMm(coordsFrom.y) + MOVE_DELTA, pxToMm(coordsTo.x - coordsFrom.x), pxToMm(coordsTo.y - coordsFrom.y));
             }
             else {
                 _this.controller.addImageFromParams(_image.src, pxToMm(coordsFrom.x) + MOVE_DELTA, pxToMm(coordsFrom.y) + MOVE_DELTA, oSize.asc_getImageWidth(), oSize.asc_getImageHeight());
             }
+            worksheet.workbook.FinalizeAction()
         }
     };
 
@@ -2512,7 +2648,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                     var sImageUrl = imageUrls[i];
                     var _image = api.ImageLoader.LoadImage(sImageUrl, 1);
                     if (null != _image) {
-                        _this.addImageObjectCallback(_image, options);
+                        _this.addImageObjectCallback(_image, options, i);
                     } else {
                         worksheet.model.workbook.handlers.trigger("asc_onError", c_oAscError.ID.UplImageUrl, c_oAscError.Level.NoCritical);
                         break;
@@ -2548,7 +2684,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         if(aSelectedDrawings.length === 1 && aSelectedDrawings[0].isChart()) {
             _this.controller.checkSelectedObjectsAndCallback(function () {
                 let oSelectedChartSpace = aSelectedDrawings[0];
-                oSelectedChartSpace.fromOther(oChartSpace);
+                oSelectedChartSpace.fromOther(oChartSpace, true);
                 _this.controller.startRecalculate();
                 _this.sendGraphicObjectProps();
             }, [], false, 0, [], false);
@@ -2557,6 +2693,8 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
 
         History.Create_NewPoint();
         worksheet.setSelectionShape(true);
+        worksheet.workbook.StartAction(AscDFH.historydescription_Document_AddChart)
+
         let oCSForAdd = oChartSpace.copy();
         let w, h, chartLeft, chartTop;
         w = this.convertMetric(AscCommon.AscBrowser.convertToRetinaValue(AscCommon.c_oAscChartDefines.defaultChartWidth, true), 0, 3);
@@ -2583,6 +2721,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         _this.controller.startRecalculate();
         this.sendGraphicObjectProps();
 
+        worksheet.workbook.FinalizeAction(AscDFH.historydescription_Document_AddChart, [oCSForAdd.chart])
     };
 
     _this.addSlicers = function(aNames) {
@@ -2633,7 +2772,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             allSpr = allSpr.concat(allSpr.concat(oDrawingObjects.getAllSignatures2(ret, oDrawingObjects.getDrawingArray())));
             for(var i = 0; i < allSpr.length; ++i)
             {
-                if(allSpr[i].getSignatureLineGuid() === sGuid)
+                if(allSpr[i].isEqualSignatureLineGuid(sGuid))
                 {
                     oSpToEdit = allSpr[i];
                     break;
@@ -2739,47 +2878,35 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     _this.editImageDrawingObject = function(imageUrl, obj) {
 
         if ( imageUrl ) {
-            var _image = api.ImageLoader.LoadImage(imageUrl, 1);
+            let _image = api.ImageLoader.LoadImage(imageUrl, 1);
 
-            var addImageObject = function (_image) {
+            let addImageObject = function (_image) {
 
                 if ( !_image.Image ) {
                     worksheet.model.workbook.handlers.trigger("asc_onError", c_oAscError.ID.UplImageUrl, c_oAscError.Level.NoCritical);
                 }
                 else {
                     if ( obj && obj.isImageChangeUrl ) {
-                        var imageProp = new Asc.asc_CImgProperty();
+                        let imageProp = new Asc.asc_CImgProperty();
                         imageProp.ImageUrl = _image.src;
                         _this.setGraphicObjectProps(imageProp);
                     }
                     else if ( obj && obj.isShapeImageChangeUrl ) {
-                        var imgProps = new Asc.asc_CImgProperty();
-                        var shapeProp = new Asc.asc_CShapeProperty();
+                        let shapeProp = new Asc.asc_CShapeProperty();
+                        shapeProp.fillBlipFill(_image.src, obj.textureType);
+                        let imgProps = new Asc.asc_CImgProperty();
                         imgProps.ShapeProperties = shapeProp;
-                        shapeProp.fill = new Asc.asc_CShapeFill();
-                        shapeProp.fill.type = Asc.c_oAscFill.FILL_TYPE_BLIP;
-                        shapeProp.fill.fill = new Asc.asc_CFillBlip();
-                        shapeProp.fill.fill.asc_putUrl(_image.src);
-                        if(obj.textureType !== null && obj.textureType !== undefined){
-                            shapeProp.fill.fill.asc_putType(obj.textureType);
-                        }
                         _this.setGraphicObjectProps(imgProps);
                     }
                     else if(obj && obj.isTextArtChangeUrl)
                     {
-                        var imgProps = new Asc.asc_CImgProperty();
-                        var AscShapeProp = new Asc.asc_CShapeProperty();
-                        imgProps.ShapeProperties = AscShapeProp;
-                        var oFill = new Asc.asc_CShapeFill();
-                        oFill.type = Asc.c_oAscFill.FILL_TYPE_BLIP;
-                        oFill.fill = new Asc.asc_CFillBlip();
-                        oFill.fill.asc_putUrl(imageUrl);
-                        if(obj.textureType !== null && obj.textureType !== undefined){
-                            oFill.fill.asc_putType(obj.textureType);
-                        }
+                        let AscShapeProp = new Asc.asc_CShapeProperty();
+                        let oFill = new Asc.asc_CShapeFill();
+                        oFill.fillBlipFill(imageUrl, obj.textureType);
                         AscShapeProp.textArtProperties = new Asc.asc_TextArtProperties();
                         AscShapeProp.textArtProperties.asc_putFill(oFill);
-
+                        let imgProps = new Asc.asc_CImgProperty();
+                        imgProps.ShapeProperties = AscShapeProp;
                         _this.setGraphicObjectProps(imgProps);
                     }
                     else if (obj && obj.fAfterUploadOleObjectImage) {
@@ -2802,368 +2929,127 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         }
     };
 
-    _this.addChartDrawingObject = function(chart) {
+	_this.addChartDrawingObject = function(chart)
+	{
+		if (chart instanceof Asc.asc_ChartSettings)
+		{
+			if (!_this.canEdit())
+				return;
 
-        if (!_this.canEdit())
-            return;
-
-        worksheet.setSelectionShape(true);
-
-        if ( chart instanceof Asc.asc_ChartSettings )
-        {
-            if(api.isChartEditor)
+			worksheet.setSelectionShape(true);
+			_this.controller.addChartDrawingObject(chart);
+		} else if (isObject(chart) && chart["binary"])
+		{
+            if (window["IS_NATIVE_EDITOR"])
             {
-				_this.controller.selectObject(aObjects[0].graphicObject, 0);
-				_this.controller.editChartDrawingObjects(chart);
+                var model = worksheet.model;
+                History.Clear();
+                for (var i = 0; i < aObjects.length; i++) {
+                    aObjects[i].graphicObject.deleteDrawingBase();
+                }
+                aObjects.length = 0;
+
+                var oAllRange = new Asc.Range(0, 0, gc_nMaxCol, gc_nMaxRow);
+
+                worksheet.endEditChart();
+
+                //worksheet._clean();
+
+                var asc_chart_binary = new Asc.asc_CChartBinary();
+                asc_chart_binary.asc_setBinary(chart["binary"]);
+                asc_chart_binary.asc_setThemeBinary(chart["themeBinary"]);
+                asc_chart_binary.asc_setColorMapBinary(chart["colorMapBinary"]);
+                asc_chart_binary.asc_setIsChartEx(chart["IsChartEx"]);
+                var oNewChartSpace = asc_chart_binary.getChartSpace(model);
+                var theme = asc_chart_binary.getTheme();
+                if(theme)
+                {
+                    model.workbook.theme = theme;
+                }
+                if(chart["cTitle"] || chart["cDescription"]){
+                    if(!oNewChartSpace.nvGraphicFramePr){
+                        var nv_sp_pr = new AscFormat.UniNvPr();
+                        nv_sp_pr.cNvPr.setId(1024);
+                        oNewChartSpace.setNvSpPr(nv_sp_pr);
+                    }
+                    oNewChartSpace.setTitle(chart["cTitle"]);
+                    oNewChartSpace.setDescription(chart["cDescription"]);
+                }
+                var colorMapOverride = asc_chart_binary.getColorMap();
+                if(colorMapOverride)
+                {
+                    AscFormat.DEFAULT_COLOR_MAP = colorMapOverride;
+                }
+
+                if(typeof chart["urls"] === "string") {
+                    AscCommon.g_oDocumentUrls.addUrls(JSON.parse(chart["urls"]));
+                }
+                var font_map = {};
+                oNewChartSpace.documentGetAllFontNames(font_map);
+                AscFormat.checkThemeFonts(font_map, model.workbook.theme.themeElements.fontScheme);
+                window["Asc"]["editor"]._loadFonts(font_map,
+                    function() {
+                        AscCommonExcel.executeInR1C1Mode(false,
+                            function()
+                            {
+                                oNewChartSpace.getWorksheetsFromCache(Asc['editor'].wbModel, true);
+
+                                aImagesSync.length = 0;
+                                oNewChartSpace.getAllRasterImages(aImagesSync);
+                                oNewChartSpace.setBDeleted(false);
+                                oNewChartSpace.setWorksheet(model);
+                                oNewChartSpace.addToDrawingObjects();
+                                oNewChartSpace.recalcInfo.recalculateReferences = false;
+                                var oDrawingBase_ = oNewChartSpace.drawingBase;
+                                oNewChartSpace.drawingBase = null;
+                                oNewChartSpace.recalculate();
+                                AscFormat.CheckSpPrXfrm(oNewChartSpace);
+                                oNewChartSpace.drawingBase = oDrawingBase_;
+
+                                var canvas_height = worksheet.drawingCtx.getHeight(3);
+                                var pos_y = (canvas_height - oNewChartSpace.spPr.xfrm.extY)/2;
+                                if(pos_y < 0)
+                                {
+                                    pos_y = 0;
+                                }
+
+                                var canvas_width = worksheet.drawingCtx.getWidth(3);
+                                var pos_x = (canvas_width - oNewChartSpace.spPr.xfrm.extX)/2;
+                                if(pos_x < 0)
+                                {
+                                    pos_x = 0;
+                                }
+                                oNewChartSpace.spPr.xfrm.setOffX(pos_x);
+                                oNewChartSpace.spPr.xfrm.setOffY(pos_y);
+                                oNewChartSpace.checkDrawingBaseCoords();
+                                oNewChartSpace.recalculate();
+                                worksheet._scrollToRange(_this.getSelectedDrawingsRange());
+                                _this.showDrawingObjects();
+                                _this.controller.resetSelection();
+                                _this.controller.selectObject(oNewChartSpace, 0);
+                                _this.controller.updateSelectionState();
+                                _this.sendGraphicObjectProps();
+                                worksheet._updateRange(oAllRange);
+                                worksheet.draw();
+                                if(aImagesSync.length > 0)
+                                {
+                                    window["Asc"]["editor"].ImageLoader.LoadDocumentImages(aImagesSync);
+                                }
+                                History.Clear();
+                            });
+                    }
+                );
                 return;
             }
-            _this.controller.addChartDrawingObject(chart);
-        }
-        else if ( isObject(chart) && chart["binary"] )
-        {
-            var model = worksheet.model;
-			History.Clear();
-            for (var i = 0; i < aObjects.length; i++) {
-                aObjects[i].graphicObject.deleteDrawingBase();
-            }
-			aObjects.length = 0;
-
-			var oAllRange = model.getRange3(0, 0, model.getRowsCount(), model.getColsCount());
-			oAllRange.cleanAll();
-
-			worksheet.endEditChart();
-
-			//worksheet._clean();
-
-            var asc_chart_binary = new Asc.asc_CChartBinary();
-            asc_chart_binary.asc_setBinary(chart["binary"]);
-            asc_chart_binary.asc_setThemeBinary(chart["themeBinary"]);
-            asc_chart_binary.asc_setColorMapBinary(chart["colorMapBinary"]);
-            asc_chart_binary.asc_setIsChartEx(chart["IsChartEx"]);
-            var oNewChartSpace = asc_chart_binary.getChartSpace(model);
-            var theme = asc_chart_binary.getTheme();
-            if(theme)
-            {
-                model.workbook.theme = theme;
-            }
-            if(chart["cTitle"] || chart["cDescription"]){
-                if(!oNewChartSpace.nvGraphicFramePr){
-                    var nv_sp_pr = new AscFormat.UniNvPr();
-                    nv_sp_pr.cNvPr.setId(1024);
-                    oNewChartSpace.setNvSpPr(nv_sp_pr);
-                }
-                oNewChartSpace.setTitle(chart["cTitle"]);
-                oNewChartSpace.setDescription(chart["cDescription"]);
-            }
-            var colorMapOverride = asc_chart_binary.getColorMap();
-            if(colorMapOverride)
-            {
-                AscFormat.DEFAULT_COLOR_MAP = colorMapOverride;
-            }
-
-            if(typeof chart["urls"] === "string") {
-                AscCommon.g_oDocumentUrls.addUrls(JSON.parse(chart["urls"]));
-            }
-            var font_map = {};
-            oNewChartSpace.documentGetAllFontNames(font_map);
-            AscFormat.checkThemeFonts(font_map, model.workbook.theme.themeElements.fontScheme);
-            window["Asc"]["editor"]._loadFonts(font_map,
-                function() {
-                    AscCommonExcel.executeInR1C1Mode(false,
-                        function()
-                        {
-                            var max_r = 0, max_c = 0;
-
-                            var series = oNewChartSpace.getAllSeries(), ser;
-
-                            function fFillCell(oCell, sNumFormat, value)
-                            {
-                                var oCellValue = new AscCommonExcel.CCellValue();
-                                if(AscFormat.isRealNumber(value))
-                                {
-                                    oCellValue.number = value;
-                                    oCellValue.type = AscCommon.CellValueType.Number;
-                                }
-                                else
-                                {
-                                    oCellValue.text = value;
-                                    oCellValue.type = AscCommon.CellValueType.String;
-                                }
-                                oCell.setNumFormat(sNumFormat);
-                                oCell.setValueData(new AscCommonExcel.UndoRedoData_CellValueData(null, oCellValue));
-                            }
-
-                            function fillTableFromRef(ref)
-                            {
-                                var cache;
-                                if(ref.numCache) {
-                                    cache =ref.numCache;
-                                }
-                                else if(ref.strCache) {
-                                    cache = ref.strCache;
-                                }
-                                else {
-                                    if(Array.isArray(ref.levelData)) {
-                                        cache = ref.levelData[0];
-                                    }
-                                    else if(typeof ref.v === "string") {
-                                        cache = AscFormat.ExecuteNoHistory(
-                                            function() {
-                                                let oStrCache = new AscFormat.CStrCache();
-                                                let oPt = new AscFormat.CStringPoint();
-                                                oPt.idx = 0;
-                                                oPt.val = ref.v;
-                                                oStrCache.addPt(oPt);
-                                                return oStrCache;
-                                            }, this, []
-                                        );
-                                    }
-                                }
-                                var sFormula = "";
-                                if(typeof ref.f === "string") {
-                                    sFormula = ref.f;
-                                }
-                                else if(ref.f && ref.f.content) {
-                                    sFormula = ref.f.content;
-                                }
-                                var lit_format_code;
-                                if(cache)
-                                {
-                                    lit_format_code = (typeof cache.formatCode === "string" && cache.formatCode.length > 0) ? cache.formatCode : "General";
-
-                                    if(sFormula[0] === '(')
-                                        sFormula = sFormula.slice(1);
-                                    if(sFormula[sFormula.length-1] === ')')
-                                        sFormula = sFormula.slice(0, -1);
-                                    var f1 = sFormula;
-
-                                    var arr_f = f1.split(",");
-                                    var pt_index = 0, i, j, pt, nPtCount, k;
-                                    for(i = 0; i < arr_f.length; ++i)
-                                    {
-                                        var parsed_ref = parserHelp.parse3DRef(arr_f[i]);
-                                        if(parsed_ref)
-                                        {
-                                            var source_worksheet = model.workbook.getWorksheetByName(parsed_ref.sheet);
-                                            if(source_worksheet === model)
-                                            {
-                                                var range = source_worksheet.getRange2(parsed_ref.range);
-                                                if(range)
-                                                {
-                                                    range = range.bbox;
-
-                                                    if(range.r1 > max_r)
-                                                        max_r = range.r1;
-                                                    if(range.r2 > max_r)
-                                                        max_r = range.r2;
-
-                                                    if(range.c1 > max_c)
-                                                        max_c = range.c1;
-                                                    if(range.c2 > max_c)
-                                                        max_c = range.c2;
-
-                                                    if(i === arr_f.length - 1)
-                                                    {
-                                                        nPtCount = cache.getPtCount();
-                                                        if((nPtCount - pt_index) <=(range.r2 - range.r1 + 1))
-                                                        {
-                                                            for(k = range.c1; k <= range.c2; ++k)
-                                                            {
-                                                                for(j = range.r1; j <= range.r2; ++j)
-                                                                {
-                                                                    source_worksheet._getCell(j, k, function(cell) {
-                                                                        pt = cache.getPtByIndex(pt_index + j - range.r1);
-                                                                        if(pt)
-                                                                        {
-                                                                            fFillCell(cell, typeof pt.formatCode === "string" && pt.formatCode.length > 0 ? pt.formatCode : lit_format_code, pt.val);
-                                                                        }
-                                                                    });
-                                                                }
-                                                            }
-                                                            pt_index += (range.r2 - range.r1 + 1);
-                                                        }
-                                                        else if((nPtCount - pt_index) <= (range.c2 - range.c1 + 1))
-                                                        {
-                                                            for(k = range.r1; k <= range.r2; ++k)
-                                                            {
-                                                                for(j = range.c1;  j <= range.c2; ++j)
-                                                                {
-                                                                    source_worksheet._getCell(k, j, function(cell) {
-                                                                        pt = cache.getPtByIndex(pt_index + j - range.c1);
-                                                                        if(pt)
-                                                                        {
-                                                                            fFillCell(cell, typeof pt.formatCode === "string" && pt.formatCode.length > 0 ? pt.formatCode : lit_format_code, pt.val);
-                                                                        }
-                                                                    });
-                                                                }
-                                                            }
-                                                            pt_index += (range.c2 - range.c1 + 1);
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        if(range.r1 === range.r2)
-                                                        {
-                                                            for(j = range.c1;  j <= range.c2; ++j)
-                                                            {
-                                                                source_worksheet._getCell(range.r1, j, function(cell) {
-                                                                    pt = cache.getPtByIndex(pt_index);
-                                                                    if(pt)
-                                                                    {
-                                                                        fFillCell(cell, typeof pt.formatCode === "string" && pt.formatCode.length > 0 ? pt.formatCode : lit_format_code, pt.val);
-                                                                    }
-                                                                    ++pt_index;
-                                                                });
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            for(j = range.r1; j <= range.r2; ++j)
-                                                            {
-                                                                source_worksheet._getCell(j, range.c1, function(cell) {
-                                                                    pt = cache.getPtByIndex(pt_index);
-                                                                    if(pt)
-                                                                    {
-                                                                        fFillCell(cell, typeof pt.formatCode === "string" && pt.formatCode.length > 0 ? pt.formatCode : lit_format_code, pt.val);
-                                                                    }
-                                                                    ++pt_index;
-                                                                });
-                                                            }
-                                                        }
-
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            var first_num_ref;
-                            if(series[0])
-                            {
-                                if(series[0].val)
-                                    first_num_ref = series[0].val.numRef;
-                                else if(series[0].yVal)
-                                    first_num_ref = series[0].yVal.numRef;
-                            }
-                            if(first_num_ref)
-                            {
-                                var resultRef = parserHelp.parse3DRef(first_num_ref.f);
-                                if(resultRef)
-                                {
-                                    model.workbook.aWorksheets[0].sName = resultRef.sheet;
-                                    var oCat, oVal;
-                                    for(var i = 0; i < series.length; ++i)
-                                    {
-                                        ser = series[i];
-                                        oVal = ser.val || ser.yVal;
-                                        if(oVal && oVal.numRef)
-                                        {
-                                            fillTableFromRef(oVal.numRef);
-                                        }
-                                        oCat = ser.cat || ser.xVal;
-                                        if(oCat)
-                                        {
-                                            if(oCat.numRef)
-                                            {
-                                                fillTableFromRef(oCat.numRef);
-                                            }
-                                            if(oCat.strRef)
-                                            {
-                                                fillTableFromRef(oCat.strRef);
-                                            }
-                                        }
-                                        if(ser.tx && ser.tx.strRef)
-                                        {
-                                            fillTableFromRef(ser.tx.strRef);
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                if(oNewChartSpace.isChartEx()) {
-                                    let aSeries = oNewChartSpace.getAllSeries();
-
-                                    for(let nS = 0; nS < aSeries.length; ++nS) {
-                                        let oSeries = aSeries[nS];
-                                        let oData = oSeries.getData();
-                                        if(oData) {
-                                            let aDims = oData.dimension;
-                                            for(let nDim = 0; nDim < aDims.length; ++nDim) {
-                                                let oDim = aDims[nDim];
-                                                fillTableFromRef(oDim);
-                                            }
-                                        }
-                                        if(oSeries.tx && oSeries.tx.txData) {
-                                            fillTableFromRef(oSeries.tx.txData);
-                                        }
-                                    }
-                                }
-                            }
-                            oAllRange = oAllRange.bbox;
-                            oAllRange.r2 = Math.max(oAllRange.r2, max_r);
-                            oAllRange.c2 = Math.max(oAllRange.c2, max_c);
-                            worksheet._updateRange(oAllRange);
-                            worksheet.draw();
-                            aImagesSync.length = 0;
-                            oNewChartSpace.getAllRasterImages(aImagesSync);
-                            oNewChartSpace.setBDeleted(false);
-                            oNewChartSpace.setWorksheet(model);
-                            oNewChartSpace.addToDrawingObjects();
-                            oNewChartSpace.recalcInfo.recalculateReferences = false;
-                            var oDrawingBase_ = oNewChartSpace.drawingBase;
-                            oNewChartSpace.drawingBase = null;
-                            oNewChartSpace.recalculate();
-                            AscFormat.CheckSpPrXfrm(oNewChartSpace);
-                            oNewChartSpace.drawingBase = oDrawingBase_;
-
-                            var canvas_height = worksheet.drawingCtx.getHeight(3);
-                            var pos_y = (canvas_height - oNewChartSpace.spPr.xfrm.extY)/2;
-                            if(pos_y < 0)
-                            {
-                                pos_y = 0;
-                            }
-
-                            var canvas_width = worksheet.drawingCtx.getWidth(3);
-                            var pos_x = (canvas_width - oNewChartSpace.spPr.xfrm.extX)/2;
-                            if(pos_x < 0)
-                            {
-                                pos_x = 0;
-                            }
-                            oNewChartSpace.spPr.xfrm.setOffX(pos_x);
-                            oNewChartSpace.spPr.xfrm.setOffY(pos_y);
-                            oNewChartSpace.checkDrawingBaseCoords();
-                            oNewChartSpace.recalculate();
-                            worksheet._scrollToRange(_this.getSelectedDrawingsRange());
-                            _this.showDrawingObjects();
-                            _this.controller.resetSelection();
-                            _this.controller.selectObject(oNewChartSpace, 0);
-                            _this.controller.updateSelectionState();
-	                          worksheet.setSelectionShape(true);
-                            _this.sendGraphicObjectProps();
-                            if(aImagesSync.length > 0)
-                            {
-                                window["Asc"]["editor"].ImageLoader.LoadDocumentImages(aImagesSync);
-                            }
-                            History.Clear();
-                        });
-                }
-            );
-
-
-        }
-    };
+			const oApi = Asc.editor;
+			oApi.frameManager.preObtain(chart);
+		}
+	};
 
     _this.editChartDrawingObject = function(chart)
     {
         if ( chart )
         {
-            if(api.isChartEditor)
-            {
-				_this.controller.selectObject(aObjects[0].graphicObject, 0);
-            }
             _this.controller.editChartDrawingObjects(chart);
             //_this.showDrawingObjects();
         }
@@ -3683,8 +3569,21 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                 var oDrawingBase = aObjects[i];
                 var oGraphicObject = oDrawingBase.graphicObject;
                 if(oDrawingBase.checkTarget(target, false)) {
-                    oGraphicObject.handleUpdateExtents();
+                    const oldX = oGraphicObject.x;
+                    const oldY = oGraphicObject.y;
+                    const oldExtX = oGraphicObject.extX;
+                    const oldExtY = oGraphicObject.extY;
+                    oGraphicObject.recalcBounds();
+                    oGraphicObject.recalcTransform();
+                    oGraphicObject.addToRecalculate();
                     oGraphicObject.recalculate();
+                    if (!AscFormat.fApproxEqual(oldX, oGraphicObject.x, 0.01) ||
+                        !AscFormat.fApproxEqual(oldY, oGraphicObject.y, 0.01) ||
+                        !AscFormat.fApproxEqual(oldExtX, oGraphicObject.extX, 0.01) ||
+                        !AscFormat.fApproxEqual(oldExtY, oGraphicObject.extY, 0.01)) {
+                        oGraphicObject.handleUpdateExtents();
+                        oGraphicObject.recalculate();
+                    }
                 }
             }
         }
@@ -3817,6 +3716,10 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         _this.controller.checkSelectedObjectsAndCallback(function () {
             oChart.fillDataFromTrack(oRanges);
         }, [], false, AscDFH.historydescription_ChartDrawingObjects);
+	    if (oChart.isFrameChart)
+	    {
+		    api.frameManager.sendUpdateDiagram();
+	    }
     };
 
     //-----------------------------------------------------------------------------------
@@ -3957,9 +3860,17 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             response.result = false;
             response.y = Math.abs(y);
         }
-        if ( x < 0 ) {
-            response.result = false;
-            response.x = Math.abs(x);
+        if (worksheet.getRightToLeft()) {
+            var maxX = pxToMm(worksheet.getCtxWidth());
+            if (x + w > maxX) {
+                response.result = false;
+                response.x = maxX - x - w; // negative → pushes shape left
+            }
+        } else {
+            if ( x < 0 ) {
+                response.result = false;
+                response.x = Math.abs(x);
+            }
         }
 
         return response;
@@ -4356,14 +4267,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     _this.getAscChartObject = function(bNoLock) {
 
         var settings;
-        if(api.isChartEditor)
-        {
-            if (!aObjects.length) {
-                return null;
-            }
-            return _this.controller.getPropsFromChart(aObjects[0].graphicObject);
-        }
-        settings = _this.controller.getChartProps();
+        settings = _this.controller.getChartSettings();
         if ( !settings )
         {
             settings = new Asc.asc_ChartSettings();
@@ -4503,7 +4407,10 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         const oContext = oWS.workbook.trackOverlay.m_oContext;
 
         const oRect = {};
-        const nLeft = 2 * oWS.cellsLeft - oWS._getColLeft(oWS.visibleRange.c1);
+        let nLeft = 2 * oWS.cellsLeft - oWS._getColLeft(oWS.visibleRange.c1);
+        if (oWS.getRightToLeft()) {
+            nLeft = -nLeft;
+        }
         const nTop = 2 * oWS.cellsTop - oWS._getRowTop(oWS.visibleRange.r1);
         oRect.left   = nLeft;
         oRect.right  = nLeft + AscCommon.AscBrowser.convertToRetinaValue(oContext.canvas.width);
@@ -4787,6 +4694,98 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     }
 }
 
+	DrawingObjects.prototype.CorrectEnterText = function (oldValue, newValue) {
+		let oController = this.controller;
+		if (!oController) {
+			return false;
+		}
+		let oDocContent = oController.getTargetDocContent(false, false);
+		if (!oDocContent) {
+			return false;
+		}
+		if (oDocContent.IsSelectionUse()) {
+			return false;
+		}
+
+		let newCodePoints = typeof (newValue) === "string" ? newValue.codePointsArray() : newValue;
+		let oldCodePoints = typeof (oldValue) === "string" ? oldValue.codePointsArray() : oldValue;
+
+		if (!Array.isArray(oldCodePoints)) {
+			oldCodePoints = [oldCodePoints];
+		}
+
+		let paragraph = oDocContent.GetCurrentParagraph();
+		if (!paragraph) {
+			return false;
+		}
+
+		let contentPos = paragraph.GetContentPosition(false, false);
+		let run, inRunPos;
+		for (let index = contentPos.length - 1; index >= 0; --index) {
+			if (contentPos[index].Class instanceof AscWord.CRun) {
+				run = contentPos[index].Class;
+				inRunPos = contentPos[index].Position;
+				break;
+			}
+		}
+
+		if (!run) {
+			return false;
+		}
+
+		if (!AscWord.checkAsYouTypeEnterText(run, inRunPos, oldCodePoints[oldCodePoints.length - 1])) {
+			return false;
+		}
+
+		if (undefined === newCodePoints || null === newCodePoints) {
+			newCodePoints = [];
+		} else if (!Array.isArray(newCodePoints)) {
+			newCodePoints = [newCodePoints];
+		}
+
+		let oldText = "";
+		for (let index = 0, count = oldCodePoints.length; index < count; ++index) {
+			oldText += String.fromCodePoint(oldCodePoints[index]);
+		}
+
+		let state = {};
+		oController.Save_DocumentStateBeforeLoadChanges(state);
+
+		let maxShifts = oldCodePoints.length;
+		let selectedText;
+		while (maxShifts >= 0) {
+			oDocContent.MoveCursorLeft(true, false);
+			selectedText = oDocContent.GetSelectedText(true);
+
+			if (!selectedText || selectedText === oldText) {
+				break;
+			}
+			maxShifts--;
+		}
+
+		if (selectedText !== oldText) {
+			oController.resetSelection();
+			oController.loadDocumentStateAfterLoadChanges(state);
+			return false;
+		}
+
+		AscCommon.History.Create_NewPoint(AscDFH.historydescription_Document_CorrectEnterText);
+
+		this.drawingDocument.TargetStart();
+		this.drawingDocument.TargetShow();
+
+		oDocContent.Remove(1, true, false, true);
+
+		for (let index = 0, count = newCodePoints.length; index < count; ++index) {
+			let codePoint = newCodePoints[index];
+			oDocContent.AddToParagraph(AscCommon.IsSpace(codePoint) ? new AscWord.CRunSpace(codePoint) : new AscWord.CRunText(codePoint));
+		}
+
+		oController.startRecalculate();
+		oController.updateSelectionState();
+		return true;
+	};
+
 	DrawingObjects.prototype.calculateCoords = function (cell) {
         var ws = this.getWorksheet();
 		var coords = {x: 0, y: 0};
@@ -4893,12 +4892,23 @@ ClickCounter.prototype.getClickCount = function() {
 
     window["Asc"]["asc_CChartBinary"] = window["Asc"].asc_CChartBinary = asc_CChartBinary;
     prot = asc_CChartBinary.prototype;
-    prot["asc_getBinary"] = prot.asc_getBinary;
-    prot["asc_setBinary"] = prot.asc_setBinary;
-    prot["asc_getThemeBinary"] = prot.asc_getThemeBinary;
-    prot["asc_setThemeBinary"] = prot.asc_setThemeBinary;
-    prot["asc_setColorMapBinary"] = prot.asc_setColorMapBinary;
-    prot["asc_getColorMapBinary"] = prot.asc_getColorMapBinary;
+	prot["asc_getBinary"] = prot.asc_getBinary;
+	prot["asc_setBinary"] = prot.asc_setBinary;
+	prot["asc_getBinaryChartData"] = prot.asc_getBinaryChartData;
+	prot["asc_setBinaryChartData"] = prot.asc_setBinaryChartData;
+	prot["asc_setIsChartEx"] = prot.asc_setIsChartEx;
+	prot["asc_getIsChartEx"] = prot.asc_getIsChartEx;
+	prot["getChartSpace"] = prot.getChartSpace;
+	prot["getChart"] = prot.getChart;
+	prot["getWorkbookBinary"] = prot.getWorkbookBinary;
+	prot["setWorkbookBinary"] = prot.setWorkbookBinary;
+	prot["getChartData"] = prot.getChartData;
+	prot["asc_getThemeBinary"] = prot.asc_getThemeBinary;
+	prot["asc_setThemeBinary"] = prot.asc_setThemeBinary;
+	prot["asc_setColorMapBinary"] = prot.asc_setColorMapBinary;
+	prot["asc_getColorMapBinary"] = prot.asc_getColorMapBinary;
+	prot["getTheme"] = prot.getTheme;
+	prot["getColorMap"] = prot.getColorMap;
 
     window["AscFormat"].asc_CChartSeria = asc_CChartSeria;
     prot = asc_CChartSeria.prototype;

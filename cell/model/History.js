@@ -59,6 +59,10 @@ function (window, undefined) {
 	window['AscCH'].historyitem_Workbook_ShowVerticalScroll = 18;
 	window['AscCH'].historyitem_Workbook_ShowHorizontalScroll = 19;
 	window['AscCH'].historyitem_Workbook_SetCustomFunctions = 20;
+	window['AscCH'].historyitem_Workbook_Metadata = 21;
+	window['AscCH'].historyitem_Workbook_RichValueStructures = 22;
+	window['AscCH'].historyitem_Workbook_RichValueTypesInfo = 23;
+	window['AscCH'].historyitem_Workbook_RichValueData = 24;
 
 	window['AscCH'].historyitem_Worksheet_RemoveCell = 1;
 	window['AscCH'].historyitem_Worksheet_RemoveRows = 2;
@@ -308,6 +312,7 @@ function (window, undefined) {
 	
 	window['AscCH'].historyitem_ArrayFromula_AddFormula = 1;
 	window['AscCH'].historyitem_ArrayFromula_DeleteFormula = 2;
+	window['AscCH'].historyitem_ArrayFromula_ChangeValueMetaDataIndex = 3;
 
 	window['AscCH'].historyitem_Header_First = 1;
 	window['AscCH'].historyitem_Header_Even = 2;
@@ -470,6 +475,9 @@ function CHistory(Document)
 	this.PosInCurPoint = null; // position to roll back changes within the current point
 
 	this.oRedoObjectParam = null;
+
+	this.waitingList = null;
+	this.isExecutingWaitingList = false;
 }
 	CHistory.prototype = Object.create(CHistoryWord.prototype);
 CHistory.prototype.init = function(workbook) {
@@ -504,6 +512,9 @@ CHistory.prototype.Clear = function()
 	this.ForceSave= false;
   	this.UserSavedIndex = null;
 
+	this.waitingList = null;
+	this.isExecutingWaitingList = false;
+
 	window['AscCommon'].g_specialPasteHelper.SpecialPasteButton_Hide();
 	this.workbook.handlers.trigger("toggleAutoCorrectOptions", null, true);
 	//this.workbook.handlers.trigger("cleanCutData");
@@ -533,9 +544,27 @@ CHistory.prototype.Undo = function(Options)
 	var oRedoObjectParam = this.oRedoObjectParam = new AscCommonExcel.RedoObjectParam();
 	this.UndoRedoPrepare(oRedoObjectParam, true);
 
-	var t = this;
-	var doUndo = function () {
-		for ( var Index = Point.Items.length - 1; Index >= 0; Index-- )
+	// Откатываем все действия в обратном порядке (относительно их выполенения)
+	var Point = null;
+	if (undefined !== Options && null !== Options && true === Options.All)
+	{
+		while (this.Index >= 0)
+		{
+			Point = this.Points[this.Index--];
+			this.private_UndoPoint(Point, oRedoObjectParam);
+		}
+	}
+	else
+	{
+		Point = this.Points[this.Index--];
+		this.private_UndoPoint(Point, oRedoObjectParam);
+	}
+
+	this.UndoRedoEnd(Point, oRedoObjectParam, true);
+  return true;
+};
+CHistory.prototype.private_UndoPoint = function(Point, oRedoObjectParam) {
+	for ( var Index = Point.Items.length - 1; Index >= 0; Index-- )
 		{
 			var Item = Point.Items[Index];
 
@@ -550,29 +579,9 @@ CHistory.prototype.Undo = function(Options)
 				}
 			}
 
-			t._addRedoObjectParam(oRedoObjectParam, Item);
+			this._addRedoObjectParam(oRedoObjectParam, Item);
 		}
-	};
-
-	// Откатываем все действия в обратном порядке (относительно их выполенения)
-	var Point = null;
-	if (undefined !== Options && null !== Options && true === Options.All)
-	{
-		while (this.Index >= 0)
-		{
-			Point = this.Points[this.Index--];
-			doUndo();
-		}
-	}
-	else
-	{
-		Point = this.Points[this.Index--];
-		doUndo();
-	}
-
-	this.UndoRedoEnd(Point, oRedoObjectParam, true);
-  return true;
-};
+}
 CHistory.prototype.UndoRedoPrepare = function (oRedoObjectParam, bUndo, bKeepTurn) {
 	if (this.Is_On() && !bKeepTurn) {
 		oRedoObjectParam.bIsOn = true;
@@ -586,7 +595,7 @@ CHistory.prototype.UndoRedoPrepare = function (oRedoObjectParam, bUndo, bKeepTur
 	else
 		this.workbook.bRedoChanges = true;
 
-	if (!window["NATIVE_EDITOR_ENJINE"]) {
+	if (!window["NATIVE_EDITOR_ENJINE"] || window["IS_NATIVE_EDITOR"]) {
 		if(Asc["editor"].wb) {
 			var wsViews = Asc["editor"].wb.wsViews;
 			for (var i = 0; i < wsViews.length; ++i) {
@@ -712,6 +721,11 @@ CHistory.prototype.RedoExecute = function(Point, oRedoObjectParam)
 };
 CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 	var wsViews, i, oState = null, bCoaut = false, t = this;
+	AscCommonExcel.executeInR1C1Mode(false, function () {
+		AscCommonExcel.lockCustomFunctionRecalculate(true, function () {
+			t.workbook.dependencyFormulas.unlockRecal();
+		});
+	});
 	if (!bUndo && null == Point) {
 		Point = this.Points[this.Index];
 		AscCommon.CollaborativeEditing.Apply_LinkData();
@@ -720,12 +734,6 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 			Asc["editor"].wb.recalculateDrawingObjects(Point, true);
         }
 	}
-
-	AscCommonExcel.executeInR1C1Mode(false, function () {
-		AscCommonExcel.lockCustomFunctionRecalculate(true, function () {
-			t.workbook.dependencyFormulas.unlockRecal();
-		});
-	});
 
 	if (null != Point) {
 		if (oRedoObjectParam.bChangeColorScheme) {
@@ -752,10 +760,16 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 			this.workbook.onSlicerUpdate(i);
 		}
 
+		if (!AscCommon.isRealObject(Point.SelectionState)) {
+			Point.SelectionState = null;
+		}
 		if(!bCoaut)
 		{
 			oState = bUndo ? Point.SelectionState : ((this.Index === this.Points.length - 1) ?
 				this.LastState : this.Points[this.Index + 1].SelectionState);
+			if (!AscCommon.isRealObject(oState)) {
+				oState = null;
+			}
 		}
 
 		if (this.workbook.bCollaborativeChanges) {
@@ -774,24 +788,7 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 			this.workbook.handlers.trigger("changeWorksheetUpdate",
 				oRedoObjectParam.oChangeWorksheetUpdate[i],{lockDraw: true, reinitRanges: true});
 
-		for (i in Point.UpdateRigions) {
-			//последним параметром передаю resetCache, при добавлении/удаление строк/столбцов в случая прямого действия
-			//всегда делается cache -> reset, здесь аналогично делаю
-			this.workbook.handlers.trigger("cleanCellCache", i, [Point.UpdateRigions[i]], null, oRedoObjectParam.bAddRemoveRowCol);
-			var curSheet = this.workbook.getWorksheetById(i);
-			if (curSheet)
-				this.workbook.getWorksheetById(i).updateSlicersByRange(Point.UpdateRigions[i]);
-
-			//this.workbook.oApi.onWorksheetChange(Point.UpdateRigions[i]);
-		}
-
-		// So far, the event call has been removed when undo/redo, since UpdateRigions does not always have the right range and you need to pick it up from another place
-		// if (Point.SelectRange) {
-		// 	this.workbook.oApi.onWorksheetChange(Point.SelectRange);
-		// }
-		// if (Point.SelectRangeRedo && (!Point.SelectRange || (Point.SelectRange && !Point.SelectRange.isEqual(Point.SelectRangeRedo)))) {
-		// 	this.workbook.oApi.onWorksheetChange(Point.SelectRangeRedo);
-		// }
+		this.updateDrawingsByRegions(Point.UpdateRigions, oRedoObjectParam);
 
 		if (oRedoObjectParam.bOnSheetsChanged)
 			this.workbook.handlers.trigger("asc_onSheetsChanged");
@@ -805,14 +802,7 @@ CHistory.prototype.UndoRedoEnd = function (Point, oRedoObjectParam, bUndo) {
 			Asc["editor"].wb.recalculateDrawingObjects(Point, false);
         }
 
-		for (i in oRedoObjectParam.UpdateRigions) {
-			this.workbook.handlers.trigger("cleanCellCache", i, [oRedoObjectParam.UpdateRigions[i]], null, oRedoObjectParam.bAddRemoveRowCol);
-			var curSheet = this.workbook.getWorksheetById(i);
-			if (curSheet)
-				this.workbook.getWorksheetById(i).updateSlicersByRange(oRedoObjectParam.UpdateRigions[i]);
-
-			//this.workbook.oApi.onWorksheetChange(Point.UpdateRigions[i]);
-		}
+		this.updateDrawingsByRegions(oRedoObjectParam.UpdateRigions, oRedoObjectParam);
 
 		if (oRedoObjectParam.oOnUpdateSheetViewSettings[this.workbook.getWorksheet(this.workbook.getActive()).getId()])
 			this.workbook.handlers.trigger("asc_onUpdateSheetViewSettings");
@@ -1032,19 +1022,6 @@ CHistory.prototype.Reset_RecalcIndex = function()
 CHistory.prototype.Add_RecalcNumPr = function()
 {};
 
-	CHistory.prototype.Add_UpdateRegion = function(sheetid, range)
-	{
-		if(this.oRedoObjectParam) {
-
-			var updateRange = this.oRedoObjectParam.UpdateRigions[sheetid];
-			if(null != updateRange)
-				updateRange.union2(range);
-			else
-				updateRange = range.clone();
-			this.oRedoObjectParam.UpdateRigions[sheetid] = updateRange;
-		}
-	};
-
 
 CHistory.prototype.Set_Additional_ExtendDocumentToPos = function()
 {
@@ -1112,7 +1089,7 @@ CHistory.prototype.CheckUnionLastPoints = function()
 CHistory.prototype.Add_RecalcTableGrid = function()
 {};
 
-CHistory.prototype.Create_NewPoint = function()
+CHistory.prototype.Create_NewPoint = function(nDescription)
 {
 	if ( 0 !== this.TurnOffHistory || 0 !== this.Transaction )
 		return false;
@@ -1143,7 +1120,8 @@ CHistory.prototype.Create_NewPoint = function()
 		SelectRange : oSelectRange,
 		SelectRangeRedo : oSelectRange,
 		Time  : Time,   // Текущее время
-		SelectionState : oSelectionState
+		SelectionState : oSelectionState,
+			Description : nDescription
     };
 
     // Удаляем ненужные точки
@@ -1197,6 +1175,8 @@ CHistory.prototype.Add = function(Class, Type, sheetid, range, Data, LocalChange
 {
 	if (!this.CanAddChanges())
 		return;
+
+	this.executeWaitingList();
 
 	if (Class instanceof AscCommonExcel.UndoRedoItemSerializable) {
 		let serializable = Class;
@@ -1266,7 +1246,8 @@ CHistory.prototype.Add = function(Class, Type, sheetid, range, Data, LocalChange
 			var bAdd = Class.IsAdd();
 			var Count = Class.GetItemsCount();
 
-			var ContentChanges = new AscCommon.CContentChangesElement(bAdd == true ? AscCommon.contentchanges_Add : AscCommon.contentchanges_Remove, Class.Pos, Count, Class);
+			var oContentChangeData = {Class: Class.GetClass(), Data: Class, Binary: Item.Binary, Item: Item};
+			var ContentChanges = new AscCommon.CContentChangesElement(bAdd == true ? AscCommon.contentchanges_Add : AscCommon.contentchanges_Remove, Class.Pos, Count, oContentChangeData);
 			Class.Class.Add_ContentChanges(ContentChanges);
 			AscCommon.CollaborativeEditing.Add_NewDC(Class.Class);
 			if (true === bAdd)
@@ -1279,10 +1260,45 @@ CHistory.prototype.Add = function(Class, Type, sheetid, range, Data, LocalChange
 		}
 	}
 };
+
+	CHistory.prototype.AddToWaitingList = function(Class, Type, sheetid, range, Data, LocalChange, isRedoAdd)
+	{
+		if (!this.waitingList) {
+			this.waitingList = [];
+		}
+		this.waitingList.push({
+			Class: Class,
+			Type: Type,
+			sheetid: sheetid,
+			range: range,
+			Data: Data,
+			LocalChange: LocalChange,
+			isRedoAdd: isRedoAdd
+		});
+	};
+
+	CHistory.prototype.executeWaitingList = function()
+	{
+		if (this.isExecutingWaitingList) {
+			return;
+		}
+		
+		if (this.waitingList && this.waitingList.length > 0) {
+			let _curPoint = this.Points && this.Points[this.Index];
+			if (this.Index === 0 && (_curPoint && _curPoint.Items && _curPoint.Items.length === 0) && (this.SavedIndex === -1 || this.SavedIndex === null)) {
+				this.isExecutingWaitingList = true;
+				for (let i = 0; i < this.waitingList.length; i++) {
+					this.Add(this.waitingList[i].Class, this.waitingList[i].Type, this.waitingList[i].sheetid, this.waitingList[i].range, this.waitingList[i].Data, this.waitingList[i].LocalChange, this.waitingList[i].isRedoAdd);
+				}
+				this.isExecutingWaitingList = false;
+			}
+		}
+	};
+
 	CHistory.prototype.Item_ToSerializable = function(item)
 	{
 		return new AscCommonExcel.UndoRedoItemSerializable(item.Class, item.Type, item.SheetId, item.Range, item.Data, item.LocalChange);
-	}
+	};
 	CHistory.prototype.Refresh_SpreadsheetChanges = function(item)
 	{
 		if (!this.workbook) {
@@ -1292,9 +1308,9 @@ CHistory.prototype.Add = function(Class, Type, sheetid, range, Data, LocalChange
 		let Binary_Pos = this.BinaryWriter.GetCurPosition();
 		this.workbook._SerializeHistoryItem2(this.BinaryWriter, serializable);
 		let Binary_Len = this.BinaryWriter.GetCurPosition() - Binary_Pos;
-		item.Binary.Pos = Binary_Pos
-		item.Binary.Len = Binary_Len
-	}
+		item.Binary.Pos = Binary_Pos;
+		item.Binary.Len = Binary_Len;
+	};
 CHistory.prototype.CanAddChanges = function()
 {
 	return (0 === this.TurnOffHistory && this.Index >= 0);
@@ -1545,6 +1561,7 @@ CHistory.prototype.GetSerializeArray = function()
 	CHistory.prototype._CheckCanNotAddChanges = function() {
 		try {
 			if (this.CanNotAddChanges && !this.CollectChanges) {
+				this.CanNotAddChanges = false;
 				var tmpErr = new Error();
 				if (tmpErr.stack) {
 					AscCommon.sendClientLog("error", "changesError: " + tmpErr.stack, this.workbook.oApi);
@@ -1640,11 +1657,114 @@ CHistory.prototype.GetSerializeArray = function()
 		}
 		return false;
 	};
+	CHistory.prototype.checkAsYouTypeEnterText = function(run, inRunPos, codePoint)
+	{
+		this.CheckUnionLastPoints();
+
+		if (this.Points.length <= 0 || this.Index !== this.Points.length - 1)
+			return false;
+
+		let point = this.Points[this.Index];
+		let description = point.Description;
+		if (AscDFH.historydescription_Document_AddLetter !== description
+			&& AscDFH.historydescription_Document_AddLetterUnion !== description
+			&& AscDFH.historydescription_Document_SpaceButton !== description
+			&& AscDFH.historydescription_Document_CorrectEnterText !== description
+			&& AscDFH.historydescription_Document_CompositeInput !== description
+			&& AscDFH.historydescription_Document_CompositeInputReplace !== description
+			&& AscDFH.historydescription_Presentation_ParagraphAdd !== description)
+			return false;
+
+		let changes = point.Items;
+		let lastChange = null;
+		for (let i = changes.length - 1; i >= 0; --i)
+		{
+			lastChange = changes[i].Class;
+			if (lastChange && lastChange.IsContentChange && lastChange.IsContentChange())
+				break;
+		}
+
+		return (lastChange
+			&& AscDFH.historyitem_ParaRun_AddItem === lastChange.Type
+			&& lastChange.Class === run
+			&& lastChange.Pos === inRunPos - 1
+			&& lastChange.Items.length
+			&& (undefined === codePoint || lastChange.Items[0].GetCodePoint() === codePoint));
+	};
 	CHistory.prototype.Update_PointInfoItem = function()
 	{
 	};
 	CHistory.prototype.ConvertPointItemsToSimpleChanges = function(pointIndex) {
 	}
+	CHistory.prototype.cancelGroupPoints = function()
+	{
+		let startIndex = this._getLongPointIndex();
+		if (-1 === startIndex)
+			return;
+		var oRedoObjectParam = this.oRedoObjectParam = new AscCommonExcel.RedoObjectParam();
+		let point;
+		for (let i = this.Index; i >= startIndex; --i)
+		{
+			point = this.Points[i];
+			this.private_UndoPoint(point, oRedoObjectParam);
+		}
+		if (AscCommon.isRealObject(point.SelectionState)) {
+			this.workbook.handlers.trigger("setSelectionState", point.SelectionState);
+		}
+
+		if (!window['AscCommon'].g_specialPasteHelper.specialPasteStart)
+			window['AscCommon'].g_specialPasteHelper.SpecialPasteButton_Hide(true);
+
+		this.Points.length = startIndex + 1;
+		this.Index = startIndex - 1;
+		return oRedoObjectParam;
+	};
+	CHistory.prototype.endGroupPoints = function()
+	{
+		this.Points.length = this.Index + 1;
+
+		let startIndex = this._getLongPointIndex();
+		if (-1 === startIndex)
+			return;
+
+		let point = this.Points[startIndex];
+		point.Description = AscDFH.historydescription_GroupPoints;
+
+		for (let i = startIndex + 1; i < this.Points.length; ++i)
+		{
+			let currentPoint = this.Points[i];
+			
+			point.Items = point.Items.concat(currentPoint.Items);
+			
+			for (let sheetId in currentPoint.UpdateRigions)
+			{
+				let currentRange = currentPoint.UpdateRigions[sheetId];
+				let existingRange = point.UpdateRigions[sheetId];
+				
+				if (existingRange) {
+					existingRange.union2(currentRange);
+				} else {
+					point.UpdateRigions[sheetId] = currentRange.clone();
+				}
+			}
+		}
+
+		this.Points.length = startIndex + 1;
+		this.Index = startIndex;
+	};
+	CHistory.prototype.updateDrawingsByRegions = function(oUpdateRegions, oRedoObjectParam) {
+		const aRanges = [];
+		for (let i in oUpdateRegions) {
+			this.workbook.handlers.trigger("cleanCellCache", i, [oUpdateRegions[i]], null, oRedoObjectParam.bAddRemoveRowCol);
+			var curSheet = this.workbook.getWorksheetById(i);
+			if (curSheet) {
+				const oAscRange = oUpdateRegions[i];
+				aRanges.push(new AscCommonExcel.Range(curSheet, oAscRange.r1, oAscRange.c1, oAscRange.r2, oAscRange.c2));
+				curSheet.updateSlicersByRange(oAscRange);
+			}
+		}
+		this.workbook.handleDrawingsOnWorkbookChange(aRanges);
+	};
 	//------------------------------------------------------------export--------------------------------------------------
 	window['AscCommon'] = window['AscCommon'] || {};
 	window['AscCommon'].CHistory = CHistory;

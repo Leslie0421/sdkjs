@@ -642,7 +642,7 @@ CParagraphContentBase.prototype.MoveCursorOutsideElement = function(isBefore)
 CParagraphContentBase.prototype.Set_SelectionContentPos = function(StartContentPos, EndContentPos, Depth, StartFlag, EndFlag)
 {
 };
-CParagraphContentBase.prototype.RemoveSelection = function()
+CParagraphContentBase.prototype.RemoveSelection = function(preserveCursorPosition)
 {
 };
 CParagraphContentBase.prototype.SelectAll = function(Direction)
@@ -847,6 +847,25 @@ CParagraphContentBase.prototype.GetParentContentControls = function()
 	}
 
 	return arrContentControls;
+};
+/**
+ * Получаем массив всех таблиц, внутри которых лежит данный класс
+ * @returns {Array}
+ */
+CParagraphContentBase.prototype.GetParentTables = function(tables)
+{
+	let docPos = this.GetDocumentPositionFromObject();
+	docPos.push({Class : this, Pos : 0});
+	
+	tables = tables ? tables : [];
+	for (let i = 0, count = docPos.length; i < count; ++i)
+	{
+		let obj = docPos[i].Class;
+		if (obj instanceof AscWord.Table)
+			tables.push(obj);
+	}
+	
+	return tables;
 };
 /**
  * Проверяем есть ли выделение внутри объекта
@@ -1957,11 +1976,13 @@ CParagraphContentWithParagraphLikeContent.prototype.Remove = function(Direction,
 	{
 		var ContentPos = this.State.ContentPos;
 
+		// TODO: Пересмотреть эту проверку. Выделять целиком КК нужно, если курсор изначально находился снаружи,
+		//       а если он был внутри, то удалять нужно именно внутреннее содержимое
 		if ((true === this.Cursor_Is_Start() || true === this.Cursor_Is_End())
 			&& !this.IsEmpty()
 			&& (!this.CanPlaceCursorInside()
 				|| !(this instanceof CInlineLevelSdt)
-				|| (!this.IsComplexForm() && !this.IsTextForm() && !this.IsComboBox())))
+				|| (!this.IsComplexForm() && !this.IsTextForm() && !this.IsComboBox() && !this.IsDatePicker())))
 		{
 			this.SelectAll();
 			this.SelectThisElement(1);
@@ -3861,7 +3882,7 @@ CParagraphContentWithParagraphLikeContent.prototype.SetContentPosition = functio
     else
         this.Content[Pos].MoveCursorToStartPos();
 };
-CParagraphContentWithParagraphLikeContent.prototype.RemoveSelection = function()
+CParagraphContentWithParagraphLikeContent.prototype.RemoveSelection = function(preserveCursorPosition)
 {
     var Selection = this.Selection;
 
@@ -3881,7 +3902,7 @@ CParagraphContentWithParagraphLikeContent.prototype.RemoveSelection = function()
 
         for ( var CurPos = StartPos; CurPos <= EndPos; CurPos++ )
         {
-            this.Content[CurPos].RemoveSelection();
+            this.Content[CurPos].RemoveSelection(preserveCursorPosition);
         }
     }
 

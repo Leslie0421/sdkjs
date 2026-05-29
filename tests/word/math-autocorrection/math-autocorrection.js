@@ -33,6 +33,7 @@
 $(function () {
 
     let Root, MathContent, logicDocument, p1;
+	AscCommonWord.b_DoAutoCorrectMathSymbols = true;
 
     function Init() {
 		logicDocument = AscTest.CreateLogicDocument();
@@ -853,6 +854,7 @@ $(function () {
 			Test("\\qdrt 1/2 ", [["ParaRun", ""], ["CFraction", "∜1/2"], ["ParaRun", ""]], false, "Check radical");
 			Test("∜1 ", [["ParaRun", ""], ["CRadical", "∜1"], ["ParaRun", ""]], false, "Check radical");
 			Test("∜(1) ", [["ParaRun", ""], ["CRadical", "∜1"], ["ParaRun", ""]], false, "Check radical");
+			Test("√(-1&1+2) ", [["ParaRun", ""], ["CRadical", "√(-1&1+2)"], ["ParaRun", ""]], false, "Check radical");
 		})
 
 		QUnit.module( "Other", function ()
@@ -1141,6 +1143,25 @@ $(function () {
 				let strBinomial = MathContent.GetTextOfElement(0).GetText();
 				assert.strictEqual(strBinomial, '(x|y|z)', 'Check');
 			})
+			QUnit.test('Check absolute brackets inside normal brackets', function (assert)
+			{
+				Clear();
+				logicDocument.SetMathInputType(0);
+				AddText('5 1/2 ');
+				assert.ok(true, "Add text '5 1/2 '");
+
+				let para = MathContent.Root.Content[0];
+				let frac = MathContent.Root.Content[1];
+
+				let paraText = para.GetTextOfElement().GetText();
+				let fracText = frac.GetTextOfElement().GetText();
+				assert.strictEqual(paraText, '5', 'Check para');
+				assert.strictEqual(fracText, '1/2', 'Check frac');
+
+				let text = MathContent.Root.GetTextOfElement().GetText();
+
+				assert.strictEqual(text, '5 1/2', 'Check linear form is "5 1/2"');
+			})
 
 			QUnit.test('Check Dirac notion', function (assert)
 			{
@@ -1286,7 +1307,7 @@ $(function () {
 				logicDocument.ConvertMathView(true);
 				assert.ok(true, "Convert to linear view");
 
-				assert.strictEqual(MathContent.Root.Content[1].MathPrp.brk !== undefined, true, 'Check brk in "+" ParaRun');
+				assert.strictEqual(MathContent.Root.Content[2].MathPrp.brk !== undefined, true, 'Check brk in "+" ParaRun');
 
 				logicDocument.ConvertMathView(false);
 				assert.ok(true, "Convert to professional view");
@@ -1386,6 +1407,37 @@ $(function () {
 			let run = cont.Content[0];
 			assert.strictEqual(run instanceof ParaRun, true, 'check run');
 		})
+
+		QUnit.test('Check create custom function with auto-correction', function (assert)
+		{
+			Clear();
+
+			const list = window['AscCommonWord'].g_AutoCorrectMathsList.AutoCorrectMathFuncs;
+			assert.ok(true, "Add new function in AutoCorrectMathFuncs - 'custom'");
+
+			logicDocument.SetMathInputType(0);
+			list.push("custom");
+			AddText('custom ');
+
+			let cont = MathContent.Root
+			assert.strictEqual(cont.Content.length, 3, 'Check length of content');
+			let mathFunc = cont.Content[1];
+			assert.strictEqual(mathFunc instanceof CMathFunc, true, 'Check is created CMathFunc');
+
+			let contentName = mathFunc.getFName();
+			assert.strictEqual(contentName.GetTextOfElement().GetText(), "custom", 'Check name of created CMathFunc is "custom"');
+
+			let argument = mathFunc.getArgument()
+			assert.strictEqual(argument.GetTextOfElement().GetText(), "", 'Check argument of created CMathFunc is empty');
+
+			const idx = list.indexOf("custom");
+			if (idx !== -1) {
+				list.splice(idx, 1);
+			}
+
+			assert.ok(true, "Delete custom function from AutoCorrectMathFuncs");
+		})
+
 		QUnit.test('Check cursor position after convert math func with content (cos, sin..)', function (assert)
 		{
 			Clear();
@@ -1395,6 +1447,19 @@ $(function () {
 			let cont = MathContent.Root;
 
 			assert.strictEqual(cont.CurPos, 2, 'Cursor after function');
+		})
+
+		QUnit.test('Create function after degree (bug 79822)', function (assert)
+		{
+			Clear();
+			logicDocument.SetMathInputType(0);
+			AddText('x^2 log ');
+
+			let cont = MathContent.Root;
+
+			assert.strictEqual(cont.Content.length, 5, 'Check length of content');
+			let func = cont.Content[3];
+			assert.ok(func instanceof CMathFunc, 'Check is math func created');
 		})
 
 		QUnit.test('Add nary from menu', function (assert)
@@ -1786,7 +1851,7 @@ $(function () {
 				Clear();
 				logicDocument.SetMathInputType(1);
 
-				AddText('\\lim\\below{\\left(n\\to\\infty\\right){\\left(1+\\frac{1}{n}\\right)^n}}');
+				AddText('\\lim\\below{\\left(n\\to\\infty\\right)}{\\left(1+\\frac{1}{n}\\right)^n}');
 
 				MathContent.ConvertView(true, Asc.c_oAscMathInputType.LaTeX);
 				assert.ok(true, "Convert to proff. view");
@@ -1795,7 +1860,7 @@ $(function () {
 				assert.ok(true, "Convert to linear view");
 
 				let strFunc = MathContent.GetTextOfElement(0).GetText();
-				assert.strictEqual(strFunc, '\\lim\\below{\\left(n\\to\\infty\\right){\\left(1+\\frac{1}{n}\\right)^n}}', 'Check complex math func content');
+				assert.strictEqual(strFunc, '\\lim\\below{\\left(n\\to\\infty\\right)}{\\left(1+\\frac{1}{n}\\right)^n}', 'Check complex math func content');
 			})
 
 			// QUnit.todo('Check eqarray frac - Find case for LaTeX', function (assert)

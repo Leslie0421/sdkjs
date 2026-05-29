@@ -345,12 +345,13 @@ CDocumentContentBase.prototype.private_ReindexContent = function(StartPos)
 		this.ReindexStartPos = StartPos;
 };
 /**
- * Специальная функия для рассчета пустого параграфа с разрывом секции.
+ * Специальная функция для расчета пустого параграфа с разрывом секции.
  * @param Element
  * @param PrevElement
  * @param PageIndex
  * @param ColumnIndex
  * @param ColumnsCount
+ * @returns {number} recalcResult
  */
 CDocumentContentBase.prototype.private_RecalculateEmptySectionParagraph = function(Element, PrevElement, PageIndex, ColumnIndex, ColumnsCount)
 {
@@ -382,6 +383,7 @@ CDocumentContentBase.prototype.private_RecalculateEmptySectionParagraph = functi
 	Element.Lines[0].Bottom        = LastVisibleBounds.H;
 	Element.Pages[0].Bounds.Top    = ___Y;
 	Element.Pages[0].Bounds.Bottom = ___Y + LastVisibleBounds.H;
+	return Element.Get_SectionPr() ? recalcresult_NextSection : recalcresult_NextElement;
 };
 /**
  * Передвигаем курсор (от текущего положения) к началу ссылки на сноску
@@ -675,8 +677,13 @@ CDocumentContentBase.prototype.private_Remove = function(Count, isRemoveWholeEle
 
 				if (type_Paragraph === EndType || type_BlockLevelSdt === EndType)
 				{
+					if (type_Paragraph === EndType)
+						bEndEmpty = this.Content[EndPos].IsSelectionToEnd();
+					
 					this.Content[EndPos].Remove(1, true);
-					bEndEmpty = this.Content[EndPos].IsEmpty()
+					
+					if (type_BlockLevelSdt === EndType)
+						bEndEmpty = this.Content[EndPos].IsEmpty()
 				}
 				else if (type_Table === EndType)
 				{
@@ -883,7 +890,11 @@ CDocumentContentBase.prototype.private_Remove = function(Count, isRemoveWholeEle
 						}
 						else if (this.Content.length === 1 && true === this.Content[0].IsEmpty())
 						{
-							if (Count > 0)
+							if (this.ParentPDF)
+							{
+								bRetValue = false;
+							}
+							else if (Count > 0)
 							{
 								this.Internal_Content_Add(0, this.private_CreateNewParagraph());
 								this.Internal_Content_Remove(1, this.Content.length - 1);
@@ -1270,8 +1281,8 @@ CDocumentContentBase.prototype.private_AddContentControl = function(nContentCont
 				for (let nIndex = nEndPos; nIndex >= nStartPos; --nIndex)
 				{
 					let oElement = this.Content[nIndex];
+					this.Remove_FromContent(nIndex, 1, false);
 					oSdt.Content.Add_ToContent(0, oElement);
-					this.Remove_FromContent(nIndex, 1);
 					oElement.SelectAll(1);
 				}
 
@@ -1280,7 +1291,7 @@ CDocumentContentBase.prototype.private_AddContentControl = function(nContentCont
 				oSdt.Content.Selection.StartPos = 0;
 				oSdt.Content.Selection.EndPos   = oSdt.Content.GetElementsCount() - 1;
 
-				this.Add_ToContent(nStartPos, oSdt);
+				this.Add_ToContent(nStartPos, oSdt, false);
 				this.Selection.StartPos = nStartPos;
 				this.Selection.EndPos   = nStartPos;
 				this.CurPos.ContentPos  = nStartPos;
@@ -1459,7 +1470,7 @@ CDocumentContentBase.prototype.SetSelectionByContentPositions = function(StartDo
 
 	if (this.Parent && this.LogicDocument)
 	{
-		this.Parent.Set_CurrentElement(false, this.Get_StartPage_Absolute(), this);
+		this.Parent.Set_CurrentElement(false, this.GetAbsoluteStartPage(), this);
 		this.LogicDocument.Selection.Use   = true;
 		this.LogicDocument.Selection.Start = false;
 	}
@@ -1665,6 +1676,14 @@ CDocumentContentBase.prototype.IsFootnote = function(bReturnFootnote)
 	if (bReturnFootnote)
 		return null;
 
+	return false;
+};
+/**
+ * Находимся ли мы в концевой сноске
+ * @returns {boolean}
+ */
+CDocumentContentBase.prototype.IsEndnote = function()
+{
 	return false;
 };
 /**
@@ -2573,6 +2592,10 @@ CDocumentContentBase.prototype.CountElementsInFrame = function(nStartIndex)
 		let oElement = this.Content[nIndex];
 
 		let oTempFramePr = oElement.GetFramePr();
+		
+		if (oElement.IsParagraph() && oElement.Get_CompiledPr2().ParaPr.PageBreakBefore)
+			break;
+		
 		if (oTempFramePr && oFramePr.IsEqual(oTempFramePr) && (!oElement.IsParagraph() || !oElement.IsInline()))
 			nFlowsCount++;
 		else
@@ -2976,8 +2999,84 @@ CDocumentContentBase.prototype.GetCurrentContentControl = function()
 	
 	let inlineSdt = selectedInfo.GetInlineLevelSdt();
 	if (inlineSdt)
+	{
+		if (inlineSdt.IsLabeledCheckBox())
+		{
+			let checkBox = inlineSdt.GetInnerCheckBox();
+			inlineSdt = checkBox ? checkBox : inlineSdt;
+		}
 		return inlineSdt;
+	}
 	
 	let blockSdt = selectedInfo.GetBlockLevelSdt();
 	return blockSdt ? blockSdt : null;
+};
+CDocumentContentBase.prototype.GetAllSectPrParagraphs = function(paragraphs)
+{
+	if (!paragraphs)
+		paragraphs = [];
+	
+	for (let i = 0; i < this.Content.length; ++i)
+	{
+		this.Content[i].GetAllSectPrParagraphs(paragraphs);
+	}
+	
+	return paragraphs;
+};
+CDocumentContentBase.prototype.IsEmptySectionFlowParagraph = function(index)
+{
+	if (0 === index || index > this.Content.length)
+		return false;
+	
+	let element = this.Content[index];
+	if (!element.IsParagraph() || !element.IsEmpty() || !element.Get_SectionPr())
+		return false;
+	
+	let prevElement = this.Content[index - 1];
+	return (!prevElement.IsParagraph() || !prevElement.Get_SectionPr());
+};
+CDocumentContentBase.prototype.IsTableCellContent = function()
+{
+	return false;
+};
+CDocumentContentBase.prototype.IsAllowSectionBreak = function()
+{
+	return (!this.IsTableCellContent() && (this.GetLogicDocument() === this.GetTopDocumentContent()));
+};
+/**
+ * Данный метод должен вызываться ПОСЛЕ добавления элементов в контент (выставление родительского, индексации и прочее)
+ * @param {AscWord.CDocumentContentElementBase[]} items
+ */
+CDocumentContentBase.prototype.UpdateSectionsAfterAdd = function(items)
+{
+	let logicDocument = this.GetLogicDocument();
+	if (!logicDocument
+		|| !logicDocument.IsDocumentEditor()
+		|| !this.IsUseInDocument()
+		|| this.IsTableCellContent()
+		|| this.GetTopDocumentContent() !== logicDocument)
+		return;
+	
+	logicDocument.GetSections().UpdateOnAdd(items);
+};
+/**
+ * Данный метод должен вызываться ДО удаления элементов из контента
+ * @param {AscWord.CDocumentContentElementBase[]} items
+ * @param {boolean} checkHdrFtr
+ */
+CDocumentContentBase.prototype.UpdateSectionsBeforeRemove = function(items, checkHdrFtr)
+{
+	let logicDocument = this.GetLogicDocument();
+	if (!logicDocument
+		|| !logicDocument.IsDocumentEditor()
+		|| !this.IsUseInDocument()
+		|| this.IsTableCellContent()
+		|| this.GetTopDocumentContent() !== logicDocument)
+		return;
+	
+	logicDocument.GetSections().UpdateOnRemove(items, checkHdrFtr);
+};
+CDocumentContentBase.prototype.IsFirstOnDocumentPage = function(curPage)
+{
+	return false;
 };
