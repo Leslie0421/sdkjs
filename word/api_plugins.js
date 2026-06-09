@@ -1759,6 +1759,14 @@
 			}
 		}
 	};
+		/**
+	 * 通过坐标高亮显示文本
+	 * @memberof Api
+	 * @alias SearchByPos
+	 * @since 8.2.0.147
+	 * @example
+	 * window.Asc.plugin.executeMethod("SearchByPos");
+	 */
 	window["asc_docs_api"].prototype["pluginMethod_SearchByPos"] = function(params)
 	{
 				const { page, box } = params;
@@ -2082,6 +2090,25 @@
 			// 开始处理第一个目标文本
 			processTargetTexts(0);
 		}
+	}
+	/**
+	 * 获取选择的所有段落的 paraId
+	 * @memberof Api
+	 * @alias getSelectParaIds
+	 * @since 9.4.0
+	 * @example
+	 * window.Asc.plugin.executeMethod("getSelectParaIds");
+	 */
+	window["asc_docs_api"].prototype["pluginMethod_GetSelectParaIds"] = function()
+	{
+		const doc = Api.GetDocument().Document;
+		const paras = doc.GetSelectedParagraphs();
+		const paraIds = [];
+		paras.forEach((para) => {
+			const id = para.GetParaId();
+			paraIds.push(id);
+		});
+		return paraIds;
 	}
 
 	function private_ReadContentControlCommonPr(commonPr)
