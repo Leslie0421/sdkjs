@@ -1452,7 +1452,7 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("TableWithBookmarkHandler");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_TableWithBookmarkHandler"] = function(params)
+	Api.prototype["pluginMethod_TableWithBookmarkHandler"] = function(params)
 	{
 		let logicDocument = this.private_GetLogicDocument();
 		if (!logicDocument || !params?.length)
@@ -1512,7 +1512,7 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("GetAllBookmarks");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_GetAllBookmarks"] = function(needContent = true)
+	Api.prototype["pluginMethod_GetAllBookmarks"] = function(needContent = true)
 	{
 		const manager = this.asc_GetBookmarksManager();
 		if (!manager) {
@@ -1560,7 +1560,7 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("SelectTable");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_SelectTable"] = function(params)
+	Api.prototype["pluginMethod_SelectTable"] = function(params)
 	{			
 		try {			
 			if(!Array.isArray(params)) {
@@ -1767,7 +1767,7 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("SearchByPos");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_SearchByPos"] = function(params)
+	Api.prototype["pluginMethod_SearchByPos"] = function(params)
 	{
 				const { page, box } = params;
 				const Doc = this.GetDocument().Document;
@@ -1839,7 +1839,7 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("HandleChineseAndNumberSpacing");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_HandleChineseAndNumberSpacing"] = function()
+	Api.prototype["pluginMethod_HandleChineseAndNumberSpacing"] = function()
 	{
 		// 提取中文后面跟数字或数字后面跟中文的边界位置
 		const extractChineseNumberBoundaries = (
@@ -2099,10 +2099,13 @@
 	 * @example
 	 * window.Asc.plugin.executeMethod("getSelectParaIds");
 	 */
-	window["asc_docs_api"].prototype["pluginMethod_GetSelectParaIds"] = function()
+	Api.prototype["pluginMethod_GetSelectParaIds"] = function()
 	{
-		const doc = Api.GetDocument().Document;
-		const paras = doc.GetSelectedParagraphs();
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return false;
+
+		const paras = logicDocument.GetSelectedParagraphs();
 		const paraIds = [];
 		paras.forEach((para) => {
 			const id = para.GetParaId();
