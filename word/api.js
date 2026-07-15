@@ -2190,6 +2190,7 @@ background-repeat: no-repeat;\
 		ParaPr.AllCaps     = TextPr.Caps;
 		ParaPr.SmallCaps   = TextPr.SmallCaps;
 		ParaPr.TextSpacing = TextPr.Spacing;
+		ParaPr.TextScale   = TextPr.TextScale;
 		ParaPr.Position    = TextPr.Position;
 		ParaPr.Ligatures   = TextPr.Ligatures;
 		//-----------------------------------------------------------------------------
@@ -3583,6 +3584,24 @@ background-repeat: no-repeat;\
 			this.WordControl.m_oLogicDocument.FinalizeAction();
 		}
 	};
+	asc_docs_api.prototype.put_TextPrTextScale = function(value)
+	{
+		if (null !== value && undefined !== value)
+		{
+			if (isNaN(value))
+				return;
+			value = Math.max(1, Math.min(600, Math.round(value)));
+		}
+
+		if (false === this.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_TextProperties))
+		{
+			this.WordControl.m_oLogicDocument.StartAction(AscDFH.historydescription_Document_SetTextSpacing);
+			this.WordControl.m_oLogicDocument.AddToParagraph(new AscCommonWord.ParaTextPr({TextScale : value}));
+			this.WordControl.m_oLogicDocument.Recalculate();
+			this.WordControl.m_oLogicDocument.UpdateInterface();
+			this.WordControl.m_oLogicDocument.FinalizeAction();
+		}
+	};
 
 	asc_docs_api.prototype.put_TextPrCaps = function(value)
 	{
@@ -4091,6 +4110,7 @@ background-repeat: no-repeat;\
 			|| undefined !== Props.SmallCaps
 			|| undefined !== Props.AllCaps
 			|| undefined !== Props.TextSpacing
+			|| undefined !== Props.TextScale
 			|| undefined !== Props.Position)
 		{
 			arrAdditional.push({
@@ -4257,6 +4277,9 @@ background-repeat: no-repeat;\
 
 			if (undefined != Props.TextSpacing)
 				TextPr.Spacing = Props.TextSpacing;
+
+			if (undefined != Props.TextScale && !isNaN(Props.TextScale))
+				TextPr.TextScale = Math.max(1, Math.min(600, Math.round(Props.TextScale)));
 
 			if (undefined != Props.Position)
 				TextPr.Position = Props.Position;
@@ -15186,6 +15209,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['put_TextPrStrikeout']                       = asc_docs_api.prototype.put_TextPrStrikeout;
 	asc_docs_api.prototype['put_TextPrDStrikeout']                      = asc_docs_api.prototype.put_TextPrDStrikeout;
 	asc_docs_api.prototype['put_TextPrSpacing']                         = asc_docs_api.prototype.put_TextPrSpacing;
+	asc_docs_api.prototype['put_TextPrTextScale']                       = asc_docs_api.prototype.put_TextPrTextScale;
 	asc_docs_api.prototype['put_TextPrCaps']                            = asc_docs_api.prototype.put_TextPrCaps;
 	asc_docs_api.prototype['put_TextPrSmallCaps']                       = asc_docs_api.prototype.put_TextPrSmallCaps;
 	asc_docs_api.prototype['put_TextPrPosition']                        = asc_docs_api.prototype.put_TextPrPosition;

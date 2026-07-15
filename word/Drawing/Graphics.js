@@ -1377,7 +1377,7 @@
 		}
 	};
 
-	CGraphics.prototype.tg = function(text,x,y,codepoints)
+	CGraphics.prototype.tg = function(text,x,y,codepoints,textScale)
 	{
 		if (this.m_bIsBreak)
 			return;
@@ -1386,13 +1386,32 @@
 		var _y = this.m_oInvertFullTransform.TransformPointY(x,y);
 
 		var _font_manager = this.IsUseFonts2 ? this.m_oFontManager2 : this.m_oFontManager;
+		var _textScale = (undefined === textScale || null === textScale) ? 1 : textScale;
+		var _isScaled = Math.abs(_textScale - 1) > 0.0001;
+		var _m = this.m_oTransform;
 
 		try
 		{
+			if (_isScaled)
+			{
+				_font_manager.SetTextMatrix(
+					_m.sx * _textScale,
+					_m.shy * _textScale,
+					_m.shx,
+					_m.sy,
+					_m.tx + _m.sx * (1 - _textScale) * _x,
+					_m.ty + _m.shy * (1 - _textScale) * _x
+				);
+			}
 			_font_manager.LoadString3C(text,_x,_y,codepoints);
 		}
 		catch(err)
 		{
+		}
+		finally
+		{
+			if (_isScaled)
+				_font_manager.SetTextMatrix(_m.sx,_m.shy,_m.shx,_m.sy,_m.tx,_m.ty);
 		}
 
 		if (false === this.m_bIntegerGrid)

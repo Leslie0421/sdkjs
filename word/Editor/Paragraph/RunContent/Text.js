@@ -118,7 +118,8 @@
 		this.Value    = undefined !== nCharCode ? nCharCode : 0x00;
 		this.Width    = 0x00000000 | 0;
 		this.Flags    = 0x00000000 | 0;
-		this.Grapheme = AscFonts.NO_GRAPHEME;
+		this.Grapheme  = AscFonts.NO_GRAPHEME;
+		this.TextScale = 1;
 
 		this.SetSpaceAfter(this.private_IsSpaceAfter());
 		this.updateRtlFlag();
@@ -218,6 +219,7 @@
 			_nFontSize = (((_nFontSize * nFontCoef * 2 + 0.5) | 0) / 2);
 
 		this.Flags = (this.Flags & 0xFFFF) | (((_nFontSize * 64) & 0xFFFF) << 16);
+		this.TextScale = (undefined === oTextPr.TextScale || null === oTextPr.TextScale) ? 1 : oTextPr.TextScale / 100;
 	};
 	CRunText.prototype.SetCodePointType = function(nType)
 	{
@@ -285,7 +287,7 @@
 	};
 	CRunText.prototype.GetLigatureWidth = function()
 	{
-		return (AscFonts.GetGraphemeWidth(this.Flags & FLAGS_TEMPORARY ? this.TempGrapheme : this.Grapheme) * (((this.Flags >> 16) & 0xFFFF) / 64));
+		return (AscFonts.GetGraphemeWidth(this.Flags & FLAGS_TEMPORARY ? this.TempGrapheme : this.Grapheme) * (((this.Flags >> 16) & 0xFFFF) / 64) * this.TextScale);
 	};
 	CRunText.prototype.getBidiType = function()
 	{
@@ -312,7 +314,7 @@
 		if (this.Flags & FLAGS_TEMPORARY_HYPHEN_AFTER)
 		{
 			let fontInfo = textPr.GetFontInfo(AscWord.fontslot_ASCII);
-			nWidth += AscFonts.GetGraphemeWidth(AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style)) * (((this.Flags >> 16) & 0xFFFF) / 64);
+			nWidth += AscFonts.GetGraphemeWidth(AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style)) * (((this.Flags >> 16) & 0xFFFF) / 64) * this.TextScale;
 		}
 		
 		let nW = (nWidth * AscWord.TEXTWIDTH_DIVIDER) | 0;
@@ -351,7 +353,7 @@
 		if (textPr && (this.Flags & FLAGS_TEMPORARY_HYPHEN_AFTER))
 		{
 			let fontInfo = textPr.GetFontInfo(AscWord.fontslot_ASCII);
-			nWidth += AscFonts.GetGraphemeWidth(AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style)) * (((this.Flags >> 16) & 0xFFFF) / 64);
+			nWidth += AscFonts.GetGraphemeWidth(AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style)) * (((this.Flags >> 16) & 0xFFFF) / 64) * this.TextScale;
 		}
 
 		if (this.Flags & FLAGS_GAPS)
@@ -391,11 +393,11 @@
 		else if (this.Flags & FLAGS_TEMPORARY)
 		{
 			if (AscFonts.NO_GRAPHEME !== this.TempGrapheme)
-				AscFonts.DrawGrapheme(this.TempGrapheme, Context, X, Y, nFontSize);
+				AscFonts.DrawGrapheme(this.TempGrapheme, Context, X, Y, nFontSize, undefined, this.TextScale);
 		}
 		else if (AscFonts.NO_GRAPHEME !== this.Grapheme)
 		{
-			AscFonts.DrawGrapheme(forceGrapheme ? forceGrapheme : this.Grapheme, Context, X, Y, nFontSize);
+			AscFonts.DrawGrapheme(forceGrapheme ? forceGrapheme : this.Grapheme, Context, X, Y, nFontSize, undefined, this.TextScale);
 		}
 		
 		if (this.Flags & FLAGS_TEMPORARY_HYPHEN_AFTER)
@@ -409,18 +411,18 @@
 		if (!editor || !editor.ShowParaMarks)
 			return;
 
-		let nbspWidth = AscFonts.GetGraphemeWidth(this.Grapheme) * nFontSize;
+		let nbspWidth = AscFonts.GetGraphemeWidth(this.Grapheme) * nFontSize * this.TextScale;
 		let width     = this.Width / AscWord.TEXTWIDTH_DIVIDER;
 		let shift     = (width - nbspWidth) / 2;
 
-		AscFonts.DrawGrapheme(this.Grapheme, Context, X + shift, Y, nFontSize);
+		AscFonts.DrawGrapheme(this.Grapheme, Context, X + shift, Y, nFontSize, undefined, this.TextScale);
 	};
 	CRunText.prototype.DrawHyphenAfter = function(context, X, Y, fontSize, textPr)
 	{
 		let fontInfo   = textPr.GetFontInfo(AscWord.fontslot_ASCII);
 		let graphemeId = AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style);
 		let shift      = this.GetWidth();
-		AscFonts.DrawGrapheme(graphemeId, context, X + shift, Y, fontSize);
+		AscFonts.DrawGrapheme(graphemeId, context, X + shift, Y, fontSize, undefined, this.TextScale);
 	};
 	CRunText.prototype.Measure = function(oMeasurer, oTextPr)
 	{
@@ -442,7 +444,8 @@
 
 		t.Width    = this.Width;
 		t.Flags    = this.Flags;
-		t.Grapheme = this.Grapheme;
+		t.Grapheme  = this.Grapheme;
+		t.TextScale = this.TextScale;
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
@@ -798,7 +801,8 @@
 
 		t.Width    = this.Width;
 		t.Flags    = this.Flags;
-		t.Grapheme = this.Grapheme;
+		t.Grapheme  = this.Grapheme;
+		t.TextScale = this.TextScale;
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
@@ -856,7 +860,8 @@
 		
 		fontCoeff *= this.originSize ? fontSize / this.originSize : 1;
 		
-		this.originCoeff = fontCoeff;
+		this.TextScale = (undefined === textPr.TextScale || null === textPr.TextScale) ? 1 : textPr.TextScale / 100;
+		this.originCoeff = fontCoeff * this.TextScale;
 		
 		this.Flags = (this.Flags & 0xFFFF) | (((_fontSize * 64) & 0xFFFF) << 16);
 

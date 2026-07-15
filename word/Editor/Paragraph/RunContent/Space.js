@@ -61,6 +61,7 @@
 		this.WidthVisible = 0x00000000 | 0;
 		this.WidthOrigin  = 0x00000000 | 0;
 		this.Grapheme     = AscFonts.NO_GRAPHEME;
+		this.TextScale    = 1;
 		
 		this.WidthEn = 0x00000000 | 0;
 
@@ -109,6 +110,7 @@
 		// мы должны подкрутить коэффициент так, чтобы после домножения на него, у на получался разрешенный размер.
 		fontSize = (((fontSize * fontCoef * 2 + 0.5) | 0) / 2);
 		this.Flags = (this.Flags & 0xFFFF) | (((fontSize * 64) & 0xFFFF) << 16);
+		this.TextScale = (undefined === textPr.TextScale || null === textPr.TextScale) ? 1 : textPr.TextScale / 100;
 	};
 	CRunSpace.prototype.Draw = function(X, Y, Context, PDSE, oTextPr)
 	{
@@ -126,7 +128,7 @@
 		if (AscFonts.NO_GRAPHEME !== this.Grapheme)
 		{
 			let fontSize = (((this.Flags >> 16) & 0xFFFF) / 64);
-			AscFonts.DrawGrapheme(this.Grapheme, Context, X, Y, fontSize);
+			AscFonts.DrawGrapheme(this.Grapheme, Context, X, Y, fontSize, undefined, this.TextScale);
 		}
 		else if (undefined !== editor && editor.ShowParaMarks)
 		{
@@ -146,13 +148,13 @@
 	CRunSpace.prototype.SetWidth = function(width, textPr, enWidth)
 	{
 		let fontSize = (((this.Flags >> 16) & 0xFFFF) / 64);
-		let Temp = width * fontSize;
+		let Temp = width * fontSize * this.TextScale;
 		
 		var ResultWidth  = (Math.max((Temp + textPr.Spacing), 0) * AscWord.TEXTWIDTH_DIVIDER) | 0;
 		this.Width       = ResultWidth;
 		this.WidthOrigin = ResultWidth;
 		
-		this.WidthEn = (Math.max((enWidth * fontSize + textPr.Spacing * 2), 0) * AscWord.TEXTWIDTH_DIVIDER) | 0;
+		this.WidthEn = (Math.max((enWidth * fontSize * this.TextScale + textPr.Spacing * 2), 0) * AscWord.TEXTWIDTH_DIVIDER) | 0;
 		
 		if (0x2003 === this.Value || 0x2002 === this.Value || 0x2005 === this.Value)
 		{

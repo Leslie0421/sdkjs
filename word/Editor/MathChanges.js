@@ -587,6 +587,11 @@ CChangesMathContentTextPr.prototype.Merge = function(oChange)
 			this.New.Ligatures = oChange.New;
 			break
 		}
+		case AscDFH.historyitem_ParaRun_TextScale:
+		{
+			this.New.TextScale = oChange.New;
+			break;
+		}
 	}
 
 	return true;

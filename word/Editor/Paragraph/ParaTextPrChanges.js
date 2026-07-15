@@ -69,6 +69,7 @@ AscDFH.changesFactory[AscDFH.historyitem_TextPr_RFonts_EastAsia_Theme] = CChange
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_BoldCS]                = CChangesParaTextPrBoldCS;
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_ItalicCS]              = CChangesParaTextPrItalicCS;
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_Ligatures]             = CChangesParaTextPrLigatures;
+AscDFH.changesFactory[AscDFH.historyitem_TextPr_TextScale]             = CChangesParaTextPrTextScale;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Карта зависимости изменений
@@ -166,7 +167,8 @@ AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_Value]           = [
 	AscDFH.historyitem_TextPr_RFonts_EastAsia_Theme,
 	AscDFH.historyitem_TextPr_BoldCS,
 	AscDFH.historyitem_TextPr_ItalicCS,
-	AscDFH.historyitem_TextPr_Ligatures
+	AscDFH.historyitem_TextPr_Ligatures,
+	AscDFH.historyitem_TextPr_TextScale
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_RFonts]          = [
 	AscDFH.historyitem_TextPr_RFonts,
@@ -278,6 +280,10 @@ AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_ItalicCS] = [
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_Ligatures] = [
 	AscDFH.historyitem_TextPr_Ligatures,
+	AscDFH.historyitem_TextPr_Value
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_TextScale] = [
+	AscDFH.historyitem_TextPr_TextScale,
 	AscDFH.historyitem_TextPr_Value
 ];
 
@@ -907,6 +913,11 @@ CChangesParaTextPrValue.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_TextPr_HighlightColor:
 		{
 			this.New.HighlightColor = oChange.New;
+			break;
+		}
+		case AscDFH.historyitem_TextPr_TextScale:
+		{
+			this.New.TextScale = oChange.New;
 			break;
 		}
 	}
@@ -1685,4 +1696,19 @@ CChangesParaTextPrLigatures.prototype.private_SetValue = function(Value)
 	this.Class.Value.Ligatures = Value;
 };
 CChangesParaTextPrLigatures.prototype.Merge = private_ParaTextPrChangesOnMergeValue;
-
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseLongProperty}
+ */
+function CChangesParaTextPrTextScale(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseLongProperty.call(this, Class, Old, New, Color);
+}
+CChangesParaTextPrTextScale.prototype = Object.create(AscDFH.CChangesBaseLongProperty.prototype);
+CChangesParaTextPrTextScale.prototype.constructor = CChangesParaTextPrTextScale;
+CChangesParaTextPrTextScale.prototype.Type = AscDFH.historyitem_TextPr_TextScale;
+CChangesParaTextPrTextScale.prototype.private_SetValue = function(Value)
+{
+	this.Class.Value.TextScale = Value;
+};
+CChangesParaTextPrTextScale.prototype.Merge = private_ParaTextPrChangesOnMergeValue;

@@ -3420,6 +3420,12 @@ function Binary_rPrWriter(memory, saveParams)
 			this.memory.WriteByte(c_oSerPropLenType.Byte);
 			this.memory.WriteByte(rPr.Ligatures);
 		}
+		if (undefined !== rPr.TextScale)
+		{
+			this.memory.WriteByte(c_oSerProp_rPrType.CompressText);
+			this.memory.WriteByte(c_oSerPropLenType.Long);
+			this.memory.WriteLong(rPr.TextScale);
+		}
     };
 };
 function Binary_oMathWriter(memory, oMathPara, saveParams)
@@ -10382,6 +10388,9 @@ function Binary_rPrReader(doc, oReadResult, stream)
 				break;
 			case c_oSerProp_rPrType.Ligatures:
 				rPr.Ligatures = this.stream.GetByte();
+				break;
+			case c_oSerProp_rPrType.CompressText:
+				rPr.TextScale = this.stream.GetLongLE();
 				break;
             default:
                 res = c_oSerConstants.ReadUnknown;

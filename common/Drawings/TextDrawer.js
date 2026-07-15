@@ -2073,6 +2073,12 @@
 	};
 	CTextDrawer.prototype._e = function () {
 	};
+	CTextDrawer.prototype.private_GetTextScaledX = function (x) {
+		if (undefined === this.m_nTextScale || Math.abs(this.m_nTextScale - 1) < 0.0001)
+			return x;
+
+		return this.m_nTextScaleOriginX + (x - this.m_nTextScaleOriginX) * this.m_nTextScale;
+	};
 	CTextDrawer.prototype._z = function () {
 		var oPathToDraw = this.Get_PathToDraw();
 		if (oPathToDraw) {
@@ -2086,8 +2092,9 @@
 		let tr = this.GetTransform();
 		let bUseTr = this.isStampAnnot;
 
-		let _x = bUseTr ? tr.TransformPointX(x, y) : x;
-		let _y = bUseTr ? tr.TransformPointY(x, y) : y;
+		let scaledX = this.private_GetTextScaledX(x);
+		let _x = bUseTr ? tr.TransformPointX(scaledX, y) : scaledX;
+		let _y = bUseTr ? tr.TransformPointY(scaledX, y) : y;
 
 		if (oPathToDraw) {
 			oPathToDraw.moveTo(this.xKoeff * _x, this.yKoeff * _y);
@@ -2101,8 +2108,9 @@
 		let tr = this.GetTransform();
 		let bUseTr = this.isStampAnnot;
 
-		let _x = bUseTr ? tr.TransformPointX(x, y) : x;
-		let _y = bUseTr ? tr.TransformPointY(x, y) : y;
+		let scaledX = this.private_GetTextScaledX(x);
+		let _x = bUseTr ? tr.TransformPointX(scaledX, y) : scaledX;
+		let _y = bUseTr ? tr.TransformPointY(scaledX, y) : y;
 
 		if (this.bCheckLines) {
 			if (Math.abs(x - this.lastX) < EPSILON_TEXT_AUTOFIT && Math.abs(x - this.lastX) < Math.abs(y - this.lastY)) {
@@ -2129,12 +2137,15 @@
 		let tr = this.GetTransform();
 		let bUseTr = this.isStampAnnot;
 
-		let _x1 = bUseTr ? tr.TransformPointX(x1, y1) : x1;
-		let _y1 = bUseTr ? tr.TransformPointY(x1, y1) : y1;
-		let _x2 = bUseTr ? tr.TransformPointX(x2, y2) : x2;
-		let _y2 = bUseTr ? tr.TransformPointY(x2, y2) : y2;
-		let _x3 = bUseTr ? tr.TransformPointX(x3, y3) : x3;
-		let _y3 = bUseTr ? tr.TransformPointY(x3, y3) : y3;
+		let scaledX1 = this.private_GetTextScaledX(x1);
+		let scaledX2 = this.private_GetTextScaledX(x2);
+		let scaledX3 = this.private_GetTextScaledX(x3);
+		let _x1 = bUseTr ? tr.TransformPointX(scaledX1, y1) : scaledX1;
+		let _y1 = bUseTr ? tr.TransformPointY(scaledX1, y1) : y1;
+		let _x2 = bUseTr ? tr.TransformPointX(scaledX2, y2) : scaledX2;
+		let _y2 = bUseTr ? tr.TransformPointY(scaledX2, y2) : y2;
+		let _x3 = bUseTr ? tr.TransformPointX(scaledX3, y3) : scaledX3;
+		let _y3 = bUseTr ? tr.TransformPointY(scaledX3, y3) : y3;
 
 		var oPathToDraw = this.Get_PathToDraw();
 		if (oPathToDraw) {
@@ -2147,10 +2158,12 @@
 		let tr = this.GetTransform();
 		let bUseTr = this.isStampAnnot;
 
-		let _x1 = bUseTr ? tr.TransformPointX(x1, y1) : x1;
-		let _y1 = bUseTr ? tr.TransformPointY(x1, y1) : y1;
-		let _x2 = bUseTr ? tr.TransformPointX(x2, y2) : x2;
-		let _y2 = bUseTr ? tr.TransformPointY(x2, y2) : y2;
+		let scaledX1 = this.private_GetTextScaledX(x1);
+		let scaledX2 = this.private_GetTextScaledX(x2);
+		let _x1 = bUseTr ? tr.TransformPointX(scaledX1, y1) : scaledX1;
+		let _y1 = bUseTr ? tr.TransformPointY(scaledX1, y1) : y1;
+		let _x2 = bUseTr ? tr.TransformPointX(scaledX2, y2) : scaledX2;
+		let _y2 = bUseTr ? tr.TransformPointY(scaledX2, y2) : y2;
 
 		var oPathToDraw = this.Get_PathToDraw();
 		if (oPathToDraw) {
@@ -2222,9 +2235,16 @@
 
 		if (AscCommon.g_oTextMeasurer.m_oManager) AscCommon.g_oTextMeasurer.m_oManager.LoadStringPathCode(code, false, x, y, this);
 	};
-	CTextDrawer.prototype.tg = function (gid, x, y) {
+	CTextDrawer.prototype.tg = function (gid, x, y, codepoints, textScale) {
 		g_oTextMeasurer.SetFontInternal(this.m_oFont.Name, this.m_oFont.FontSize, Math.max(this.m_oFont.Style, 0));
-		g_oTextMeasurer.m_oManager.LoadStringPathCode(gid, true, x, y, this);
+		this.m_nTextScale = (undefined === textScale || null === textScale) ? 1 : textScale;
+		this.m_nTextScaleOriginX = x;
+		try {
+			g_oTextMeasurer.m_oManager.LoadStringPathCode(gid, true, x, y, this);
+		} finally {
+			this.m_nTextScale = 1;
+			this.m_nTextScaleOriginX = 0;
+		}
 	};
 
 	CTextDrawer.prototype.SetFontInternal = function (name, size, style) {

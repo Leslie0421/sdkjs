@@ -8628,6 +8628,9 @@ ParaRun.prototype.Apply_Pr = function(TextPr)
 	if (undefined !== TextPr.Ligatures)
 		this.SetLigatures(null === TextPr.Ligatures ? undefined : TextPr.Ligatures);
 
+	if (undefined !== TextPr.TextScale)
+		this.SetTextScale(null === TextPr.TextScale ? undefined : TextPr.TextScale);
+
 	for (var nPos = 0, nCount = this.Content.length; nPos < nCount; ++nPos)
 	{
 		if (para_End === this.Content[nPos].Type)
@@ -9417,6 +9420,17 @@ ParaRun.prototype.SetLigatures = function(nType)
 
 	AscCommon.History.Add(new CChangesRunLigatures(this, this.Pr.Ligatures, nType));
 	this.Pr.Ligatures = nType;
+	this.Recalc_CompiledPr(true);
+	this.private_UpdateShapeText();
+	this.private_UpdateTrackRevisionOnChangeTextPr(false);
+};
+ParaRun.prototype.SetTextScale = function(nValue)
+{
+	if (this.Pr.TextScale === nValue)
+		return;
+
+	AscCommon.History.Add(new CChangesRunTextScale(this, this.Pr.TextScale, nValue));
+	this.Pr.TextScale = nValue;
 	this.Recalc_CompiledPr(true);
 	this.private_UpdateShapeText();
 	this.private_UpdateTrackRevisionOnChangeTextPr(false);

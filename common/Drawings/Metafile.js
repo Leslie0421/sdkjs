@@ -2591,7 +2591,7 @@
             this.Memory.WriteDouble(x);
             this.Memory.WriteDouble(y);
 		},
-		tg           : function(gid, x, y, codepoints)
+		tg           : function(gid, x, y, codepoints, textScale)
 		{
 			/*
 			var _old_pos = this.Memory.pos;
@@ -2602,6 +2602,23 @@
 				this.Memory.pos = _old_pos;
 			*/
 
+			var scale = (undefined === textScale || null === textScale) ? 1 : textScale;
+			var isScaled = Math.abs(scale - 1) > 0.0001;
+			var m = this.m_oTransform;
+			var oldTransform;
+			if (isScaled)
+			{
+				oldTransform = {sx : m.sx, shy : m.shy, shx : m.shx, sy : m.sy, tx : m.tx, ty : m.ty};
+				this.transform(
+					m.sx * scale,
+					m.shy * scale,
+					m.shx,
+					m.sy,
+					m.tx + m.sx * (1 - scale) * x,
+					m.ty + m.shy * (1 - scale) * x
+				);
+			}
+
 			this.Memory.WriteByte(CommandType.ctDrawTextCodeGid);
 			this.Memory.WriteLong(gid);
 			this.Memory.WriteDouble(x);
@@ -2610,6 +2627,9 @@
 			this.Memory.WriteLong(count);
 			for (var i = 0; i < count; i++)
 				this.Memory.WriteLong(codepoints[i]);
+
+			if (isScaled)
+				this.transform(oldTransform.sx, oldTransform.shy, oldTransform.shx, oldTransform.sy, oldTransform.tx, oldTransform.ty);
 		},
 		charspace    : function(space)
 		{
@@ -3360,10 +3380,10 @@
 		if (0 != this.m_lPagesCount)
 			this.m_arrayPages[this.m_lPagesCount - 1].FillTextCode(x, y, text);
 	};
-	CDocumentRenderer.prototype.tg = function(gid, x, y, codePoints)
+	CDocumentRenderer.prototype.tg = function(gid, x, y, codePoints, textScale)
 	{
 		if (0 != this.m_lPagesCount)
-			this.m_arrayPages[this.m_lPagesCount - 1].tg(gid, x, y, codePoints);
+			this.m_arrayPages[this.m_lPagesCount - 1].tg(gid, x, y, codePoints, textScale);
 	};
 	CDocumentRenderer.prototype.FillText2 = function(x, y, text)
 	{

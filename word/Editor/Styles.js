@@ -13013,6 +13013,7 @@ function CTextPr()
     this.HighLight  = undefined; // highlight_None/Color
     this.RStyle     = undefined;
     this.Spacing    = undefined; // Дополнительное расстояние между символвами
+    this.TextScale  = undefined; // Horizontal character scaling in percent
     this.DStrikeout = undefined; // Двойное зачеркивание
     this.Caps       = undefined;
     this.SmallCaps  = undefined;
@@ -13056,6 +13057,7 @@ CTextPr.prototype.Clear = function()
 	this.HighLight  = undefined;
 	this.RStyle     = undefined;
 	this.Spacing    = undefined;
+	this.TextScale  = undefined;
 	this.DStrikeout = undefined;
 	this.Caps       = undefined;
 	this.SmallCaps  = undefined;
@@ -13115,6 +13117,7 @@ CTextPr.prototype.Copy = function(bCopyPrChange, oPr)
 		TextPr.RStyle = oPr.Comparison.copyStyleById(TextPr.RStyle);
 	}
 	TextPr.Spacing    = this.Spacing;
+	TextPr.TextScale  = this.TextScale;
 	TextPr.DStrikeout = this.DStrikeout;
 	TextPr.Caps       = this.Caps;
 	TextPr.SmallCaps  = this.SmallCaps;
@@ -13173,6 +13176,7 @@ CTextPr.prototype.createDuplicateForSmartArt = function(oPr)
 	TextPr.Underline = this.Underline;
 	TextPr.Lang       = this.Lang.Copy();
 	TextPr.Spacing    = this.Spacing;
+	TextPr.TextScale  = this.TextScale;
 	TextPr.RFonts     = this.RFonts.Copy()
 
 	TextPr.Vanish    = this.Vanish;
@@ -13275,6 +13279,9 @@ CTextPr.prototype.Merge = function(TextPr)
 
 	if (undefined != TextPr.Spacing)
 		this.Spacing = TextPr.Spacing;
+
+	if (undefined != TextPr.TextScale)
+		this.TextScale = TextPr.TextScale;
 
 	if (undefined != TextPr.DStrikeout)
 		this.DStrikeout = TextPr.DStrikeout;
@@ -13430,6 +13437,11 @@ CTextPr.prototype.Apply = function(textPr)
 		this.Spacing = undefined;
 	else if (undefined !== textPr.Spacing)
 		this.Spacing = textPr.Spacing;
+
+	if (null === textPr.TextScale)
+		this.TextScale = undefined;
+	else if (undefined !== textPr.TextScale)
+		this.TextScale = textPr.TextScale;
 	
 	if (null === textPr.DStrikeout)
 		this.DStrikeout = undefined;
@@ -13530,6 +13542,7 @@ CTextPr.prototype.InitDefault = function(nCompatibilityMode)
 	this.HighLight  = highlight_None;
 	this.RStyle     = undefined;
 	this.Spacing    = 0;
+	this.TextScale  = 100;
 	this.DStrikeout = false;
 	this.SmallCaps  = false;
 	this.Caps       = false;
@@ -13596,6 +13609,7 @@ CTextPr.prototype.Set_FromObject = function(TextPr, isUndefinedToNull)
 
 	this.RStyle     = CheckUndefinedToNull(isUndefinedToNull, TextPr.RStyle);
 	this.Spacing    = CheckUndefinedToNull(isUndefinedToNull, TextPr.Spacing);
+	this.TextScale  = CheckUndefinedToNull(isUndefinedToNull, TextPr.TextScale);
 	this.DStrikeout = CheckUndefinedToNull(isUndefinedToNull, TextPr.DStrikeout);
 	this.Caps       = CheckUndefinedToNull(isUndefinedToNull, TextPr.Caps);
 	this.SmallCaps  = CheckUndefinedToNull(isUndefinedToNull, TextPr.SmallCaps);
@@ -13691,6 +13705,9 @@ CTextPr.prototype.Compare = function(TextPr)
 	// Spacing
 	if (undefined !== this.Spacing && ( undefined === TextPr.Spacing || Math.abs(this.Spacing - TextPr.Spacing) >= 0.001 ))
 		this.Spacing = undefined;
+
+	if (undefined !== this.TextScale && this.TextScale !== TextPr.TextScale)
+		this.TextScale = undefined;
 
 	// DStrikeout
 	if (undefined !== this.DStrikeout && ( undefined === TextPr.DStrikeout || this.DStrikeout !== TextPr.DStrikeout ))
@@ -14119,7 +14136,19 @@ CTextPr.prototype.Write_ToBinary = function(Writer)
 		Flags |= 1073741824;
 	}
 
-	if (undefined != this.Ligatures)
+	if (undefined != this.TextScale)
+	{
+		Writer.WriteByte(0xFF);
+		var ExtensionFlags = 2;
+		if (undefined != this.Ligatures)
+			ExtensionFlags |= 1;
+		Writer.WriteLong(ExtensionFlags);
+		if (ExtensionFlags & 1)
+			Writer.WriteByte(this.Ligatures);
+		Writer.WriteLong(this.TextScale);
+		Flags |= (1 << 31);
+	}
+	else if (undefined != this.Ligatures)
 	{
 		Writer.WriteByte(this.Ligatures);
 		Flags |= (1 << 31);
@@ -14291,7 +14320,21 @@ CTextPr.prototype.Read_FromBinary = function(Reader)
 	}
 
 	if (Flags & (1 << 31))
-		this.Ligatures = Reader.GetByte();
+	{
+		var ExtensionMarker = Reader.GetByte();
+		if (0xFF === ExtensionMarker)
+		{
+			var ExtensionFlags = Reader.GetLong();
+			if (ExtensionFlags & 1)
+				this.Ligatures = Reader.GetByte();
+			if (ExtensionFlags & 2)
+				this.TextScale = Reader.GetLong();
+		}
+		else
+		{
+			this.Ligatures = ExtensionMarker;
+		}
+	}
 };
 CTextPr.prototype.Check_NeedRecalc = function()
 {
@@ -14501,6 +14544,9 @@ CTextPr.prototype.Is_Equal = function(TextPr)
 	if ((undefined === this.Spacing && undefined !== TextPr.Spacing) || (undefined !== this.Spacing && (undefined === TextPr.Spacing || Math.abs(this.Spacing - TextPr.Spacing) >= 0.001)))
 		return false;
 
+	if (this.TextScale !== TextPr.TextScale)
+		return false;
+
 	if (this.DStrikeout !== TextPr.DStrikeout)
 		return false;
 
@@ -14590,6 +14636,7 @@ CTextPr.prototype.Is_Empty = function()
 		|| undefined !== this.HighLight
 		|| undefined !== this.RStyle
 		|| undefined !== this.Spacing
+		|| undefined !== this.TextScale
 		|| undefined !== this.DStrikeout
 		|| undefined !== this.Caps
 		|| undefined !== this.SmallCaps
@@ -14667,6 +14714,9 @@ CTextPr.prototype.GetDiff = function(oTextPr)
 
 	if (undefined !== this.Spacing && !IsEqualNullableFloatNumbers(this.Spacing, oTextPr.Spacing))
 		oResultTextPr.Spacing = this.Spacing;
+
+	if (this.TextScale !== oTextPr.TextScale)
+		oResultTextPr.TextScale = this.TextScale;
 
 	if (this.DStrikeout !== oTextPr.DStrikeout)
 		oResultTextPr.DStrikeout = this.DStrikeout;
@@ -14966,6 +15016,14 @@ CTextPr.prototype.SetLigatures = function(nType)
 CTextPr.prototype.GetLigatures = function()
 {
 	return this.Ligatures;
+};
+CTextPr.prototype.SetTextScale = function(nValue)
+{
+	this.TextScale = nValue;
+};
+CTextPr.prototype.GetTextScale = function()
+{
+	return this.TextScale;
 };
 CTextPr.prototype.WriteToBinary = function(oWriter)
 {
@@ -15322,6 +15380,8 @@ CTextPr.prototype['get_Shd']        = CTextPr.prototype.get_Shd        = CTextPr
 CTextPr.prototype['put_Shd']        = CTextPr.prototype.put_Shd        = CTextPr.prototype.SetShd;
 CTextPr.prototype['get_Ligatures']  = CTextPr.prototype.GetLigatures;
 CTextPr.prototype['put_Ligatures']  = CTextPr.prototype.SetLigatures;
+CTextPr.prototype['get_TextScale']  = CTextPr.prototype.GetTextScale;
+CTextPr.prototype['put_TextScale']  = CTextPr.prototype.SetTextScale;
 //----------------------------------------------------------------------------------------------------------------------
 
 function CParaTab(Value, Pos, Leader)

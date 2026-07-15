@@ -63,7 +63,7 @@
 		GRAPHEME_BUFFER[1] += nAdvanceX;
 		GRAPHEME_BUFFER[2] += 1;
 	}
-	function DrawGrapheme(nGraphemeId, oContext, nX, nY, nFontSize, coeff)
+	function DrawGrapheme(nGraphemeId, oContext, nX, nY, nFontSize, coeff, textScale)
 	{
 		let oGrapheme = GRAPHEMES[nGraphemeId];
 		if (!oGrapheme)
@@ -71,6 +71,8 @@
 		
 		if (undefined === coeff)
 			coeff = 1;
+		if (undefined === textScale || null === textScale)
+			textScale = 1;
 
 		let nFontId = oGrapheme[0] >> 8;
 		let nStyle  = oGrapheme[0] & 0xF;
@@ -81,7 +83,7 @@
 		let nKoef = COEF * nFontSize * coeff;
 		if (1 === oGrapheme[2])
 		{
-			oContext.tg(oGrapheme[3], nX + oGrapheme[6] * nKoef, nY - oGrapheme[7] * nKoef, oGrapheme[8]);
+			oContext.tg(oGrapheme[3], nX + oGrapheme[6] * nKoef * textScale, nY - oGrapheme[7] * nKoef, oGrapheme[8], textScale);
 		}
 		else
 		{
@@ -96,8 +98,8 @@
 				let nOffsetY      = oGrapheme[nPos++];
 				let arrCodePoints = oGrapheme[nPos++];
 				
-				oContext.tg(nGID, nX + nOffsetX * nKoef, nY - nOffsetY * nKoef, arrCodePoints);
-				nX += nAdvanceX * nKoef;
+				oContext.tg(nGID, nX + nOffsetX * nKoef * textScale, nY - nOffsetY * nKoef, arrCodePoints, textScale);
+				nX += nAdvanceX * nKoef * textScale;
 				nY += nAdvanceY * nKoef;
 			}
 		}

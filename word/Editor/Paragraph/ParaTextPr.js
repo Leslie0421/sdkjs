@@ -227,6 +227,9 @@ ParaTextPr.prototype.Apply_TextPr = function(TextPr)
 
 	if (undefined !== TextPr.Ligatures)
 		this.SetLigatures(TextPr.Ligatures);
+
+	if (undefined !== TextPr.TextScale)
+		this.SetTextScale(TextPr.TextScale);
 };
 ParaTextPr.prototype.Clear_Style = function()
 {
@@ -259,6 +262,9 @@ ParaTextPr.prototype.Clear_Style = function()
 
 	if (undefined != this.Value.Spacing)
 		this.Set_Spacing(undefined);
+
+	if (undefined != this.Value.TextScale)
+		this.SetTextScale(undefined);
 
 	if (undefined != this.Value.DStrikeout)
 		this.Set_DStrikeout(undefined);
@@ -704,6 +710,18 @@ ParaTextPr.prototype.SetLigatures = function(nType)
 		return;
 
 	let oChange = new CChangesParaTextPrLigatures(this, this.Value.Ligatures, nType);
+	AscCommon.History.Add(oChange);
+	oChange.Redo();
+};
+ParaTextPr.prototype.SetTextScale = function(nValue)
+{
+	if (null === nValue)
+		nValue = undefined;
+
+	if (this.Value.TextScale === nValue)
+		return;
+
+	let oChange = new CChangesParaTextPrTextScale(this, this.Value.TextScale, nValue);
 	AscCommon.History.Add(oChange);
 	oChange.Redo();
 };

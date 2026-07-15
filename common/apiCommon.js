@@ -3017,6 +3017,7 @@ function (window, undefined) {
 			this.Strikeout = (undefined != obj.Strikeout) ? obj.Strikeout : undefined;
 			this.DStrikeout = (undefined != obj.DStrikeout) ? obj.DStrikeout : undefined;
 			this.TextSpacing = (undefined != obj.TextSpacing) ? obj.TextSpacing : undefined;
+			this.TextScale = (undefined != obj.TextScale) ? obj.TextScale : undefined;
 			this.Position = (undefined != obj.Position) ? obj.Position : undefined;
 			this.Jc = (undefined != obj.Jc) ? obj.Jc : undefined;
 			this.ListType = (undefined != obj.ListType) ? obj.ListType : undefined;
@@ -3074,6 +3075,7 @@ function (window, undefined) {
 			this.Strikeout = undefined;
 			this.DStrikeout = undefined;
 			this.TextSpacing = undefined;
+			this.TextScale = undefined;
 			this.Position = undefined;
 			this.Jc = undefined;
 			this.ListType = undefined;
@@ -3203,6 +3205,12 @@ function (window, undefined) {
 	};
 	asc_CParagraphProperty.prototype.asc_putTextSpacing = function (v) {
 		this.TextSpacing = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getTextScale = function () {
+		return this.TextScale;
+	};
+	asc_CParagraphProperty.prototype.asc_putTextScale = function (v) {
+		this.TextScale = v;
 	};
 	asc_CParagraphProperty.prototype.asc_getPosition = function () {
 		return this.Position;
@@ -8730,6 +8738,8 @@ function (window, undefined) {
 	prot["put_DStrikeout"] = prot["asc_putDStrikeout"] = prot.asc_putDStrikeout;
 	prot["get_TextSpacing"] = prot["asc_getTextSpacing"] = prot.asc_getTextSpacing;
 	prot["put_TextSpacing"] = prot["asc_putTextSpacing"] = prot.asc_putTextSpacing;
+	prot["get_TextScale"] = prot["asc_getTextScale"] = prot.asc_getTextScale;
+	prot["put_TextScale"] = prot["asc_putTextScale"] = prot.asc_putTextScale;
 	prot["get_Position"] = prot["asc_getPosition"] = prot.asc_getPosition;
 	prot["put_Position"] = prot["asc_putPosition"] = prot.asc_putPosition;
 	prot["get_Tabs"] = prot["asc_getTabs"] = prot.asc_getTabs;

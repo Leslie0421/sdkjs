@@ -2886,6 +2886,7 @@ function CDrawingDocument()
 			this.GuiLastTextProps.DStrikeout = props.DStrikeout;
 
 			this.GuiLastTextProps.TextSpacing = props.TextSpacing;
+			this.GuiLastTextProps.TextScale = props.TextScale;
 			this.GuiLastTextProps.Position = props.Position;
 		}
 		else
@@ -2925,6 +2926,11 @@ function CDrawingDocument()
 				this.GuiLastTextProps.TextSpacing = props.TextSpacing;
 				bIsChange = true;
 			}
+			if (this.GuiLastTextProps.TextScale != props.TextScale)
+			{
+				this.GuiLastTextProps.TextScale = props.TextScale;
+				bIsChange = true;
+			}
 			if (this.GuiLastTextProps.Position != props.Position)
 			{
 				this.GuiLastTextProps.Position = props.Position;
@@ -2936,6 +2942,8 @@ function CDrawingDocument()
 			this.GuiLastTextProps.Position = undefined;
 		if (undefined !== this.GuiLastTextProps.TextSpacing && isNaN(this.GuiLastTextProps.TextSpacing))
 			this.GuiLastTextProps.TextSpacing = undefined;
+		if (undefined !== this.GuiLastTextProps.TextScale && isNaN(this.GuiLastTextProps.TextScale))
+			this.GuiLastTextProps.TextScale = undefined;
 
 		if (!bIsChange)
 			return;
@@ -2969,6 +2977,7 @@ function CDrawingDocument()
 		_textPr.SmallCaps = this.GuiLastTextProps.SmallCaps;
 
 		_textPr.Spacing = this.GuiLastTextProps.TextSpacing;
+		_textPr.TextScale = this.GuiLastTextProps.TextScale;
 		_textPr.Position = this.GuiLastTextProps.Position;
 
 		var parRun = new ParaRun(par);
