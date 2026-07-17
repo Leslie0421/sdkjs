@@ -694,7 +694,8 @@ Paragraph.prototype.GetContentBounds = function(CurPage)
 	if (!oPage || oPage.StartLine > oPage.EndLine)
 		return this.Get_PageBounds(CurPage).Copy();
 
-	var isJustify = (this.Get_CompiledPr2(false).ParaPr.Jc === AscCommon.align_Justify) && this.Lines.length > 1;
+	var jc = this.Get_CompiledPr2(false).ParaPr.Jc;
+	var isJustify = (jc === AscCommon.align_Justify && this.Lines.length > 1) || jc === AscCommon.align_Distributed;
 
 	var oBounds = null;
 	for (var CurLine = oPage.StartLine; CurLine <= oPage.EndLine; ++CurLine)

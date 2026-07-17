@@ -5489,8 +5489,16 @@ ParaRun.prototype.Recalculate_Range_Spaces = function(PRSA, _CurLine, _CurRange,
                     WidthVisible = Item.GetWidth();
                     PRSA.LettersSkip--;
                 }
-                else
+                else if (0 !== PRSA.JustifyLetters)
+                {
                     WidthVisible = Item.GetWidth() + PRSA.JustifyWord;
+					if (PRSA.JustifyLetters > 0)
+						PRSA.JustifyLetters--;
+				}
+				else
+				{
+					WidthVisible = Item.GetWidth();
+				}
 
                 Item.SetWidthVisible(WidthVisible, this.Get_CompiledPr(false));
 

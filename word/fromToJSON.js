@@ -16485,6 +16485,10 @@
 						oResult["algn"] = "just";
 						break;
 					}
+					case AscCommon.align_Distributed: {
+						oResult["algn"] = "dist";
+						break;
+					}
 					case AscCommon.align_Left: {
 						oResult["algn"] = "l";
 						break;
@@ -16630,7 +16634,7 @@
 						break;
 					}
 					case "dist": {
-						this.Jc = AscCommon.align_Justify;
+						this.Jc = AscCommon.align_Distributed;
 						break;
 					}
 					case "just": {
@@ -22114,6 +22118,4 @@
 	window['AscCommon'].From_XML_ST_LayoutShapeType = From_XML_ST_LayoutShapeType;
 
 })(window);
-
-
 

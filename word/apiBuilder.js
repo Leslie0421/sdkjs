@@ -16661,7 +16661,7 @@
 	 * Sets the paragraph contents justification.
 	 * @memberof ApiParaPr
 	 * @typeofeditors ["CDE", "CSE", "CPE", "PDFE"]
-	 * @param {("left" | "right" | "both" | "center")} sJc - The justification type that
+	 * @param {("left" | "right" | "both" | "center" | "distribute")} sJc - The justification type that
 	 * will be applied to the paragraph contents.
 	 * @returns {boolean}
 	 * @see office-js-api/Examples/{Editor}/ApiParaPr/Methods/SetJc.js
@@ -16676,7 +16676,7 @@
 	 * Returns the paragraph contents justification.
 	 * @memberof ApiParaPr
 	 * @typeofeditors ["CDE", "CSE", "CPE", "PDFE"]
-	 * @returns {("left" | "right" | "both" | "center" | undefined)} 
+	 * @returns {("left" | "right" | "both" | "center" | "distribute" | undefined)}
 	 * @see office-js-api/Examples/{Editor}/ApiParaPr/Methods/GetJc.js
 	 */
 	ApiParaPr.prototype.GetJc = function()
@@ -31088,6 +31088,8 @@
 			return align_Justify;
 		else if ("center" === sJc)
 			return align_Center;
+		else if ("distribute" === sJc)
+			return AscCommon.align_Distributed;
 
 		return undefined;
 	}
@@ -31102,6 +31104,8 @@
 				return "center";
 			case align_Justify : 
 				return "both";
+			case AscCommon.align_Distributed:
+				return "distribute";
 		}
 
 		return "left";
@@ -32317,4 +32321,3 @@
 	};
 	
 }(window, null));
-

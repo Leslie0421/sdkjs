@@ -69,6 +69,23 @@ $(function () {
 
 	QUnit.module("Paragraph Lines");
 
+	QUnit.test("Test distributed paragraph alignment", function (assert)
+	{
+		setText("123");
+		para.SetParagraphAlign(AscCommon.align_Distributed);
+		recalculate(charWidth * 6);
+
+		assert.close(run.GetElement(0).GetWidthVisible(), charWidth * 2.5, 0.001, "First character includes distributed spacing");
+		assert.close(run.GetElement(1).GetWidthVisible(), charWidth * 2.5, 0.001, "Second character includes distributed spacing");
+		assert.close(run.GetElement(2).GetWidthVisible(), charWidth, 0.001, "Last character has no trailing distributed spacing");
+
+		para.SetParagraphAlign(AscCommon.align_Justify);
+		recalculate(charWidth * 6);
+		assert.close(run.GetElement(0).GetWidthVisible(), charWidth, 0.001, "Ordinary justification does not expand the last line");
+
+		para.SetParagraphAlign(AscCommon.align_Left);
+	});
+
 	QUnit.test("Test regular line break cases", function (assert)
 	{
 		setText("1234");

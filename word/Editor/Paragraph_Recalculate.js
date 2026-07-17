@@ -1964,6 +1964,7 @@ Paragraph.prototype.private_RecalculateLineAlign       = function(CurLine, CurPa
 
         var JustifyWord  = 0;
         var JustifySpace = 0;
+		var JustifyLetters = -1;
         var RangeWidth   = Range.XEnd - Range.X;
 
         var X = 0;
@@ -2128,6 +2129,23 @@ Paragraph.prototype.private_RecalculateLineAlign       = function(CurLine, CurPa
 						}
 						break;
 					}
+					case AscCommon.align_Distributed:
+					{
+						// Distributed alignment differs from ordinary justification in two
+						// important ways: it expands the last line too, and it distributes
+						// the remaining width between characters instead of word spaces.
+						if (bRtlAlign)
+							X = Range.X - rtlShift;
+						else
+							X = Range.X;
+
+						if (PRSC.Letters > 1)
+						{
+							JustifyWord = (RangeWidth - Range.W) / (PRSC.Letters - 1);
+							JustifyLetters = PRSC.Letters - 1;
+						}
+						break;
+					}
 					default:
 					{
 						if (bRtlAlign)
@@ -2154,6 +2172,7 @@ Paragraph.prototype.private_RecalculateLineAlign       = function(CurLine, CurPa
         PRSA.SpacesCounter = PRSC.Spaces;
         PRSA.SpacesSkip    = PRSC.SpacesSkip;
         PRSA.LettersSkip   = PRSC.LettersSkip;
+		PRSA.JustifyLetters = JustifyLetters;
         PRSA.RecalcResult  = recalcresult_NextElement;
 
         var _LineMetrics = this.Lines[CurLine].Metrics;
@@ -4440,6 +4459,7 @@ function CParagraphRecalculateStateAlign(wrapState)
     this.SpacesCounter = 0; // Счетчик пробелов с добавочной шириной (чтобы пробелы в конце строки не трогать)
     this.SpacesSkip    = 0; // Количество пробелов, которые мы пропускаем в начале строки
     this.LettersSkip   = 0; // Количество букв, которые мы пропускаем (из-за таба)
+	this.JustifyLetters = -1; // Number of characters that receive distributed spacing (-1 for ordinary justification)
     this.LastW         = 0; // Ширина последнего элемента (необходимо для позиционирования картинки)
     this.Paragraph     = undefined;
     this.RecalcResult  = 0x00;//recalcresult_NextElement;
