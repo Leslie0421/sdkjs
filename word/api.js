@@ -2393,7 +2393,7 @@ background-repeat: no-repeat;\
 		}
 	};
 
-	asc_docs_api.prototype.asc_PasteData = function(_format, data1, data2, text_data, useCurrentPoint, callback, checkLocks, rejectCallback)
+	asc_docs_api.prototype.asc_PasteData = function(_format, data1, data2, text_data, useCurrentPoint, callback, checkLocks, rejectCallback, bookmarkStart, bookmarkEnd)
 	{
 		if (AscCommon.CollaborativeEditing.Get_GlobalLock())
 			return;
@@ -2430,7 +2430,7 @@ background-repeat: no-repeat;\
 			if (!useCurrentPoint)
 				_logicDoc.StartAction(AscDFH.historydescription_Document_PasteHotKey);
 
-			AscCommon.Editor_Paste_Exec(this, _format, data1, data2, text_data, undefined, callback, rejectCallback);
+			AscCommon.Editor_Paste_Exec(this, _format, data1, data2, text_data, undefined, callback, rejectCallback, bookmarkStart, bookmarkEnd);
 		}
 	};
 

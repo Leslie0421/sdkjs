@@ -27682,86 +27682,188 @@ CDocument.prototype.GetSpellCheckManager = function()
 {
 	return this.Spelling;
 };
-CDocument.prototype.SearchMultiParagraph = function(oProps) {
-	// 1. 预处理查找字符串
-	// ^p 表示跨段检索：与 allText 中段末/软换行的 \n 对齐，不能删除否则与 GetText 串不一致
-	// 不要用 String#trim()：会去掉首尾 \\n，导致「以空段/换行开头的检索」与 allText 对不齐
-	let searchStr = oProps.GetText().replace(/\^p/gi, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-	searchStr = searchStr.replace(/^[ \t\uFEFF]+/, '').replace(/[ \t\uFEFF]+$/, '');
-	let allParas = this.Content;
-	let allText = '';
-	let paraOffsets = [];
+CDocument.prototype.private_SplitSearchTextByParagraphMark = function(sText)
+{
+	var arrParts = [""];
+	for (var nPos = 0; nPos < sText.length; ++nPos)
+	{
+		if ("^" !== sText.charAt(nPos) || nPos + 1 >= sText.length)
+		{
+			arrParts[arrParts.length - 1] += sText.charAt(nPos);
+			continue;
+		}
 
-	// 2. 拼接全文本流
-	for (let i = 0; i < allParas.length; i++) {
-			paraOffsets.push(allText.length);
-			// 与 Run.Get_Text 一致：默认软换行为 \r、段末为 \r\n；此处统一为 \n 以便与外部检索串匹配
-			allText += allParas[i]?.GetText?.({
-				NewLineSeparator: '\n',
-				ParaSeparator: '\n'
-			});
-	}
-
-	// 3. 全局查找
-	let results = [];
-	let idx = 0;
-	while ((idx = allText.indexOf(searchStr, idx)) !== -1) {
-			// 4. 结果映射
-			let startParaIdx = paraOffsets.findIndex((offset, i) => 
-					i === paraOffsets.length - 1 || paraOffsets[i+1] > idx
-			);
-			let startOffset = idx - paraOffsets[startParaIdx];
-			let endIdx = idx + searchStr.length;
-			let endLastCharIdx = endIdx - 1;
-			let endParaIdx = paraOffsets.findIndex((offset, i) => 
-				i === paraOffsets.length - 1 || paraOffsets[i+1] > endLastCharIdx
-		  );
-			let endOffset = endIdx - paraOffsets[endParaIdx];
-
-			results.push({
-					startPara: startParaIdx,
-					startOffset: startOffset,
-					endPara: endParaIdx,
-					endOffset: endOffset
-			});
-			// 找到第一个匹配结果后直接中断
-			break;
-	}
-
-	const doc = this.Api.GetDocument().Document;
-
-	if (results.length > 0) {
-		doc.SelectRange(results[0].startPara,results[0].endPara)
-	} else {
-		return {
-			CurId: -1,
-			CurIds: [],
-			Count: results.length,
-			Results: []
+		var sNext = sText.charAt(nPos + 1);
+		if ("^" === sNext)
+		{
+			// In "^^p" the caret is escaped and p is ordinary text.
+			arrParts[arrParts.length - 1] += "^^";
+			++nPos;
+		}
+		else if ("p" === sNext)
+		{
+			arrParts.push("");
+			++nPos;
+		}
+		else
+		{
+			arrParts[arrParts.length - 1] += "^" + sNext;
+			++nPos;
 		}
 	}
-	
-	const allSearchParaIdxs = [];
-	const CurIds = [];
 
-	for (let i = results[0].startPara; i <= results[0].endPara; i++) {
-		allSearchParaIdxs.push(i);
+	return arrParts;
+};
+CDocument.prototype.private_CollectParagraphSearchMatches = function(arrParagraphs, sPattern, oProps, isWholeWords)
+{
+	var oSearch = new AscCommonWord.CDocumentSearch(this);
+	oSearch.Set({
+		GetText : function(){ return sPattern; },
+		IsMatchCase : function(){ return oProps.IsMatchCase(); },
+		IsWholeWords : function(){ return isWholeWords; }
+	});
+
+	var oParagraphSet = new Set(arrParagraphs);
+	for (var nPara = 0; nPara < arrParagraphs.length; ++nPara)
+		arrParagraphs[nPara].Search(oSearch, search_Common);
+
+	var oMatches = new Map();
+	for (var sId in oSearch.Elements)
+	{
+		var oParagraph = oSearch.Elements[sId];
+		if (!oParagraphSet.has(oParagraph) || !oParagraph.SearchResults[sId])
+			continue;
+
+		var oElement = oParagraph.SearchResults[sId];
+		if (!oMatches.has(oParagraph))
+			oMatches.set(oParagraph, []);
+		oMatches.get(oParagraph).push({
+			StartPos : oElement.StartPos.Copy(),
+			EndPos : oElement.EndPos.Copy()
+		});
 	}
 
-	this.Content.forEach((content => {
-		if(allSearchParaIdxs.includes(content.Index)) {
-				CurIds.push(content.Id);
-		}
-	}))
+	oSearch.Clear();
+	return oMatches;
+};
+CDocument.prototype.SearchMultiParagraph = function(oProps)
+{
+	var arrParts = this.private_SplitSearchTextByParagraphMark(oProps.GetText());
+	if (arrParts.length < 2)
+		return this.SearchEngine;
+	this.SearchEngine.SetMultiParagraphMode();
 
-	this.SearchEngine.Clear();
-	// 返回自定义的 SearchEngine 结构
-	return {
-			CurId: -1,
-			CurIds: CurIds,
-			Count: results.length,
-			Results: results[0]
+	// Shapes are separate text containers. Tables are included, but a match may
+	// cross a paragraph mark only inside one container and through adjacent
+	// paragraph elements.
+	var oParagraphProps = {All : true, Shapes : false};
+	var arrParagraphs = [];
+	for (var nContent = 0; nContent < this.Content.length; ++nContent)
+		this.Content[nContent].GetAllParagraphs(oParagraphProps, arrParagraphs);
+	this.SectionsInfo.GetAllParagraphs(oParagraphProps, arrParagraphs);
+	this.Footnotes.GetAllParagraphs(oParagraphProps, arrParagraphs);
+	this.Endnotes.GetAllParagraphs(oParagraphProps, arrParagraphs);
+	var oPatternCache = new Map();
+	var oThis = this;
+	var getMatches = function(sPattern, isWholeWords)
+	{
+		var sKey = (isWholeWords ? "1:" : "0:") + sPattern;
+		if (!oPatternCache.has(sKey))
+			oPatternCache.set(sKey, oThis.private_CollectParagraphSearchMatches(arrParagraphs, sPattern, oProps, isWholeWords));
+		return oPatternCache.get(sKey);
 	};
+	var getAnchoredMatch = function(oMap, oParagraph)
+	{
+		var arrMatches = oMap.get(oParagraph) || [];
+		var oStartPos = oParagraph.Get_StartPos();
+		for (var nMatch = 0; nMatch < arrMatches.length; ++nMatch)
+		{
+			if (0 === arrMatches[nMatch].StartPos.Compare(oStartPos))
+				return arrMatches[nMatch];
+		}
+		return null;
+	};
+
+	var nBreakCount = arrParts.length - 1;
+	var isLastPartEmpty = "" === arrParts[arrParts.length - 1];
+	var oFirstMatches = getMatches(arrParts[0] + "^p", oProps.IsWholeWords() && "" !== arrParts[0]);
+	// Collect every component before registering final results. Paragraph.Search
+	// resets run search marks, so running another temporary component search
+	// afterwards would remove the highlights already registered below.
+	for (var nPart = 1; nPart < nBreakCount; ++nPart)
+		getMatches(arrParts[nPart] + "^p", false);
+	if (!isLastPartEmpty)
+		getMatches(arrParts[arrParts.length - 1], oProps.IsWholeWords());
+
+	for (var nPara = 0; nPara < arrParagraphs.length; ++nPara)
+	{
+		var oStartParagraph = arrParagraphs[nPara];
+		var oParent = oStartParagraph.GetParent();
+		var nStartIndex = oStartParagraph.GetIndex();
+		var arrFirstMatches = oFirstMatches.get(oStartParagraph) || [];
+		if (!oParent || nStartIndex < 0 || !arrFirstMatches.length)
+			continue;
+
+		for (var nFirst = 0; nFirst < arrFirstMatches.length; ++nFirst)
+		{
+			var oEndParagraph = oStartParagraph;
+			var oEndPos = arrFirstMatches[nFirst].EndPos;
+			var arrResultParagraphs = [oStartParagraph];
+			var isMatch = true;
+
+			for (var nPart = 1; nPart < nBreakCount; ++nPart)
+			{
+				var oMiddleParagraph = oParent.Content[nStartIndex + nPart];
+				if (!oMiddleParagraph || !oMiddleParagraph.IsParagraph || !oMiddleParagraph.IsParagraph())
+				{
+					isMatch = false;
+					break;
+				}
+
+				var oMiddleMatch = getAnchoredMatch(getMatches(arrParts[nPart] + "^p", false), oMiddleParagraph);
+				if (!oMiddleMatch)
+				{
+					isMatch = false;
+					break;
+				}
+
+				arrResultParagraphs.push(oMiddleParagraph);
+				oEndParagraph = oMiddleParagraph;
+				oEndPos = oMiddleMatch.EndPos;
+			}
+
+			if (!isMatch)
+				continue;
+
+			if (!isLastPartEmpty)
+			{
+				var oLastParagraph = oParent.Content[nStartIndex + nBreakCount];
+				if (!oLastParagraph || !oLastParagraph.IsParagraph || !oLastParagraph.IsParagraph())
+					continue;
+
+				var oLastMatch = getAnchoredMatch(getMatches(arrParts[arrParts.length - 1], oProps.IsWholeWords()), oLastParagraph);
+				if (!oLastMatch)
+					continue;
+
+				arrResultParagraphs.push(oLastParagraph);
+				oEndParagraph = oLastParagraph;
+				oEndPos = oLastMatch.EndPos;
+			}
+
+			this.SearchEngine.AddMultiParagraphResult({
+				Parent : oParent,
+				StartParagraph : oStartParagraph,
+				EndParagraph : oEndParagraph,
+				Paragraphs : arrResultParagraphs,
+				StartPos : arrFirstMatches[nFirst].StartPos,
+				EndPos : oEndPos,
+				Type : search_Common,
+				TextAround : ["", oProps.GetText().replace(/\^p/g, "\n"), ""]
+			});
+		}
+	}
+
+	return this.SearchEngine;
 };
 //----------------------------------------------------------------------------------------------------------------------
 // Search
@@ -27774,7 +27876,7 @@ CDocument.prototype.Search = function(oProps, bDraw)
 	this.SearchEngine.Clear();
 	this.SearchEngine.Set(oProps);
 
-	if (oProps.GetText().indexOf('^p') !== -1) {
+	if (this.private_SplitSearchTextByParagraphMark(oProps.GetText()).length > 1) {
 		return this.SearchMultiParagraph(oProps);
 	}
 
@@ -27829,6 +27931,11 @@ CDocument.prototype.SelectSearchElement = function(Id)
 };
 CDocument.prototype.ReplaceSearchElement = function(NewStr, bAll, Id, bInterfaceEvent)
 {
+	// Search results spanning ^p are composite ranges. The paragraph-local
+	// replacement engine cannot safely merge/delete their document elements.
+	if (this.SearchEngine.IsMultiParagraphSearch())
+		return false;
+
 	var bResult = false;
 
 	var oState = this.SaveDocumentState();
@@ -27901,6 +28008,8 @@ CDocument.prototype.GetSearchElementId = function(bNext)
 	var Id = null;
 
 	this.SearchEngine.SetDirection(bNext);
+	if (this.SearchEngine.IsMultiParagraphSearch())
+		return this.SearchEngine.GetNextMultiParagraphId(bNext);
 
 	this.DrawingObjects.resetDrawStateBeforeAction();
 	if (docpostype_DrawingObjects === this.CurPos.Type)

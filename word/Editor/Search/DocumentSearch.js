@@ -65,6 +65,11 @@
 		this.TextAroundUpdate = true;
 		this.ReplaceEvent     = true;
 		this.TextAroundEmpty  = true; // Флаг, что все очищено, чтобы не очищать повторно
+		// A normal search result belongs to one paragraph. Results containing ^p
+		// need extra range information while still remaining part of this real
+		// search engine (the API and the search panel both depend on it).
+		this.MultiParagraphResults = {};
+		this.MultiParagraphMode = false;
 	}
 
 	CDocumentSearch.prototype.Reset = function()
@@ -86,6 +91,13 @@
 	{
 		this.Reset();
 
+		for (var nMultiId in this.MultiParagraphResults)
+		{
+			var oMultiResult = this.MultiParagraphResults[nMultiId];
+			for (var nPara = 0; nPara < oMultiResult.Paragraphs.length; ++nPara)
+				oMultiResult.Paragraphs[nPara].RemoveSearchResult(nMultiId);
+		}
+
 		// Очищаем предыдущие элементы поиска
 		for (var Id in this.Elements)
 		{
@@ -98,6 +110,8 @@
 		this.ReplacedId = [];
 		this.CurId      = -1;
 		this.Direction  = true;
+		this.MultiParagraphResults = {};
+		this.MultiParagraphMode = false;
 
 		this.TextAroundUpdate = true;
 		this.StopTextAround();
@@ -108,6 +122,45 @@
 		this.Count++;
 		this.Elements[this.Id++] = Paragraph;
 		return (this.Id - 1);
+	};
+	CDocumentSearch.prototype.AddMultiParagraphResult = function(oResult)
+	{
+		var nId = this.Add(oResult.StartParagraph);
+		oResult.Id = nId;
+		this.MultiParagraphResults[nId] = oResult;
+
+		for (var nIndex = 0; nIndex < oResult.Paragraphs.length; ++nIndex)
+		{
+			var oParagraph = oResult.Paragraphs[nIndex];
+			var oStartPos = (0 === nIndex ? oResult.StartPos : oParagraph.Get_StartPos());
+			var oEndPos = (nIndex === oResult.Paragraphs.length - 1 ? oResult.EndPos : oParagraph.Get_EndPos(true));
+			oParagraph.AddSearchResult(nId, oStartPos, oEndPos, oResult.Type);
+		}
+
+		return nId;
+	};
+	CDocumentSearch.prototype.IsMultiParagraphSearch = function()
+	{
+		return this.MultiParagraphMode;
+	};
+	CDocumentSearch.prototype.SetMultiParagraphMode = function()
+	{
+		this.MultiParagraphMode = true;
+	};
+	CDocumentSearch.prototype.GetNextMultiParagraphId = function(bNext)
+	{
+		var arrIds = Object.keys(this.MultiParagraphResults).map(function(sId){ return parseInt(sId, 10); });
+		arrIds.sort(function(a, b){ return a - b; });
+		if (!arrIds.length)
+			return null;
+
+		var nCurrent = arrIds.indexOf(this.CurId);
+		if (-1 === nCurrent)
+			return bNext ? arrIds[0] : arrIds[arrIds.length - 1];
+
+		return bNext
+			? arrIds[(nCurrent + 1) % arrIds.length]
+			: arrIds[(nCurrent - 1 + arrIds.length) % arrIds.length];
 	};
 	CDocumentSearch.prototype.GetElementsMap = function()
 	{
@@ -122,6 +175,14 @@
 	};
 	CDocumentSearch.prototype.Select = function(nId, bUpdateStates)
 	{
+		var oMultiResult = this.MultiParagraphResults[nId];
+		if (oMultiResult)
+		{
+			this.private_SelectMultiParagraphResult(oMultiResult);
+			this.SetCurrent(nId);
+			return;
+		}
+
 		var Paragraph = this.Elements[nId];
 		if (Paragraph)
 		{
@@ -139,6 +200,47 @@
 
 			this.SetCurrent(nId);
 		}
+	};
+	CDocumentSearch.prototype.private_SelectMultiParagraphResult = function(oResult)
+	{
+		var oParent = oResult.Parent;
+		var nStartIndex = oResult.StartParagraph.GetIndex();
+		var nEndIndex = oResult.EndParagraph.GetIndex();
+		if (!oParent || nStartIndex < 0 || nEndIndex < nStartIndex)
+			return;
+
+		// Establish the document/table-cell/header chain before creating the
+		// range. Doing this afterwards collapses it to the last paragraph.
+		oResult.EndParagraph.Document_SetThisElementCurrent(false);
+		oParent.RemoveSelection();
+		oParent.SetDocPosType(docpostype_Content);
+		oParent.Selection.Use      = true;
+		oParent.Selection.Start    = false;
+		oParent.Selection.Flag     = selectionflag_Common;
+		oParent.Selection.StartPos = nStartIndex;
+		oParent.Selection.EndPos   = nEndIndex;
+		oParent.CurPos.ContentPos  = nEndIndex;
+
+		if (nStartIndex === nEndIndex)
+		{
+			oResult.StartParagraph.Selection.Use   = true;
+			oResult.StartParagraph.Selection.Start = false;
+			oResult.StartParagraph.Set_SelectionContentPos(oResult.StartPos, oResult.EndPos, false);
+			oResult.StartParagraph.Set_ParaContentPos(oResult.EndPos, false, -1, -1);
+			return;
+		}
+
+		oResult.StartParagraph.Selection.Use   = true;
+		oResult.StartParagraph.Selection.Start = false;
+		oResult.StartParagraph.Set_SelectionContentPos(oResult.StartPos, oResult.StartParagraph.Get_EndPos(true), false);
+
+		for (var nIndex = nStartIndex + 1; nIndex < nEndIndex; ++nIndex)
+			oParent.Content[nIndex].SelectAll(1);
+
+		oResult.EndParagraph.Selection.Use   = true;
+		oResult.EndParagraph.Selection.Start = false;
+		oResult.EndParagraph.Set_SelectionContentPos(oResult.EndParagraph.Get_StartPos(), oResult.EndPos, false);
+		oResult.EndParagraph.Set_ParaContentPos(oResult.EndPos, false, -1, -1);
 	};
 	CDocumentSearch.prototype.SetCurrent = function(nId)
 	{
@@ -162,6 +264,11 @@
 	};
 	CDocumentSearch.prototype.Replace = function(sReplaceString, Id, bRestorePos)
 	{
+		// The single-paragraph replacement routine below must not delete only the
+		// first fragment of a range spanning paragraph marks.
+		if (this.MultiParagraphResults[Id])
+			return false;
+
 		this.InsertPattern.Set(sReplaceString);
 
 		var oPara = this.Elements[Id];
@@ -420,7 +527,10 @@
 			if (!this.Elements[sId])
 				continue;
 
-			let textAround = this.Elements[sId].GetTextAroundSearchResult(sId);
+			let oMultiResult = this.MultiParagraphResults[sId];
+			let textAround = oMultiResult
+				? oMultiResult.TextAround
+				: this.Elements[sId].GetTextAroundSearchResult(sId);
 			this.TextArround[sId] = textAround;
 			arrResult.push([sId, textAround]);
 		}
@@ -495,4 +605,3 @@
 	window['AscCommonWord'].CDocumentSearch = CDocumentSearch;
 
 })(window);
-

@@ -1444,6 +1444,426 @@
 		this.getTextAnnotatorEventManager().removeRange(annotation);
 	};
 
+	//------------------------------------------------------------------------------------------------------------------
+	// Custom methods used by @xyt/office-plugins.
+	// Since 9.4 callCommand exposes the Builder API instead of asc_docs_api, legacy editor API calls must be routed
+	// through executeMethod. Keep the legacy behavior here so the connector package does not lose functionality.
+	//------------------------------------------------------------------------------------------------------------------
+	Api.prototype["pluginMethod_XytSearch"] = function(params)
+	{
+		params = params || {};
+		let searchVal = params["searchVal"];
+		if (!searchVal)
+			return -1;
+
+		try
+		{
+			let searchSettings = new AscCommon.CSearchSettings();
+			searchSettings.put_Text(searchVal);
+			searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : params["matchCase"]);
+			searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : params["wholeWords"]);
+
+			let isNext = undefined === params["isNext"] ? true : params["isNext"];
+			let selectIndex = undefined === params["selectIndex"] ? 0 : params["selectIndex"];
+			let length = this.asc_findText(searchSettings, isNext) || -1;
+			if (length > 1)
+				this.asc_FindRepeatText(selectIndex);
+
+			return length;
+		}
+		catch (oError)
+		{
+			// executeMethod does not invoke the connector callback when a plugin
+			// method throws. Always settle XytSearch so one failed lookup cannot leave
+			// the office-plugin Promise pending and block every later search.
+			console.error("XytSearch failed", oError);
+			let oLogicDocument = this.private_GetLogicDocument();
+			if (oLogicDocument && oLogicDocument.ClearSearch)
+				oLogicDocument.ClearSearch();
+			return -1;
+		}
+	};
+
+	Api.prototype["pluginMethod_XytSearchAndReplace"] = function(params)
+	{
+		params = params || {};
+		let searchVal = params["searchVal"];
+		if (!searchVal)
+		{
+			console.warn("请传入 searchVal！");
+			return;
+		}
+
+		let searchSettings = new AscCommon.CSearchSettings();
+		searchSettings.put_Text(searchVal);
+		searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : params["matchCase"]);
+		searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : params["wholeWords"]);
+
+		let replaceVal = undefined === params["replaceVal"] ? "" : params["replaceVal"];
+		let isReplaceAll = true === params["isReplaceAll"];
+		if (isReplaceAll)
+		{
+			this.asc_replaceText(searchSettings, replaceVal, true);
+			return;
+		}
+
+		let isNext = undefined === params["isNext"] ? false : params["isNext"];
+		let selectIndex = undefined === params["selectIndex"] ? 0 : params["selectIndex"];
+		let length = this.asc_findText(searchSettings, isNext) || -1;
+		if (length)
+			this.asc_FindRepeatText(selectIndex);
+		this["Add_Text"](replaceVal);
+	};
+
+	Api.prototype["pluginMethod_XytInsertParagraph"] = function(params)
+	{
+		params = params || {};
+		if (true === params["isLineFeed"])
+			this["Add_NewParagraph"]();
+		this["Add_Text"](undefined === params["text"] ? "" : params["text"]);
+	};
+
+	Api.prototype["pluginMethod_XytGetSelectedText"] = function()
+	{
+		return this.asc_GetSelectedText();
+	};
+
+	Api.prototype["pluginMethod_XytDealWithBookmark"] = function(params)
+	{
+		params = params || {};
+		let manager = this.asc_GetBookmarksManager();
+		if (!manager)
+		{
+			console.warn("书签初始化失败！");
+			return null;
+		}
+
+		let name = params["name"];
+		if (!name)
+		{
+			console.warn("请传入 name！");
+			return null;
+		}
+
+		switch (params["actionType"])
+		{
+			case "have":
+				return manager.asc_HaveBookmark(name);
+			case "add":
+				return manager.asc_AddBookmark(name);
+			case "remove":
+				return manager.asc_RemoveBookmark(name);
+			case "select":
+				return manager.asc_SelectBookmark(name);
+		}
+
+		return null;
+	};
+
+	/**
+	 * Replaces bookmark contents with plain text and always keeps the bookmarks.
+	 * Items are processed sequentially because text paste uses the shared selection.
+	 * LF characters create paragraphs with formatting inherited from the bookmark.
+	 *
+	 * @param {{name: string, text: string}[]} items
+	 * @returns {{success: boolean, total: number, succeeded: number, failed: number, results: object[]}|undefined}
+	 */
+	Api.prototype["pluginMethod_XytReplaceBookmarks"] = function(items)
+	{
+		if (!Array.isArray(items) || !items.length)
+			return {"success" : false, "total" : 0, "succeeded" : 0, "failed" : 0, "results" : []};
+
+		let api = this;
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+		{
+			return {
+				"success" : false,
+				"total" : items.length,
+				"succeeded" : 0,
+				"failed" : items.length,
+				"results" : items.map(function(item, index)
+				{
+					return {"index" : index, "name" : item && item["name"], "success" : false, "paragraphCount" : 0, "error" : "document-not-ready"};
+				})
+			};
+		}
+
+		let bookmarkManager = logicDocument.GetBookmarksManager();
+		let documentState = logicDocument.SaveDocumentState();
+		let results = [];
+		let currentActionStarted = false;
+		let isFinished = false;
+
+		let finalizeCurrentAction = function()
+		{
+			if (currentActionStarted && logicDocument.IsActionStarted())
+				logicDocument.FinalizeAction();
+			currentActionStarted = false;
+		};
+
+		let appendResult = function(index, name, text, success, error)
+		{
+			results.push({
+				"index" : index,
+				"name" : name,
+				"success" : success,
+				"paragraphCount" : success && text.length ? text.split("\n").length : 0,
+				"error" : error
+			});
+		};
+
+		let addCollapsedBookmark = function(name)
+		{
+			bookmarkManager.Update();
+			if (bookmarkManager.GetBookmarkByName(name))
+				return true;
+
+			let paragraph = logicDocument.GetCurrentParagraph(true);
+			if (!paragraph)
+				return false;
+
+			let bookmarkId = bookmarkManager.GetNewBookmarkId();
+			paragraph.AddBookmarkChar(new AscWord.CParagraphBookmark(false, bookmarkId, name), false);
+			paragraph.AddBookmarkChar(new AscWord.CParagraphBookmark(true, bookmarkId, name), false);
+			bookmarkManager.Update();
+			return !!bookmarkManager.GetBookmarkByName(name);
+		};
+
+		let finish = function()
+		{
+			if (isFinished)
+				return;
+			isFinished = true;
+			finalizeCurrentAction();
+			logicDocument.LoadDocumentState(documentState);
+			logicDocument.UpdateSelection();
+
+			let succeeded = results.filter(function(result) { return result["success"]; }).length;
+			let response = {
+				"success" : succeeded === items.length,
+				"total" : items.length,
+				"succeeded" : succeeded,
+				"failed" : items.length - succeeded,
+				"results" : results
+			};
+
+			api.decrementCounterLongAction();
+			window.g_asc_plugins.onPluginMethodReturn(response);
+		};
+
+		let processItem = function(index)
+		{
+			if (index >= items.length)
+			{
+				finish();
+				return;
+			}
+
+			let item = items[index] || {};
+			let name = item["name"];
+			let text = item["text"];
+			if (!name || typeof(text) !== "string")
+			{
+				appendResult(index, name, "", false, "invalid-params");
+				processItem(index + 1);
+				return;
+			}
+
+			text = text.replace(/\r\n?/g, "\n");
+			bookmarkManager.Update();
+			if (!bookmarkManager.GetBookmarkByName(name))
+			{
+				appendResult(index, name, text, false, "bookmark-not-found");
+				processItem(index + 1);
+				return;
+			}
+			if (AscCommon.CollaborativeEditing.Get_GlobalLock())
+			{
+				appendResult(index, name, text, false, "editor-locked");
+				processItem(index + 1);
+				return;
+			}
+			if (text.length && !AscCommon.g_clipboardBase)
+			{
+				appendResult(index, name, text, false, "clipboard-not-ready");
+				processItem(index + 1);
+				return;
+			}
+			if (!bookmarkManager.SelectBookmark(name))
+			{
+				appendResult(index, name, text, false, "bookmark-select-failed");
+				processItem(index + 1);
+				return;
+			}
+			if (logicDocument.IsSelectionLocked(
+				AscCommon.changestype_Paragraph_Content,
+				null,
+				true,
+				logicDocument.IsFormFieldEditing()
+			))
+			{
+				appendResult(index, name, text, false, "selection-locked");
+				processItem(index + 1);
+				return;
+			}
+
+			try
+			{
+				logicDocument.StartAction(AscDFH.historydescription_BuilderScript);
+				currentActionStarted = true;
+				logicDocument.RemoveBeforePaste();
+				logicDocument.private_RemoveBookmark(name);
+
+				if (!text.length)
+				{
+					let success = addCollapsedBookmark(name);
+					finalizeCurrentAction();
+					appendResult(index, name, text, success, success ? undefined : "bookmark-recreate-failed");
+					processItem(index + 1);
+					return;
+				}
+
+				let bookmarkId = bookmarkManager.GetNewBookmarkId();
+				let bookmarkStart = new AscWord.CParagraphBookmark(true, bookmarkId, name);
+				let bookmarkEnd = new AscWord.CParagraphBookmark(false, bookmarkId, name);
+				api.asc_PasteData(
+					AscCommon.c_oAscClipboardDataFormat.Text,
+					text,
+					undefined,
+					undefined,
+					true,
+					function(result)
+					{
+						try
+						{
+							bookmarkManager.Update();
+							let success = false !== result && !!bookmarkManager.GetBookmarkByName(name);
+							if (!bookmarkManager.GetBookmarkByName(name))
+								addCollapsedBookmark(name);
+							finalizeCurrentAction();
+							appendResult(index, name, text, success, success ? undefined : "paste-or-bookmark-failed");
+						}
+						catch (error)
+						{
+							finalizeCurrentAction();
+							appendResult(index, name, text, false, error && error.message ? error.message : "unexpected-error");
+						}
+						processItem(index + 1);
+					},
+					false,
+					function()
+					{
+						let bookmarkPreserved = addCollapsedBookmark(name);
+						finalizeCurrentAction();
+						appendResult(index, name, text, false, bookmarkPreserved ? "paste-rejected" : "paste-rejected-bookmark-lost");
+						processItem(index + 1);
+					},
+					bookmarkStart,
+					bookmarkEnd
+				);
+			}
+			catch (error)
+			{
+				let bookmarkPreserved = addCollapsedBookmark(name);
+				finalizeCurrentAction();
+				let errorMessage = error && error.message ? error.message : "unexpected-error";
+				appendResult(index, name, text, false, bookmarkPreserved ? errorMessage : errorMessage + "-bookmark-lost");
+				processItem(index + 1);
+			}
+		};
+
+		if (!window.g_asc_plugins)
+			return {"success" : false, "total" : items.length, "succeeded" : 0, "failed" : items.length, "results" : []};
+
+		window.g_asc_plugins.setPluginMethodReturnAsync();
+		this.incrementCounterLongAction();
+		processItem(0);
+	};
+
+	Api.prototype["pluginMethod_XytSetReviewChanges"] = function(params)
+	{
+		params = params || {};
+		let isReviewOnly = true === params["isReviewOnly"];
+		let canReview = undefined === params["canReview"] ? true : params["canReview"];
+		if (isReviewOnly || !canReview)
+		{
+			this.asc_SetLocalTrackRevisions(true);
+			return;
+		}
+
+		if (true === params["global"])
+		{
+			this.asc_SetLocalTrackRevisions(null);
+			this.asc_SetGlobalTrackRevisions(!!params["state"]);
+		}
+		else
+		{
+			this.asc_SetLocalTrackRevisions(!!params["state"]);
+		}
+	};
+
+	Api.prototype["pluginMethod_XytSetContentControlText"] = function(text, id)
+	{
+		if (!text || !id)
+		{
+			console.warn("请传入正确的参数！");
+			return;
+		}
+		this.asc_SetContentControlText(text, id);
+	};
+
+	Api.prototype["pluginMethod_XytSetContentControlHighlight"] = function(isShow, r, g, b)
+	{
+		this.asc_SetGlobalContentControlShowHighlight(isShow, r, g, b);
+	};
+
+	Api.prototype["pluginMethod_XytMoveCursorToParagraph"] = function(direction)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return false;
+
+		let paragraphs = logicDocument.GetSelectedParagraphs && logicDocument.GetSelectedParagraphs();
+		let paragraph = paragraphs && paragraphs[0];
+		if (!paragraph)
+			return false;
+
+		logicDocument.RemoveSelection();
+		if ("start" === direction)
+			paragraph.MoveCursorToStartPos(false);
+		else
+			paragraph.MoveCursorToEndPos(false);
+		logicDocument.UpdateSelection();
+		logicDocument.UpdateInterface();
+		return true;
+	};
+
+	Api.prototype["pluginMethod_XytInsertPageInfo"] = function(text)
+	{
+		if (!text)
+		{
+			console.warn("text is required");
+			return;
+		}
+		if (typeof text !== "string")
+		{
+			console.warn("text must be a string");
+			return;
+		}
+
+		let api = this;
+		text.split(/(\${[^}]+})/g).filter(Boolean).forEach(function(item)
+		{
+			if (item.includes("${pageNum}"))
+				api.put_PageNum(-1);
+			else if (item.includes("${pageCount}"))
+				api.asc_AddPageCount();
+			else
+				api["Add_Text"](item);
+		});
+	};
+
 	/**
 	 * 批量映射表格数据
 	 * @memberof Api
@@ -1500,7 +1920,11 @@
 			} else {
 				console.warn(`未找到书签所在的表格！`);
 			}
-		})
+			})
+
+		logicDocument.Recalculate();
+		logicDocument.UpdateInterface();
+		logicDocument.UpdateSelection();
 	};
 
 	/**
@@ -1561,202 +1985,220 @@
 	 * window.Asc.plugin.executeMethod("SelectTable");
 	 */
 	Api.prototype["pluginMethod_SelectTable"] = function(params)
-	{			
-		try {			
-			if(!Array.isArray(params)) {
+	{
+		try
+		{
+			if (!Array.isArray(params) || !Number.isInteger(params[0]) || params[0] < 0)
+			{
 				return {
-					code: 400,
-					data: false,
-					message: '请传入正确的参数！'
+					"code" : 400,
+					"data" : false,
+					"message" : "请传入正确的参数！"
 				};
-			};
-
-			const tableIndex = params[0];
-			const rowIndex = params[1];
-			const columnIndex = params[2];
-			let type = 'table';
-
-			if(tableIndex >= 0 && rowIndex >= 0 && columnIndex >= 0) {
-				type = 'cell';
-			} else if(tableIndex >= 0 && rowIndex >= 0) {
-				type = 'row';
-			} else if(tableIndex >= 0 && columnIndex >= 0) {
-				type = 'column';
-			} else if(tableIndex >= 0) {
-				type = 'table';
-			}
-			
-			const doc = this.GetDocument();
-			const Doc = doc.Document;
-			const tables = doc.GetAllTables() || [];
-			const tableLength = tables.length;
-			if (!tableLength) {
-					return {
-						code: 200,
-						data: false,
-						message: '当前文档无表格！'
-					};
-			} else if (tableIndex >= tableLength) {			
-					return {
-						code: 200,
-						data: false,
-						message: '所选表格不存在！'
-					};
 			}
 
-			const table = tables[tableIndex];		
+			let tableIndex  = params[0];
+			let rowIndex    = params[1];
+			let columnIndex = params[2];
+			let type = "table";
+
+			if (tableIndex >= 0 && rowIndex >= 0 && columnIndex >= 0)
+				type = "cell";
+			else if (tableIndex >= 0 && rowIndex >= 0)
+				type = "row";
+			else if (tableIndex >= 0 && columnIndex >= 0)
+				type = "column";
+
+			let logicDocument = this.private_GetLogicDocument();
+			if (!logicDocument)
+			{
+				return {
+					"code" : 500,
+					"data" : false,
+					"message" : "逻辑文档初始化失败！"
+				};
+			}
+
+			let tables = logicDocument.GetAllTables() || [];
+			if (!tables.length)
+			{
+				return {
+					"code" : 200,
+					"data" : false,
+					"message" : "当前文档无表格！"
+				};
+			}
+			if (tableIndex >= tables.length)
+			{
+				return {
+					"code" : 200,
+					"data" : false,
+					"message" : "所选表格不存在！"
+				};
+			}
+
+			let table = tables[tableIndex];
+			if ("table" === type)
+			{
+				logicDocument.RemoveSelection();
+				table.SelectAll();
+				table.Document_SetThisElementCurrent(false);
+				logicDocument.UpdateSelection();
+				logicDocument.UpdateInterface();
+				return {
+					"code" : 200,
+					"data" : true
+				};
+			}
+
+			let rowCount = table.GetRowsCount();
 			let cell = null;
 			let cells = [];
 
-			switch (type) {
-				case 'table':
-					table.Select();
-					return {
-						code: 200,
-						data: true
-					};
-				case 'row': 
-					const oTable = table.Table;
-					if (rowIndex > oTable.Rows) {
+			switch (type)
+			{
+				case "row":
+				{
+					// 保持原接口约定：仅定位行时 rowIndex 从 1 开始。
+					if (!Number.isInteger(rowIndex) || rowIndex < 1 || rowIndex > rowCount)
+					{
 						return {
-							code: 200,
-							data: false,
-							message: '所选行不存在！'
+							"code" : 200,
+							"data" : false,
+							"message" : "所选行不存在！"
 						};
 					}
-
-					const row = oTable.Content[rowIndex - 1];
-					cells = row.Content;
+					cells = table.GetRow(rowIndex - 1).Content;
 					break;
-				case 'column': {
-					const oTableCol = table.Table;
-					if (!oTableCol.Rows) {
+				}
+				case "column":
+				{
+					if (!Number.isInteger(columnIndex) || columnIndex < 0 || !rowCount)
+					{
 						return {
-							code: 200,
-							data: false,
-							message: '所选列不存在！'
-						};
-					}
-					const firstRowCol = oTableCol.Content[0];
-					const cellLength = firstRowCol ? firstRowCol.Content.length : 0;
-
-					if (columnIndex > cellLength) {
-						return {
-							code: 200,
-							data: false,
-							message: '所选列不存在！'
+							"code" : 200,
+							"data" : false,
+							"message" : "所选列不存在！"
 						};
 					}
 
-					cells = [];
-					for (let r = 0; r < oTableCol.Rows; r++) {
-						const tableRow = oTableCol.Content[r];
-						if (tableRow && columnIndex < tableRow.Content.length) {
+					let firstRow = table.GetRow(0);
+					if (!firstRow || columnIndex >= firstRow.GetCellsCount())
+					{
+						return {
+							"code" : 200,
+							"data" : false,
+							"message" : "所选列不存在！"
+						};
+					}
+
+					for (let row = 0; row < rowCount; ++row)
+					{
+						let tableRow = table.GetRow(row);
+						if (tableRow && columnIndex < tableRow.GetCellsCount())
 							cells.push(tableRow.GetCell(columnIndex));
-						}
 					}
-					cell = cells.length ? cells[0] : null;
 					break;
 				}
-				case 'cell': {
-					const oTable = table.Table;
-
-					if (rowIndex >= oTable.Rows) {
+				case "cell":
+				{
+					// 保持原接口约定：定位单元格时行列索引均从 0 开始。
+					if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rowCount)
+					{
 						return {
-							code: 200,
-							data: false,
-							message: '所选行不存在！'
+							"code" : 200,
+							"data" : false,
+							"message" : "所选行不存在！"
 						};
 					}
 
-					const row = table.GetRow(rowIndex);
-					const cellLength = row.Row.Content.length || 0;
-
-					if(columnIndex >= cellLength) {
+					let tableRow = table.GetRow(rowIndex);
+					if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex >= tableRow.GetCellsCount())
+					{
 						return {
-							code: 200,
-							data: false,
-							message: '所选单元格不存在！'
+							"code" : 200,
+							"data" : false,
+							"message" : "所选单元格不存在！"
 						};
 					}
-
-					cell = row.Row.GetCell(columnIndex);
+					cell = tableRow.GetCell(columnIndex);
 					break;
 				}
-				default:
-					break;
 			}
 
-			const cellList = cells.length > 0 ? cells : (cell ? [cell] : []);
-			if (!cellList.length) {
+			let cellList = cells.length ? cells : (cell ? [cell] : []);
+			if (!cellList.length)
+			{
 				return {
-					code: 200,
-					data: false,
-					message: '无法定位表格区域！'
+					"code" : 200,
+					"data" : false,
+					"message" : "无法定位表格区域！"
 				};
 			}
 
-			// 遍历每个单元格，比较 Y 坐标大小，取最大那一个
 			let bestCell = null;
 			let bestPos = null;
 			let bestY = -Infinity;
-			let curPage = 0;
+			let currentPage = 0;
 
-			for (let ci = 0; ci < cellList.length; ci++) {
-				const c = cellList[ci];
-				if (!c || !c.Content || !c.Content.GetAbsolutePage) continue;
-				if (typeof c.Content_GetCurPosXY !== 'function') continue;
+			for (let index = 0; index < cellList.length; ++index)
+			{
+				let currentCell = cellList[index];
+				if (!currentCell || !currentCell.Content || typeof(currentCell.Content_GetCurPosXY) !== "function")
+					continue;
 
-				const pos = c.Content_GetCurPosXY();
-				const y = pos ? pos.Y : undefined;
-				if (typeof y !== 'number') continue;
+				let position = currentCell.Content_GetCurPosXY();
+				let y = position ? position.Y : undefined;
+				if (typeof(y) !== "number")
+					continue;
 
-				const p = c.Content.GetAbsolutePage();
-				// Y 最大；如果 Y 相同，取页码更大的（更贴近期望“落到后面那页”）
-				if (y > bestY || (y === bestY && p > curPage)) {
+				let page = currentCell.Content.GetAbsolutePage();
+				if (y > bestY || (y === bestY && page > currentPage))
+				{
 					bestY = y;
-					bestCell = c;
-					bestPos = pos;
-					curPage = p;
+					bestCell = currentCell;
+					bestPos = position;
+					currentPage = page;
 				}
 			}
 
-			if (!bestCell || !bestPos) {
+			if (!bestCell || !bestPos)
+			{
 				return {
-					code: 200,
-					data: false,
-					message: '无法获取单元格坐标！'
+					"code" : 200,
+					"data" : false,
+					"message" : "无法获取单元格坐标！"
 				};
 			}
 
-			Doc.GoToPage(curPage);
-			// 当前单元格的数据，可能刚好在分割线上，导致定位偏移，所以需要向下移动1个像素
-			Doc.MoveCursorToXY(bestPos.X, bestPos.Y + 1);
-			switch (type) {
-				case 'row':
+			logicDocument.GoToPage(currentPage);
+			logicDocument.MoveCursorToXY(bestPos.X, bestPos.Y + 1);
+			switch (type)
+			{
+				case "row":
 					this.selectRow();
 					break;
-				case 'column':
+				case "column":
 					this.selectColumn();
 					break;
-				case 'cell':
+				case "cell":
 					this.selectCell();
-					break;
-				default:
 					break;
 			}
 
 			return {
-				code: 200,
-				data: true
-			}
-		} catch (error) {			
+				"code" : 200,
+				"data" : true
+			};
+		}
+		catch (error)
+		{
 			console.warn(error);
-		
 			return {
-				code: 500,
-				data: false,
-			}
+				"code" : 500,
+				"data" : false,
+				"message" : error && error.message ? error.message : "未知错误"
+			};
 		}
 	};
 		/**
@@ -1769,67 +2211,88 @@
 	 */
 	Api.prototype["pluginMethod_SearchByPos"] = function(params)
 	{
-				const { page, box } = params;
-				const Doc = this.GetDocument().Document;
-				const allPara = Doc.GetAllParagraphs();
-				const targetY = box?.[1];
-	
-				if (targetY == null || !Number.isFinite(Number(targetY)) || !allPara?.length) {
-					return null;
+		if (!params || !Array.isArray(params["box"]))
+			return null;
+
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return null;
+
+		let page = Number(params["page"]);
+		let targetY = Number(params["box"][1]);
+		if (!Number.isFinite(page) || !Number.isFinite(targetY))
+			return null;
+
+		let paragraphs = (logicDocument.GetAllParagraphs() || []).filter(function(paragraph)
+		{
+			return paragraph.GetAbsolutePage() + 1 === page;
+		});
+		if (!paragraphs.length)
+			return null;
+
+		let toOfficeYpx = function(paragraph)
+		{
+			return paragraph.Y * (144 / 25.4);
+		};
+		let candidates = [];
+		let pushCandidate = function(paragraph, referenceY)
+		{
+			candidates.push({
+				"paragraph" : paragraph,
+				"distance" : Math.abs(referenceY - targetY)
+			});
+		};
+
+		for (let index = 0; index < paragraphs.length; ++index)
+		{
+			let paragraph = paragraphs[index];
+			let nextParagraph = paragraphs[index + 1];
+			let paragraphY = toOfficeYpx(paragraph);
+			if (!nextParagraph)
+			{
+				let previousParagraph = paragraphs[index - 1];
+				if (!previousParagraph)
+				{
+					pushCandidate(paragraph, paragraphY);
+					continue;
 				}
-	
-				const toOfficeYpx = (para) => para.Y * (144 / 25.4);
-				const y = Number(targetY);
-				/** 同一页可能命中多段，先收集再以与 box[1] 的纵向距离选最近 */
-				const candidates = [];
-				const pushCandidate = (item, refYpx) => {
-					candidates.push({ item, dist: Math.abs(refYpx - y), text: item?.GetText() || '', page: item.GetAbsolutePage() + 1 });
-				};
-	
-				for (let i = 0; i < allPara.length; i++) {
-					const item = allPara[i];
-					const next = allPara[i + 1];
-					const officeYpx = toOfficeYpx(item);
-					if (item.GetAbsolutePage() + 1 !== page) {
-						continue;
-					}
-					if (!next) {
-						// 无下一项时：落在当前段 Y 及以下（Y 向下增大）或及以上（Y 向上减小）仍归属当前段
-						const prev = allPara[i - 1];
-						if (!prev) {
-							pushCandidate(item, officeYpx);
-							continue;
-						}
-						const prevOfficeYpx = toOfficeYpx(prev);
-						if (prevOfficeYpx <= officeYpx) {
-							if (y >= officeYpx) {
-								pushCandidate(item, officeYpx);
-							}
-						} else if (y <= officeYpx) {
-							pushCandidate(item, officeYpx);
-						}
-						break;
-					}
-					const nextOfficeYpx = toOfficeYpx(next);
-					// box[1] 落在 [当前段 Y, 下一段 Y) 半开区间（Y 增大时）；Y 减小时对称，避免边界重复命中两段
-					if (officeYpx <= nextOfficeYpx) {
-						if (y >= officeYpx && y < nextOfficeYpx) {
-							pushCandidate(item, officeYpx);
-						}
-					} else if (y > nextOfficeYpx && y <= officeYpx) {
-						pushCandidate(item, officeYpx);
-					}
+
+				let previousY = toOfficeYpx(previousParagraph);
+				if ((previousY <= paragraphY && targetY >= paragraphY)
+					|| (previousY > paragraphY && targetY <= paragraphY))
+				{
+					pushCandidate(paragraph, paragraphY);
 				}
-	
-				if (!candidates.length) {
-					return null;
-				}
-				candidates.sort((a, b) => a.dist - b.dist);
-	
-				const best = candidates[0].item;
-				const Index = best.Index;
-				Doc.SelectRange(Index, Index);
-				return best;
+				break;
+			}
+
+			let nextY = toOfficeYpx(nextParagraph);
+			if ((paragraphY <= nextY && targetY >= paragraphY && targetY < nextY)
+				|| (paragraphY > nextY && targetY > nextY && targetY <= paragraphY))
+			{
+				pushCandidate(paragraph, paragraphY);
+			}
+		}
+
+		if (!candidates.length)
+			return null;
+
+		candidates.sort(function(first, second)
+		{
+			return first["distance"] - second["distance"];
+		});
+		let bestParagraph = candidates[0]["paragraph"];
+
+		// 与 ApiParagraph.Select 保持一致，支持表格、页眉页脚等嵌套段落。
+		logicDocument.RemoveSelection();
+		bestParagraph.SelectAll();
+		bestParagraph.Document_SetThisElementCurrent(true);
+
+		return {
+			"paraId" : bestParagraph.GetParaId(),
+			"page" : bestParagraph.GetAbsolutePage() + 1,
+			"text" : bestParagraph.GetText()
+		};
 	};
 	/**
 	 * 处理中文和数字之间的间距
@@ -1882,9 +2345,11 @@
 
 			return result;
 		};
-		// @ts-ignore
-		const doc = this.GetDocument().Document;
-		const allPara = doc.GetAllParagraphs();
+		const logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return false;
+
+		const allPara = logicDocument.GetAllParagraphs();
 
 		if (allPara.length) {
 			// 第一步：遍历所有段落，收集需要处理的文本和段落信息
@@ -2291,5 +2756,3 @@
 	window["AscCommon"].readContentControlCommonPr = readContentControlCommonPr;
 	
 })(window);
-
-

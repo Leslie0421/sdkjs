@@ -2572,9 +2572,11 @@ function GetContentFromHtml(api, html, callback) {
 	});
 }
 
-function Editor_Paste_Exec(api, _format, data1, data2, text_data, specialPasteProps, callback, rejectCallback)
+function Editor_Paste_Exec(api, _format, data1, data2, text_data, specialPasteProps, callback, rejectCallback, bookmarkStart, bookmarkEnd)
 {
-    var oPasteProcessor = new PasteProcessor(api, true, true, false, undefined, callback, rejectCallback);
+	var oPasteProcessor = new PasteProcessor(api, true, true, false, undefined, callback, rejectCallback);
+	oPasteProcessor.bookmarkStart = bookmarkStart;
+	oPasteProcessor.bookmarkEnd   = bookmarkEnd;
 	window['AscCommon'].g_specialPasteHelper.endRecalcDocument = false;
 
 	if(undefined === specialPasteProps)
@@ -7185,6 +7187,13 @@ PasteProcessor.prototype =
 
 			oThis.aContent = [];
 			oThis._getContentFromText(text, true);
+			if (oThis.bookmarkStart && oThis.bookmarkEnd && oThis.aContent.length)
+			{
+				let firstParagraph = oThis.aContent[0];
+				let lastParagraph  = oThis.aContent[oThis.aContent.length - 1];
+				firstParagraph.Internal_Content_Add(0, oThis.bookmarkStart, false);
+				lastParagraph.Internal_Content_Add(lastParagraph.Content.length - 1, oThis.bookmarkEnd, false);
+			}
 			oThis._AddNextPrevToContent(oThis.oDocument);
 
 			oThis.api.pre_Paste([], [], executePasteWord);
