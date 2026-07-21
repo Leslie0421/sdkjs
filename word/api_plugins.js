@@ -1630,6 +1630,17 @@
 			return !!bookmarkManager.GetBookmarkByName(name);
 		};
 
+		// Paste completion can run inside pre_Paste/asyncImagesDocumentEndLoaded.
+		// Continue on the next task so the SDK can clear the previous pasteCallback
+		// before the next bookmark installs its own callback.
+		let scheduleNextItem = function(index)
+		{
+			setTimeout(function()
+			{
+				processItem(index);
+			}, 0);
+		};
+
 		let finish = function()
 		{
 			if (isFinished)
@@ -1708,6 +1719,20 @@
 				return;
 			}
 
+			// Preserve every selected paragraph independently. A later remap should
+			// inherit the user's latest font/size and paragraph settings instead of
+			// the paragraph-end formatting left by the first mapping.
+			let selectedParagraphs = logicDocument.GetSelectedParagraphs();
+			let pasteFormatting = selectedParagraphs.map(function(paragraph)
+			{
+				let textPr = paragraph.GetDirectTextPr();
+				let paraPr = paragraph.GetDirectParaPr();
+				return {
+					"TextPr" : textPr && textPr.Copy ? textPr.Copy() : textPr,
+					"ParaPr" : paraPr && paraPr.Copy ? paraPr.Copy() : paraPr
+				};
+			});
+
 			try
 			{
 				logicDocument.StartAction(AscDFH.historydescription_BuilderScript);
@@ -1749,7 +1774,7 @@
 							finalizeCurrentAction();
 							appendResult(index, name, text, false, error && error.message ? error.message : "unexpected-error");
 						}
-						processItem(index + 1);
+						scheduleNextItem(index + 1);
 					},
 					false,
 					function()
@@ -1757,10 +1782,11 @@
 						let bookmarkPreserved = addCollapsedBookmark(name);
 						finalizeCurrentAction();
 						appendResult(index, name, text, false, bookmarkPreserved ? "paste-rejected" : "paste-rejected-bookmark-lost");
-						processItem(index + 1);
+						scheduleNextItem(index + 1);
 					},
 					bookmarkStart,
-					bookmarkEnd
+					bookmarkEnd,
+					pasteFormatting
 				);
 			}
 			catch (error)
@@ -1769,7 +1795,7 @@
 				finalizeCurrentAction();
 				let errorMessage = error && error.message ? error.message : "unexpected-error";
 				appendResult(index, name, text, false, bookmarkPreserved ? errorMessage : errorMessage + "-bookmark-lost");
-				processItem(index + 1);
+				scheduleNextItem(index + 1);
 			}
 		};
 

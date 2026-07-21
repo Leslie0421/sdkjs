@@ -2572,11 +2572,12 @@ function GetContentFromHtml(api, html, callback) {
 	});
 }
 
-function Editor_Paste_Exec(api, _format, data1, data2, text_data, specialPasteProps, callback, rejectCallback, bookmarkStart, bookmarkEnd)
+function Editor_Paste_Exec(api, _format, data1, data2, text_data, specialPasteProps, callback, rejectCallback, bookmarkStart, bookmarkEnd, pasteFormatting)
 {
 	var oPasteProcessor = new PasteProcessor(api, true, true, false, undefined, callback, rejectCallback);
 	oPasteProcessor.bookmarkStart = bookmarkStart;
 	oPasteProcessor.bookmarkEnd   = bookmarkEnd;
+	oPasteProcessor.pasteFormatting = pasteFormatting;
 	window['AscCommon'].g_specialPasteHelper.endRecalcDocument = false;
 
 	if(undefined === specialPasteProps)
@@ -7346,6 +7347,8 @@ PasteProcessor.prototype =
 
 		var pasteIntoParagraphPr = this.oDocument.GetDirectParaPr();
 		var pasteIntoParaRunPr = this.oDocument.GetDirectTextPr();
+		var pasteFormatting = Array.isArray(this.pasteFormatting) ? this.pasteFormatting : null;
+		var paragraphIndex = 0;
 		var bPresentation = false;
 		var oCurParagraph = this.oDocument.GetCurrentParagraph();
 		var Parent = t.oDocument;
@@ -7353,18 +7356,27 @@ PasteProcessor.prototype =
 			bPresentation = true;
 			Parent = oCurParagraph.Parent;
 		}
+		var getCurrentFormatting = function () {
+			if (!pasteFormatting || !pasteFormatting.length)
+				return {"ParaPr" : pasteIntoParagraphPr, "TextPr" : pasteIntoParaRunPr};
+
+			return pasteFormatting[Math.min(paragraphIndex, pasteFormatting.length - 1)];
+		};
 
 		var getNewParagraph = function () {
 			var paragraph = new AscWord.Paragraph(Parent, bPresentation);
 			var copyParaPr;
 			if (getStyleCurSelection) {
-				if (pasteIntoParagraphPr) {
-					copyParaPr = pasteIntoParagraphPr.Copy();
+				var formatting = getCurrentFormatting();
+				var paragraphPr = formatting && formatting["ParaPr"];
+				var textPr = formatting && formatting["TextPr"];
+				if (paragraphPr) {
+					copyParaPr = paragraphPr.Copy();
 					copyParaPr.NumPr = undefined;
 					paragraph.Set_Pr(copyParaPr);
 
-					if (paragraph.TextPr && pasteIntoParaRunPr) {
-						paragraph.TextPr.Value = pasteIntoParaRunPr.Copy();
+					if (paragraph.TextPr && textPr) {
+						paragraph.TextPr.Value = textPr.Copy();
 					}
 				}
 			}
@@ -7374,8 +7386,10 @@ PasteProcessor.prototype =
 		var getNewParaRun = function () {
 			var paraRun = new ParaRun();
 			if (getStyleCurSelection) {
-				if (pasteIntoParaRunPr && paraRun.Set_Pr) {
-					paraRun.Set_Pr(pasteIntoParaRunPr.Copy());
+				var formatting = getCurrentFormatting();
+				var textPr = formatting && formatting["TextPr"];
+				if (textPr && paraRun.Set_Pr) {
+					paraRun.Set_Pr(textPr.Copy());
 				}
 			}
 			return paraRun;
@@ -7411,6 +7425,7 @@ PasteProcessor.prototype =
 				newParagraph.Internal_Content_Add(newParagraph.Content.length - 1, newParaRun, false);
 				this.aContent.push(newParagraph);
 
+				paragraphIndex++;
 				newParagraph = getNewParagraph();
 				newParaRun = getNewParaRun();
 				partTextCount = 0;
