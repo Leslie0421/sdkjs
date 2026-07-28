@@ -1561,6 +1561,162 @@
 	};
 
 	/**
+	 * Inserts a DOCX document at an existing bookmark using the native Word
+	 * binary paste pipeline. Source section breaks and styles are preserved;
+	 * the source final-section properties are merged into the target section,
+	 * while the template keeps its first-page header and footer.
+	 *
+	 * @param {{url: string, bookmark: string, token?: string, sectionPolicy?: string, stylePolicy?: string}} params
+	 * @returns {{success: boolean, bookmark: string, error: ?string, sectionPolicy: string, stylePolicy: string}|undefined}
+	 */
+	Api.prototype["pluginMethod_XytInsertDocumentAtBookmark"] = function(params)
+	{
+		params = params || {};
+		let url = params["url"];
+		let bookmark = params["bookmark"];
+		let sectionPolicy = "keepDestination" === params["sectionPolicy"] ? "keepDestination" : "preserveSource";
+		let stylePolicy = "useDestination" === params["stylePolicy"] ? "useDestination" : "keepSource";
+		let response = function(success, error)
+		{
+			return {
+				"success" : !!success,
+				"bookmark" : bookmark || "",
+				"error" : error || null,
+				"sectionPolicy" : sectionPolicy,
+				"stylePolicy" : stylePolicy
+			};
+		};
+		let fail = function(error)
+		{
+			return response(false, error);
+		};
+
+		let logicDocument = null;
+		let documentState = null;
+		let pluginRuntime = null;
+		let asyncReturnEnabled = false;
+		try
+		{
+			if (!url || typeof(url) !== "string" || !bookmark || typeof(bookmark) !== "string")
+				return fail("invalid-params");
+
+			logicDocument = this.private_GetLogicDocument();
+			if (!logicDocument)
+				return fail("document-not-ready");
+			if (!this.canEdit())
+				return fail("document-not-editable");
+			pluginRuntime = window.g_asc_plugins;
+			if (!pluginRuntime)
+				return fail("plugin-runtime-not-ready");
+
+			let bookmarkManager = logicDocument.GetBookmarksManager();
+			bookmarkManager.Update();
+			let bookmarkMarks = bookmarkManager.GetBookmarkByName(bookmark);
+			if (!bookmarkMarks)
+				return fail("bookmark-not-found");
+			if (AscCommon.CollaborativeEditing.Get_GlobalLock())
+				return fail("editor-locked");
+
+			documentState = logicDocument.SaveDocumentState();
+			let restoreSelectionAndRespond = function(error)
+			{
+				logicDocument.LoadDocumentState(documentState);
+				logicDocument.UpdateSelection();
+				logicDocument.UpdateInterface();
+				return fail(error);
+			};
+			if (!bookmarkManager.SelectBookmark(bookmark))
+				return restoreSelectionAndRespond("bookmark-select-failed");
+			// GetDocPosType describes the active editor controller, not the real
+			// owner of the selected bookmark. It may remain in drawing/header mode
+			// briefly even after SelectBookmark succeeds. Determine ownership from
+			// the bookmark marks' paragraphs instead.
+			let startParagraph = bookmarkMarks[0].GetParagraph();
+			let endParagraph = bookmarkMarks[1].GetParagraph();
+			let startTopDocument = startParagraph && startParagraph.Parent && startParagraph.Parent.GetTopDocumentContent
+				? startParagraph.Parent.GetTopDocumentContent()
+				: null;
+			let endTopDocument = endParagraph && endParagraph.Parent && endParagraph.Parent.GetTopDocumentContent
+				? endParagraph.Parent.GetTopDocumentContent()
+				: null;
+			let isMainDocumentBookmark = startTopDocument === logicDocument && endTopDocument === logicDocument;
+			if (!isMainDocumentBookmark)
+				return restoreSelectionAndRespond("bookmark-not-in-main-document");
+
+			let selectedParagraphs = logicDocument.GetSelectedParagraphs() || [];
+			if (!selectedParagraphs.length)
+				selectedParagraphs = bookmarkManager.GetRelatedParagraphs(bookmark);
+			for (let paragraphIndex = 0; paragraphIndex < selectedParagraphs.length; paragraphIndex++)
+			{
+				if (selectedParagraphs[paragraphIndex].Get_SectionPr())
+					return restoreSelectionAndRespond("bookmark-contains-section-break");
+			}
+			if (logicDocument.IsSelectionLocked(
+				AscCommon.changestype_Paragraph_Content,
+				null,
+				true,
+				logicDocument.IsFormFieldEditing()
+			))
+				return restoreSelectionAndRespond("selection-locked");
+
+			pluginRuntime.setPluginMethodReturnAsync();
+			asyncReturnEnabled = true;
+			try
+			{
+				this.asc_insertTextFromUrl(
+					url,
+					params["token"],
+					{
+						"sectionPolicy" : sectionPolicy,
+						"stylePolicy" : stylePolicy
+					},
+					function(result)
+					{
+						let success = !!(result && result["success"]);
+						let error = result && result["error"];
+						if (!success)
+						{
+							logicDocument.LoadDocumentState(documentState);
+							logicDocument.UpdateSelection();
+							logicDocument.UpdateInterface();
+						}
+						pluginRuntime.onPluginMethodReturn(response(success, error));
+					}
+				);
+			}
+			catch (error)
+			{
+				logicDocument.LoadDocumentState(documentState);
+				logicDocument.UpdateSelection();
+				logicDocument.UpdateInterface();
+				pluginRuntime.onPluginMethodReturn(response(false, "document-insert-failed"));
+			}
+		}
+		catch (error)
+		{
+			if (logicDocument && documentState)
+			{
+				try
+				{
+					logicDocument.LoadDocumentState(documentState);
+					logicDocument.UpdateSelection();
+					logicDocument.UpdateInterface();
+				}
+				catch (restoreError)
+				{
+				}
+			}
+			let failureResponse = response(false, "bookmark-validation-failed");
+			if (asyncReturnEnabled && pluginRuntime)
+			{
+				pluginRuntime.onPluginMethodReturn(failureResponse);
+				return;
+			}
+			return failureResponse;
+		}
+	};
+
+	/**
 	 * Replaces bookmark contents with plain text and always keeps the bookmarks.
 	 * Items are processed sequentially because text paste uses the shared selection.
 	 * LF characters create paragraphs with formatting inherited from the bookmark.

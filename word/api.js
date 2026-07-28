@@ -13296,6 +13296,11 @@ background-repeat: no-repeat;\
 					if (stream) {
 						fForEachCallback(stream, url);
 					} else {
+						// The conversion request has completed, but its binary result could
+						// not be loaded. Always close the insert pipeline here; otherwise
+						// callers waiting for an async plugin-method result never receive a
+						// callback and can only fail via an outer timeout.
+						_api.endInsertDocumentUrls();
 						_api.sendEvent("asc_onError", Asc.c_oAscError.ID.DirectUrl,
 							Asc.c_oAscError.Level.NoCritical);
 						return;
@@ -14765,8 +14770,8 @@ background-repeat: no-repeat;\
 		const insertDocumentManager = new AscCommonWord.CInsertDocumentManager(this);
 		insertDocumentManager.insertTextFromFile();
 	};
-	asc_docs_api.prototype.asc_insertTextFromUrl = function (url, token) {
-		const insertDocumentManager = new AscCommonWord.CInsertDocumentManager(this);
+	asc_docs_api.prototype.asc_insertTextFromUrl = function (url, token, options, callback) {
+		const insertDocumentManager = new AscCommonWord.CInsertDocumentManager(this, options, callback);
 		insertDocumentManager.insertTextFromUrl(url, token);
 	};
 	

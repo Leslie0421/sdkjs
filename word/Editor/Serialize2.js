@@ -8545,6 +8545,9 @@ function BinaryFileReader(doc, openParams)
 		var isCopyPaste = isWordCopyPaste || isExcelCopyPaste;
 		var api = isWordCopyPaste ? this.Document.DrawingDocument.m_oWordControl.m_oApi : null;
 		var insertDocumentUrlsData = api ? api.insertDocumentUrlsData : null;
+		var insertOptions = insertDocumentUrlsData && insertDocumentUrlsData["options"] ? insertDocumentUrlsData["options"] : {};
+		var keepSourceStyles = "keepSource" === insertOptions["stylePolicy"];
+		this.oReadResult.readLastSectionPr = "preserveSource" === insertOptions["sectionPolicy"];
         pptx_content_loader.Clear();
         pptx_content_loader.Start_UseFullUrl(insertDocumentUrlsData);
         this.stream = this.getbase64DecodedData(sBase64);
@@ -8624,6 +8627,8 @@ function BinaryFileReader(doc, openParams)
 
 					if (isAlreadyContainsStyle) {
 						putStyle(_elem, j, true);
+						if (keepSourceStyles)
+							mapStylesIds[_stylePaste.param.id] = j;
 						break;
 					}
 				}
@@ -8635,9 +8640,8 @@ function BinaryFileReader(doc, openParams)
 					//на данный момент функции для замены нет, добавляю новый стиль с новым именем
 
 
-					//пока работаем как и раньше, только расширяем количество стилей за счёт putBasedOn
-					//TODO нужна функци для поиска check(_basedOnElems) && check(_elem)
-					var isUseStyleInDoc = true; // = check(_basedOnElems) && check(_elem)
+					// 套红正文要求保留源样式；普通复制粘贴仍保持目标样式优先。
+					var isUseStyleInDoc = !keepSourceStyles; // = check(_basedOnElems) && check(_elem)
 					if (!isUseStyleInDoc) {
 
 						//подменяем стили документа
@@ -8650,7 +8654,9 @@ function BinaryFileReader(doc, openParams)
 						var newName = generateNewStyleName(_stylePaste.style.Name);
 						if (newName) {
 							_stylePaste.style.Set_Name(newName);
-							nStyleId = oDocumentStyles.Add(_stylePaste.style);
+							var nStyleId = oDocumentStyles.Add(_stylePaste.style);
+							var addedStyle = oDocumentStyles.Style[nStyleId];
+							addedStyle.SetCustom(true);
 							putStyle(_elem, nStyleId);
 							addNewStyles = true;
 
@@ -8716,11 +8722,17 @@ function BinaryFileReader(doc, openParams)
 				}
 			}
 			
-			//подменяем у всех элементов basedOn
+			// 替换新样式引用的源样式 id，防止指向不存在的源文档样式。
 			for (i = 0, length = allAddedStylesIds.length; i < length; ++i) {
 				var addedStyle = oDocumentStyles.Style[allAddedStylesIds[i]];
-				if (addedStyle && addedStyle.BasedOn != null && mapStylesIds[addedStyle.BasedOn]) {
+				if (addedStyle && addedStyle.BasedOn != null && undefined !== mapStylesIds[addedStyle.BasedOn]) {
 					addedStyle.Set_BasedOn(mapStylesIds[addedStyle.BasedOn]);
+				}
+				if (addedStyle && addedStyle.Next != null && undefined !== mapStylesIds[addedStyle.Next]) {
+					addedStyle.Set_Next(mapStylesIds[addedStyle.Next]);
+				}
+				if (addedStyle && addedStyle.Link != null && undefined !== mapStylesIds[addedStyle.Link]) {
+					addedStyle.Set_Link(mapStylesIds[addedStyle.Link]);
 				}
 			}
 		};
@@ -8903,7 +8915,16 @@ function BinaryFileReader(doc, openParams)
 			}
 		}		//чтобы удалялся stream с бинарником
 		pptx_content_loader.Clear(true);
-        return { content: aContent, fonts: aPrepeareFonts, images: aPrepeareImages, bAddNewStyles: addNewStyles, aPastedImages: aPastedImages, bInBlock: bInBlock };
+        return {
+			content: aContent,
+			fonts: aPrepeareFonts,
+			images: aPrepeareImages,
+			bAddNewStyles: addNewStyles,
+			aPastedImages: aPastedImages,
+			bInBlock: bInBlock,
+			lastSectionPr: this.oReadResult.lastSectionPr,
+			lastSectionEvenAndOddHeaders: this.oReadResult.lastSectionEvenAndOddHeaders
+		};
     }
 }
 
@@ -11422,14 +11443,20 @@ function Binary_DocumentTableReader(doc, oReadResult, openParams, stream, curNot
               Content.push(oNewTable);
             }
         }
-        else if ( c_oSerParType.sectPr === type && !this.oReadResult.bCopyPaste)
+        else if (c_oSerParType.sectPr === type && (!this.oReadResult.bCopyPaste || this.oReadResult.readLastSectionPr))
 		{
-			var oSectPr = oThis.Document.SectPr;
+			var isLastSectionFromPaste = this.oReadResult.bCopyPaste;
+			var oSectPr = isLastSectionFromPaste ? new AscWord.SectPr(this.oReadResult.logicDocument) : oThis.Document.SectPr;
 			var oAdditional = {EvenAndOddHeaders: null};
             res = this.bcr.Read1(length, function(t, l){
                 return oThis.bpPrr.Read_SecPr(t, l, oSectPr, oAdditional);
             });
-			if(null != oAdditional.EvenAndOddHeaders)
+			if (isLastSectionFromPaste)
+			{
+				this.oReadResult.lastSectionPr = oSectPr;
+				this.oReadResult.lastSectionEvenAndOddHeaders = oAdditional.EvenAndOddHeaders;
+			}
+			else if(null != oAdditional.EvenAndOddHeaders)
 				this.Document.Set_DocumentEvenAndOddHeaders(oAdditional.EvenAndOddHeaders);
 			if(AscCommon.CurFileVersion < 5)
 			{
@@ -17497,6 +17524,9 @@ function DocReadResult(doc) {
 	this.styleGenIndex = 1;
 	this.sdtPrWithFieldPath = [];
 	this.sdtFormPrWithRoleName = [];
+	this.readLastSectionPr = false;
+	this.lastSectionPr = null;
+	this.lastSectionEvenAndOddHeaders = null;
 
 	this.lastPar = null;
 	this.toNextPar = [];

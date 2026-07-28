@@ -4807,6 +4807,64 @@ PasteProcessor.prototype =
 			return null;
 		}
 
+		var insertDocumentUrlsData = this.api ? this.api.insertDocumentUrlsData : null;
+		var insertOptions = insertDocumentUrlsData && insertDocumentUrlsData["options"] ? insertDocumentUrlsData["options"] : {};
+		if ("preserveSource" === insertOptions["sectionPolicy"] && aContent.content && aContent.lastSectionPr)
+		{
+			var sectionParagraphs = [];
+			for (var contentIndex = 0; contentIndex < aContent.content.length; contentIndex++)
+			{
+				var contentElement = aContent.content[contentIndex];
+				if (contentElement && contentElement.GetAllSectPrParagraphs)
+					contentElement.GetAllSectPrParagraphs(sectionParagraphs);
+			}
+
+			var targetSectionPr = this.oLogicDocument.GetCurrentSectPr();
+			if (targetSectionPr)
+			{
+				// DOCX 顶层的 SectPr 描述最后一节，不是用户插入的额外分节符。
+				// 将其合并进模板当前节，可保留最后一节版式且不会在正文后制造尾部节。
+				var templateFirstHeader = targetSectionPr.Get_Header_First() || targetSectionPr.Get_Header_Default();
+				var templateFirstFooter = targetSectionPr.Get_Footer_First() || targetSectionPr.Get_Footer_Default();
+				var templateFirstPage = {
+					"titlePage" : targetSectionPr.Get_TitlePage() || !!templateFirstHeader || !!templateFirstFooter,
+					"header" : templateFirstHeader,
+					"footer" : templateFirstFooter
+				};
+				targetSectionPr.Copy(aContent.lastSectionPr, false);
+				targetSectionPr.SetPageMarginHeader(aContent.lastSectionPr.GetPageMarginHeader());
+				targetSectionPr.SetPageMarginFooter(aContent.lastSectionPr.GetPageMarginFooter());
+				targetSectionPr.SetEndnotePos(aContent.lastSectionPr.GetEndnotePos());
+				targetSectionPr.SetEndnoteNumStart(aContent.lastSectionPr.GetEndnoteNumStart());
+				targetSectionPr.SetEndnoteNumRestart(aContent.lastSectionPr.GetEndnoteNumRestart());
+				targetSectionPr.SetEndnoteNumFormat(aContent.lastSectionPr.GetEndnoteNumFormat());
+				if (!aContent.lastSectionPr.HaveLineNumbers())
+					targetSectionPr.RemoveLineNumbers();
+
+				// 显式分节符全部保留。若存在分节，第一项结束正文第一节；否则
+				// 模板当前节就是正文第一节。只覆盖首页变体，正文其余页眉页脚不动。
+				var firstSectionPr = sectionParagraphs.length ? sectionParagraphs[0].Get_SectionPr() : targetSectionPr;
+				if (firstSectionPr)
+				{
+					if (firstSectionPr === targetSectionPr)
+					{
+						firstSectionPr.Set_TitlePage(templateFirstPage["titlePage"]);
+						firstSectionPr.Set_Header_First(templateFirstPage["header"]);
+						firstSectionPr.Set_Footer_First(templateFirstPage["footer"]);
+					}
+					else
+					{
+						firstSectionPr.TitlePage = templateFirstPage["titlePage"];
+						firstSectionPr.HeaderFirst = templateFirstPage["header"];
+						firstSectionPr.FooterFirst = templateFirstPage["footer"];
+					}
+				}
+
+				if (true === aContent.lastSectionEvenAndOddHeaders)
+					this.oLogicDocument.Set_DocumentEvenAndOddHeaders(true);
+			}
+		}
+
 		if (Asc.c_oSpecialPasteProps.keepTextOnly === window['AscCommon'].g_specialPasteHelper.specialPasteProps) {
 			this.oLogicDocument.RemoveBeforePaste();
 			this.oDocument = this._GetTargetDocument(this.oDocument);

@@ -33,14 +33,28 @@
 "use strict";
 
 (function (undefined) {
-	function CInsertDocumentManager(api) {
+	function CInsertDocumentManager(api, options, callback) {
 		this.api = api;
 		this.convertedFiles = [];
+		this.options = options || {};
+		this.callback = typeof callback === "function" ? callback : null;
+		this.isCompleted = false;
+		this.isActionStarted = false;
 	}
+	CInsertDocumentManager.prototype.complete = function (success, error) {
+		if (this.isCompleted)
+			return;
+
+		this.isCompleted = true;
+		if (this.callback)
+			this.callback({success: !!success, error: error || null});
+	};
 	CInsertDocumentManager.prototype.closeConvertedFiles = function () {
-			for (let i = 0; i < this.convertedFiles.length; i++) {
+		for (let i = 0; i < this.convertedFiles.length; i++) {
+			try {
 				this.convertedFiles[i]["close"]();
-			}
+			} catch (error) {}
+		}
 	};
 	CInsertDocumentManager.prototype.insertDocuments_local = function (files) {
 		const oThis = this;
@@ -77,6 +91,7 @@
 			} else {
 				api.sendEvent("asc_onError", Asc.c_oAscError.ID.UplDocumentExt, Asc.c_oAscError.Level.NoCritical);
 				oThis.endLongAction();
+				oThis.complete(false, "document-convert-failed");
 			}
 		});
 	};
@@ -110,9 +125,29 @@
 	CInsertDocumentManager.prototype.startAction = function () {
 		const logicDocument = this.getLogicDocument();
 		logicDocument.StartAction(AscDFH.historydescription_Document_InsertTextFromFile);
+		this.isActionStarted = true;
 	};
-	CInsertDocumentManager.prototype.finalizeAction = function () {
+	CInsertDocumentManager.prototype.cancelAction = function () {
+		if (!this.isActionStarted)
+			return;
+
 		const logicDocument = this.getLogicDocument();
+		try {
+			logicDocument.CancelAction();
+		} finally {
+			try {
+				logicDocument.FinalizeAction();
+			} finally {
+				this.isActionStarted = false;
+			}
+		}
+	};
+	CInsertDocumentManager.prototype.finalizeAction = function (success) {
+		const logicDocument = this.getLogicDocument();
+		if (!success) {
+			this.cancelAction();
+			return;
+		}
 
 		logicDocument.Recalculate();
 		logicDocument.UpdateSelection();
@@ -120,6 +155,7 @@
 		logicDocument.UpdateRulers();
 		logicDocument.UpdateTracks();
 		logicDocument.FinalizeAction();
+		this.isActionStarted = false;
 	};
 
 	CInsertDocumentManager.prototype.checkSelectionBeforePaste = function () {
@@ -130,8 +166,14 @@
 	};
 
 	CInsertDocumentManager.prototype.insertDocuments = function (streamInfos) {
-		if (this.checkLocked() || !streamInfos.length) {
+		if (this.checkLocked()) {
 			this.endLongAction();
+			this.complete(false, "selection-locked");
+			return;
+		}
+		if (!streamInfos.length) {
+			this.endLongAction();
+			this.complete(false, "empty-converted-document");
 			return;
 		}
 
@@ -142,7 +184,13 @@
 		const fPromises = [];
 		const oThis = this;
 		const api = this.api;
-		const insertDocumentUrlsData = {imageMap: null, documents: [], convertCallback: function (_api, url) {}, endCallback: function (_api) {}};
+		const insertDocumentUrlsData = {
+			imageMap: null,
+			documents: [],
+			convertCallback: function (_api, url) {},
+			endCallback: function (_api) {},
+			options: this.options
+		};
 		for (let i = 0; i < streamInfos.length; i++) {
 			const stream = streamInfos[i].stream;
 			const imageMap = streamInfos[i].imageMap;
@@ -156,15 +204,35 @@
 		}
 
 		const promiseFunctionIterator = new AscCommon.CPromiseGetterIterator(fPromises);
-		promiseFunctionIterator.forAllSuccessValues(function () {
-			oThis.finalizeAction();
-			api.endInsertDocumentUrls();
-			oThis.endLongAction();
+		promiseFunctionIterator.forAllSuccessValues(function (pasteResults) {
+			let success = pasteResults.length === streamInfos.length && pasteResults.every(function (result) {
+				return false !== result;
+			});
+			let error = success ? null : "document-paste-failed";
+			try {
+				oThis.finalizeAction(success);
+			} catch (finalizeError) {
+				success = false;
+				error = "document-finalize-failed";
+				try {
+					oThis.cancelAction();
+				} catch (cancelError) {}
+			}
+			try {
+				api.endInsertDocumentUrls();
+			} finally {
+				try {
+					oThis.endLongAction();
+				} finally {
+					oThis.complete(success, error);
+				}
+			}
 		});
 	};
 	CInsertDocumentManager.prototype.convertDocuments = function (resultDocuments, isUseDirectUrlError) {
 		if (!resultDocuments.length) {
 			this.endLongAction();
+			this.complete(false, "empty-source-document");
 			return;
 		}
 
@@ -174,9 +242,29 @@
 			streamInfos.push({stream: stream, imageMap: imageMap});
 		}, function (api) {
 			if (streamInfos.length === resultDocuments.length) {
-				oThis.insertDocuments(streamInfos);
+				// endInsertDocumentUrls clears the conversion context after this
+				// callback returns. Start the paste on the next task so its image map
+				// and insert options are not cleared together with the old context.
+				window.setTimeout(function () {
+					if (oThis.isCompleted)
+						return;
+
+					try {
+						oThis.insertDocuments(streamInfos);
+					} catch (error) {
+						try {
+							oThis.cancelAction();
+						} catch (cancelError) {}
+						try {
+							oThis.endLongAction();
+						} finally {
+							oThis.complete(false, "document-insert-failed");
+						}
+					}
+				}, 0);
 			} else {
 				oThis.endLongAction();
+				oThis.complete(false, "document-convert-failed");
 			}
 		});
 	};
@@ -214,6 +302,7 @@
 			Promise.all(promises).then(oThis.convertDocuments.bind(oThis)).catch(function () {
 				api.sendEvent("asc_onError", Asc.c_oAscError.ID.Unknown, Asc.c_oAscError.Level.NoCritical);
 				oThis.endLongAction();
+				oThis.complete(false, "document-read-failed");
 			});
 		}, true);
 	};
@@ -240,6 +329,7 @@
 				} else {
 					api.sendEvent("asc_onError", Asc.c_oAscError.ID.DirectUrl, Asc.c_oAscError.Level.NoCritical);
 					oThis.endLongAction();
+					oThis.complete(false, "document-download-failed");
 					return;
 				}
 			}
@@ -252,7 +342,24 @@
 	};
 
 	CInsertDocumentManager.prototype.pasteData = function (stream, resolve) {
-		this.api.asc_PasteData(AscCommon.c_oAscClipboardDataFormat.Internal, stream, undefined, undefined, undefined, function () {resolve();}, false, function () {resolve();});
+		if (AscCommon.CollaborativeEditing.Get_GlobalLock() || !this.getLogicDocument()) {
+			resolve(false);
+			return;
+		}
+		try {
+			this.api.asc_PasteData(
+				AscCommon.c_oAscClipboardDataFormat.Internal,
+				stream,
+				undefined,
+				undefined,
+				undefined,
+				function (result) {resolve(false !== result);},
+				false,
+				function () {resolve(false);}
+			);
+		} catch (error) {
+			resolve(false);
+		}
 	};
 
 	AscCommonWord.CInsertDocumentManager = CInsertDocumentManager;
