@@ -2159,228 +2159,297 @@
 	};
 
 	/**
-	 * 表格定位；支持定位行、列、单元格
+	 * 按 OCR 页面坐标语义定位表格行。
+	 * 参数依次为页码、本页顶层正文表格序号、本页可见行号，全部从 1 开始。
+	 * 本页可见行包含重复标题行，也包含从上一页延续过来的跨页行。
+	 * 表格按页面上的 Top、Left 排序；只统计正文文档树中的顶层表格。
+	 * 表格或行越界时仍会选中最近的兜底目标，并以 code=206、data=true 和 message 返回偏差信息。
+	 * 成功时 data 为 true，detail 会返回实际逻辑行号及跨页状态；失败原因放在 message 中。
+	 *
 	 * @memberof Api
 	 * @alias SelectTable
 	 * @since 8.2.0.147
+	 * @param {number[]} params [pageNumber, tableNumberOnPage, rowNumberOnPage]
 	 * @example
-	 * window.Asc.plugin.executeMethod("SelectTable");
+	 * window.Asc.plugin.executeMethod("SelectTable", [[2, 1, 2]]);
 	 */
 	Api.prototype["pluginMethod_SelectTable"] = function(params)
 	{
+		let failure = function(code, message, detail)
+		{
+			let result = {
+				"code" : code,
+				"data" : false,
+				"message" : message
+			};
+			if (detail)
+				result["detail"] = detail;
+			return result;
+		};
+
 		try
 		{
-			if (!Array.isArray(params) || !Number.isInteger(params[0]) || params[0] < 0)
+			if (!Array.isArray(params)
+				|| params.length !== 3
+				|| !Number.isInteger(params[0]) || params[0] < 1
+				|| !Number.isInteger(params[1]) || params[1] < 1
+				|| !Number.isInteger(params[2]) || params[2] < 1)
 			{
-				return {
-					"code" : 400,
-					"data" : false,
-					"message" : "请传入正确的参数！"
-				};
+				return failure(400, "参数必须为 [页码, 本页表格序号, 本页可见行号]，并且全部从 1 开始！");
 			}
 
-			let tableIndex  = params[0];
-			let rowIndex    = params[1];
-			let columnIndex = params[2];
-			let type = "table";
-
-			if (tableIndex >= 0 && rowIndex >= 0 && columnIndex >= 0)
-				type = "cell";
-			else if (tableIndex >= 0 && rowIndex >= 0)
-				type = "row";
-			else if (tableIndex >= 0 && columnIndex >= 0)
-				type = "column";
-
-			let logicDocument = this.private_GetLogicDocument();
+			let pageNumber       = params[0];
+			let pageTableNumber  = params[1];
+			let pageRowNumber    = params[2];
+			let absolutePage     = pageNumber - 1;
+			let logicDocument    = this.private_GetLogicDocument();
 			if (!logicDocument)
+				return failure(500, "逻辑文档初始化失败！");
+
+			let pageCount = logicDocument.Pages ? logicDocument.Pages.length : 0;
+			if (absolutePage >= pageCount || !logicDocument.Pages[absolutePage])
 			{
-				return {
-					"code" : 500,
-					"data" : false,
-					"message" : "逻辑文档初始化失败！"
-				};
+				return failure(200, "所选页面不存在！", {
+					"pageNumber" : pageNumber,
+					"pageCount" : pageCount
+				});
 			}
 
-			let tables = logicDocument.GetAllTables() || [];
-			if (!tables.length)
+			// 不直接使用 GetAllTablesOnPage：该方法会受到当前光标是否位于页眉页脚的影响。
+			// 先取得主文档表格，再根据每个表格的分页信息建立所有页面的视觉表格列表，供向后兜底使用。
+			let allTables = logicDocument.GetAllTables({"OnlyMainDocument" : true}) || [];
+			let tablesByPage = [];
+			let hasPendingLayout = false;
+			for (let tableOrder = 0; tableOrder < allTables.length; ++tableOrder)
 			{
-				return {
-					"code" : 200,
-					"data" : false,
-					"message" : "当前文档无表格！"
-				};
-			}
-			if (tableIndex >= tables.length)
-			{
-				return {
-					"code" : 200,
-					"data" : false,
-					"message" : "所选表格不存在！"
-				};
-			}
-
-			let table = tables[tableIndex];
-			if ("table" === type)
-			{
-				logicDocument.RemoveSelection();
-				table.SelectAll();
-				table.Document_SetThisElementCurrent(false);
-				logicDocument.UpdateSelection();
-				logicDocument.UpdateInterface();
-				return {
-					"code" : 200,
-					"data" : true
-				};
-			}
-
-			let rowCount = table.GetRowsCount();
-			let cell = null;
-			let cells = [];
-
-			switch (type)
-			{
-				case "row":
+				let currentTable = allTables[tableOrder];
+				if (!currentTable
+					|| currentTable.GetTopDocumentContent() !== logicDocument
+					|| (currentTable.Parent && currentTable.Parent.Is_DrawingShape && currentTable.Parent.Is_DrawingShape())
+					|| currentTable.GetParentTables().length > 0)
 				{
-					// 保持原接口约定：仅定位行时 rowIndex 从 1 开始。
-					if (!Number.isInteger(rowIndex) || rowIndex < 1 || rowIndex > rowCount)
-					{
-						return {
-							"code" : 200,
-							"data" : false,
-							"message" : "所选行不存在！"
-						};
-					}
-					cells = table.GetRow(rowIndex - 1).Content;
-					break;
-				}
-				case "column":
-				{
-					if (!Number.isInteger(columnIndex) || columnIndex < 0 || !rowCount)
-					{
-						return {
-							"code" : 200,
-							"data" : false,
-							"message" : "所选列不存在！"
-						};
-					}
-
-					let firstRow = table.GetRow(0);
-					if (!firstRow || columnIndex >= firstRow.GetCellsCount())
-					{
-						return {
-							"code" : 200,
-							"data" : false,
-							"message" : "所选列不存在！"
-						};
-					}
-
-					for (let row = 0; row < rowCount; ++row)
-					{
-						let tableRow = table.GetRow(row);
-						if (tableRow && columnIndex < tableRow.GetCellsCount())
-							cells.push(tableRow.GetCell(columnIndex));
-					}
-					break;
-				}
-				case "cell":
-				{
-					// 保持原接口约定：定位单元格时行列索引均从 0 开始。
-					if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rowCount)
-					{
-						return {
-							"code" : 200,
-							"data" : false,
-							"message" : "所选行不存在！"
-						};
-					}
-
-					let tableRow = table.GetRow(rowIndex);
-					if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex >= tableRow.GetCellsCount())
-					{
-						return {
-							"code" : 200,
-							"data" : false,
-							"message" : "所选单元格不存在！"
-						};
-					}
-					cell = tableRow.GetCell(columnIndex);
-					break;
-				}
-			}
-
-			let cellList = cells.length ? cells : (cell ? [cell] : []);
-			if (!cellList.length)
-			{
-				return {
-					"code" : 200,
-					"data" : false,
-					"message" : "无法定位表格区域！"
-				};
-			}
-
-			let bestCell = null;
-			let bestPos = null;
-			let bestY = -Infinity;
-			let currentPage = 0;
-
-			for (let index = 0; index < cellList.length; ++index)
-			{
-				let currentCell = cellList[index];
-				if (!currentCell || !currentCell.Content || typeof(currentCell.Content_GetCurPosXY) !== "function")
 					continue;
+				}
 
-				let position = currentCell.Content_GetCurPosXY();
-				let y = position ? position.Y : undefined;
-				if (typeof(y) !== "number")
-					continue;
-
-				let page = currentCell.Content.GetAbsolutePage();
-				if (y > bestY || (y === bestY && page > currentPage))
+				if (!currentTable.IsRecalculated() || !currentTable.Pages || !currentTable.Pages.length)
 				{
-					bestY = y;
-					bestCell = currentCell;
-					bestPos = position;
-					currentPage = page;
+					hasPendingLayout = true;
+					continue;
+				}
+
+				for (let relativePage = 0; relativePage < currentTable.Pages.length; ++relativePage)
+				{
+					if (currentTable.IsEmptyPage(relativePage))
+					{
+						continue;
+					}
+
+					let tableAbsolutePage = currentTable.GetAbsolutePage(relativePage);
+					if (tableAbsolutePage < 0 || tableAbsolutePage >= pageCount)
+						continue;
+					if (!tablesByPage[tableAbsolutePage])
+						tablesByPage[tableAbsolutePage] = [];
+
+					let bounds = currentTable.GetPageBounds(relativePage);
+					tablesByPage[tableAbsolutePage].push({
+						"table" : currentTable,
+						"relativePage" : relativePage,
+						"bounds" : bounds,
+						"tableOrder" : tableOrder
+					});
 				}
 			}
 
-			if (!bestCell || !bestPos)
+			let sortPageTables = function(pageTables)
 			{
-				return {
-					"code" : 200,
-					"data" : false,
-					"message" : "无法获取单元格坐标！"
-				};
-			}
-
-			logicDocument.GoToPage(currentPage);
-			logicDocument.MoveCursorToXY(bestPos.X, bestPos.Y + 1);
-			switch (type)
-			{
-				case "row":
-					this.selectRow();
-					break;
-				case "column":
-					this.selectColumn();
-					break;
-				case "cell":
-					this.selectCell();
-					break;
-			}
-
-			return {
-				"code" : 200,
-				"data" : true
+				pageTables.sort(function(first, second)
+				{
+					let firstTop = first["bounds"] && typeof(first["bounds"].Top) === "number" ? first["bounds"].Top : Infinity;
+					let secondTop = second["bounds"] && typeof(second["bounds"].Top) === "number" ? second["bounds"].Top : Infinity;
+					let firstLeft = first["bounds"] && typeof(first["bounds"].Left) === "number" ? first["bounds"].Left : Infinity;
+					let secondLeft = second["bounds"] && typeof(second["bounds"].Left) === "number" ? second["bounds"].Left : Infinity;
+					return firstTop - secondTop || firstLeft - secondLeft || first["tableOrder"] - second["tableOrder"];
+				});
 			};
+			for (let sortPage = 0; sortPage < pageCount; ++sortPage)
+			{
+				if (tablesByPage[sortPage])
+					sortPageTables(tablesByPage[sortPage]);
+			}
+
+			let fallbackReasons = [];
+			let fallbackMessages = [];
+			let targetAbsolutePage = absolutePage;
+			let pageTables = tablesByPage[targetAbsolutePage] || [];
+			let targetEntry = null;
+			let actualTableNumber = pageTableNumber;
+			if (pageTables.length)
+			{
+				if (pageTableNumber <= pageTables.length)
+				{
+					targetEntry = pageTables[pageTableNumber - 1];
+				}
+				else
+				{
+					actualTableNumber = pageTables.length;
+					targetEntry = pageTables[actualTableNumber - 1];
+					fallbackReasons.push("table-out-of-range");
+					fallbackMessages.push("请求的第 " + pageTableNumber + " 个表格不存在，已定位第 " + pageNumber + " 页最后一个表格（第 " + actualTableNumber + " 个）");
+				}
+			}
+			else
+			{
+				if (hasPendingLayout)
+				{
+					return failure(200, "文档分页尚未计算完成，请稍后重试！", {
+						"requestedPageNumber" : pageNumber,
+						"pageTableCount" : 0
+					});
+				}
+
+				for (let nextPage = absolutePage + 1; nextPage < pageCount; ++nextPage)
+				{
+					let nextPageTables = tablesByPage[nextPage] || [];
+					if (!nextPageTables.length)
+						continue;
+
+					targetAbsolutePage = nextPage;
+					pageTables = nextPageTables;
+					actualTableNumber = 1;
+					targetEntry = pageTables[0];
+					break;
+				}
+
+				if (!targetEntry)
+				{
+					return failure(200, "从请求页到文档末尾没有可定位的正文顶层表格！", {
+						"requestedPageNumber" : pageNumber,
+						"pageCount" : pageCount,
+						"pageTableCount" : 0
+					});
+				}
+
+				fallbackReasons.push("page-without-table");
+				fallbackMessages.push("请求的第 " + pageNumber + " 页没有表格，已定位后续第 " + (targetAbsolutePage + 1) + " 页的第 1 个表格");
+			}
+
+			let table = targetEntry["table"];
+			let relativePage = targetEntry["relativePage"];
+			let tablePage = table.GetPage(relativePage);
+			if (!tablePage)
+				return failure(200, "无法获取目标表格的分页信息！");
+
+			// OCR 按页面可见行计数：续页重复标题在前，随后是该页实际行。
+			// 若上一页最后一行被拆分，本页 FirstRow 会再次指向同一逻辑行，因而自然计为本页第一行。
+			let visibleRows = [];
+			let addedRows = {};
+			let headerPage = table.HeaderInfo && table.HeaderInfo.Pages
+				? table.HeaderInfo.Pages[relativePage]
+				: null;
+			let repeatedHeaderCount = headerPage && true === headerPage.Draw
+				? Math.min(table.GetRowsCountInHeader(), table.GetRowsCount())
+				: 0;
+			for (let headerRow = 0; headerRow < repeatedHeaderCount; ++headerRow)
+			{
+				visibleRows.push({"rowIndex" : headerRow, "repeatedHeader" : true});
+				addedRows[headerRow] = true;
+			}
+			for (let logicalRow = tablePage.FirstRow; logicalRow <= tablePage.LastRow; ++logicalRow)
+			{
+				if (logicalRow < 0 || logicalRow >= table.GetRowsCount() || addedRows[logicalRow])
+					continue;
+				visibleRows.push({"rowIndex" : logicalRow, "repeatedHeader" : false});
+				addedRows[logicalRow] = true;
+			}
+
+			if (!visibleRows.length)
+			{
+				return failure(200, "兜底目标表格在当前页面中没有可定位行！", {
+					"requestedPageNumber" : pageNumber,
+					"requestedTableNumberOnPage" : pageTableNumber,
+					"requestedRowNumberOnPage" : pageRowNumber,
+					"pageNumber" : targetAbsolutePage + 1,
+					"tableNumberOnPage" : actualTableNumber,
+					"pageVisibleRowCount" : visibleRows.length
+				});
+			}
+			let actualPageRowNumber = pageRowNumber;
+			if (pageRowNumber > visibleRows.length)
+			{
+				actualPageRowNumber = visibleRows.length;
+				fallbackReasons.push("row-out-of-range");
+				fallbackMessages.push("请求的第 " + pageRowNumber + " 行不存在，已定位该表格在第 " + (targetAbsolutePage + 1) + " 页的最后一个可见行（第 " + actualPageRowNumber + " 行）");
+			}
+
+			if (AscCommon.CollaborativeEditing.Get_GlobalLockSelection())
+				return failure(200, "编辑器正在更新选区，请稍后重试！");
+
+			let targetRow = visibleRows[actualPageRowNumber - 1];
+			let logicalRowIndex = targetRow["rowIndex"];
+			logicDocument.RemoveSelection();
+			table.SelectRows(logicalRowIndex, logicalRowIndex);
+			table.Document_SetThisElementCurrent(false);
+			logicDocument.CheckComplexFieldsInSelection();
+			logicDocument.Document_UpdateSelectionState();
+			logicDocument.Document_UpdateInterfaceState();
+
+			// 选区按照逻辑行建立；滚动则使用 OCR 指定页上的行片段，跨页行不会被带回起始页。
+			let rowBounds = !targetRow["repeatedHeader"] && table.getRowBounds
+				? table.getRowBounds(logicalRowIndex, relativePage)
+				: null;
+			let scrollBounds = rowBounds
+				&& typeof(rowBounds.Top) === "number"
+				&& typeof(rowBounds.Bottom) === "number"
+				&& rowBounds.Bottom > rowBounds.Top
+				? rowBounds
+				: targetEntry["bounds"];
+			if (this.WordControl && typeof(this.WordControl.ScrollToPosition) === "function" && scrollBounds)
+			{
+				this.WordControl.ScrollToPosition(
+					scrollBounds.Left,
+					scrollBounds.Top,
+					targetAbsolutePage,
+					Math.max(5, scrollBounds.Bottom - scrollBounds.Top)
+				);
+			}
+			else
+			{
+				logicDocument.ScrollToTarget();
+			}
+
+			let rowInfo = table.RowsInfo ? table.RowsInfo[logicalRowIndex] : null;
+			let continuedFromPreviousPage = !targetRow["repeatedHeader"]
+				&& rowInfo && rowInfo.StartPage < relativePage;
+			let continuesToNextPage = !targetRow["repeatedHeader"]
+				&& rowInfo && rowInfo.StartPage + rowInfo.Pages - 1 > relativePage;
+
+			let result = {
+				"code" : fallbackReasons.length ? 206 : 200,
+				"data" : true,
+				"detail" : {
+					"requestedPageNumber" : pageNumber,
+					"requestedTableNumberOnPage" : pageTableNumber,
+					"requestedRowNumberOnPage" : pageRowNumber,
+					"pageNumber" : targetAbsolutePage + 1,
+					"tableNumberOnPage" : actualTableNumber,
+					"rowNumberOnPage" : actualPageRowNumber,
+					"logicalRowNumber" : logicalRowIndex + 1,
+					"pageTableCount" : pageTables.length,
+					"pageVisibleRowCount" : visibleRows.length,
+					"fallbackApplied" : fallbackReasons.length > 0,
+					"fallbackReasons" : fallbackReasons,
+					"repeatedHeader" : !!targetRow["repeatedHeader"],
+					"continuedFromPreviousPage" : !!continuedFromPreviousPage,
+					"continuesToNextPage" : !!continuesToNextPage
+				}
+			};
+			if (fallbackMessages.length)
+				result["message"] = fallbackMessages.join("；") + "。";
+			return result;
 		}
 		catch (error)
 		{
-			console.warn(error);
-			return {
-				"code" : 500,
-				"data" : false,
-				"message" : error && error.message ? error.message : "未知错误"
-			};
+			return failure(500, error && error.message ? error.message : "表格行定位失败！");
 		}
 	};
 		/**
