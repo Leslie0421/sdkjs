@@ -6738,6 +6738,26 @@ CDocument.prototype.SetParagraphBidi = function(isRtl)
 	this.UpdateInterface();
 	this.UpdateSelection();
 };
+CDocument.prototype.SetParagraphEastAsianTypography = function(kinsoku, overflowPunct, autoSpaceDE, autoSpaceDN)
+{
+	let paragraphs = this.GetSelectedParagraphs();
+	for (let i = 0; i < paragraphs.length; ++i)
+	{
+		let paragraph = paragraphs[i];
+		if (undefined !== kinsoku)
+			paragraph.SetKinsoku(kinsoku);
+		if (undefined !== overflowPunct)
+			paragraph.SetOverflowPunct(overflowPunct);
+		if (undefined !== autoSpaceDE)
+			paragraph.SetAutoSpaceDE(autoSpaceDE);
+		if (undefined !== autoSpaceDN)
+			paragraph.SetAutoSpaceDN(autoSpaceDN);
+	}
+
+	this.Recalculate();
+	this.UpdateInterface();
+	this.UpdateSelection();
+};
 CDocument.prototype.SetParagraphAlign = function(Align)
 {
 	var SelectedInfo = this.GetSelectedElementsInfo();

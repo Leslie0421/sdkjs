@@ -16295,6 +16295,10 @@ function CParaPr()
 {
 	this.Bidi              = undefined;
 	this.ContextualSpacing = undefined;          // Удалять ли интервал между параграфами одинакового стиля
+	this.Kinsoku           = undefined;
+	this.OverflowPunct     = undefined;
+	this.AutoSpaceDE       = undefined;
+	this.AutoSpaceDN       = undefined;
 	this.Ind               = new CParaInd();     // Отступы
 	this.Jc                = undefined;          // Прилегание параграфа
 	this.KeepLines         = undefined;          // Неразрывный параграф
@@ -16340,6 +16344,10 @@ CParaPr.prototype.Copy = function(bCopyPrChange, oPr)
 
 	ParaPr.Bidi = this.Bidi;
 	ParaPr.ContextualSpacing = this.ContextualSpacing;
+	ParaPr.Kinsoku           = this.Kinsoku;
+	ParaPr.OverflowPunct     = this.OverflowPunct;
+	ParaPr.AutoSpaceDE       = this.AutoSpaceDE;
+	ParaPr.AutoSpaceDN       = this.AutoSpaceDN;
 
 	if (undefined != this.Ind)
 		ParaPr.Ind = this.Ind.Copy();
@@ -16460,6 +16468,18 @@ CParaPr.prototype.Merge = function(ParaPr)
 	
 	if (undefined != ParaPr.ContextualSpacing)
 		this.ContextualSpacing = ParaPr.ContextualSpacing;
+
+	if (undefined !== ParaPr.Kinsoku)
+		this.Kinsoku = ParaPr.Kinsoku;
+
+	if (undefined !== ParaPr.OverflowPunct)
+		this.OverflowPunct = ParaPr.OverflowPunct;
+
+	if (undefined !== ParaPr.AutoSpaceDE)
+		this.AutoSpaceDE = ParaPr.AutoSpaceDE;
+
+	if (undefined !== ParaPr.AutoSpaceDN)
+		this.AutoSpaceDN = ParaPr.AutoSpaceDN;
 
 	if (undefined != ParaPr.Ind)
 		this.Ind.Merge(ParaPr.Ind);
@@ -16613,6 +16633,10 @@ CParaPr.prototype.InitDefault = function(nCompatibilityMode)
 {
 	this.Bidi                      = false;
 	this.ContextualSpacing         = false;
+	this.Kinsoku                   = true;
+	this.OverflowPunct             = true;
+	this.AutoSpaceDE               = true;
+	this.AutoSpaceDN               = true;
 	this.Ind                       = new CParaInd();
 	this.Ind.Left                  = 0;
 	this.Ind.Right                 = 0;
@@ -16655,6 +16679,10 @@ CParaPr.prototype.Set_FromObject = function(ParaPr)
 {
 	this.Bidi              = ParaPr.Bidi;
 	this.ContextualSpacing = ParaPr.ContextualSpacing;
+	this.Kinsoku           = ParaPr.Kinsoku;
+	this.OverflowPunct     = ParaPr.OverflowPunct;
+	this.AutoSpaceDE       = ParaPr.AutoSpaceDE;
+	this.AutoSpaceDN       = ParaPr.AutoSpaceDN;
 
 	this.Ind = new CParaInd();
 	if (undefined != ParaPr.Ind)
@@ -16792,6 +16820,18 @@ CParaPr.prototype.Compare = function(ParaPr)
 
 	if (ParaPr.ContextualSpacing === this.ContextualSpacing)
 		Result_ParaPr.ContextualSpacing = ParaPr.ContextualSpacing;
+
+	if (ParaPr.Kinsoku === this.Kinsoku)
+		Result_ParaPr.Kinsoku = ParaPr.Kinsoku;
+
+	if (ParaPr.OverflowPunct === this.OverflowPunct)
+		Result_ParaPr.OverflowPunct = ParaPr.OverflowPunct;
+
+	if (ParaPr.AutoSpaceDE === this.AutoSpaceDE)
+		Result_ParaPr.AutoSpaceDE = ParaPr.AutoSpaceDE;
+
+	if (ParaPr.AutoSpaceDN === this.AutoSpaceDN)
+		Result_ParaPr.AutoSpaceDN = ParaPr.AutoSpaceDN;
 
 	Result_ParaPr.Ind = new CParaInd();
 	if (undefined != ParaPr.Ind && undefined != this.Ind)
@@ -17076,6 +17116,30 @@ CParaPr.prototype.Write_ToBinary = function(Writer)
 		Flags |= (1 << 25);
 	}
 
+	if (undefined !== this.Kinsoku)
+	{
+		Writer.WriteBool(this.Kinsoku);
+		Flags |= (1 << 26);
+	}
+
+	if (undefined !== this.OverflowPunct)
+	{
+		Writer.WriteBool(this.OverflowPunct);
+		Flags |= (1 << 27);
+	}
+
+	if (undefined !== this.AutoSpaceDE)
+	{
+		Writer.WriteBool(this.AutoSpaceDE);
+		Flags |= (1 << 28);
+	}
+
+	if (undefined !== this.AutoSpaceDN)
+	{
+		Writer.WriteBool(this.AutoSpaceDN);
+		Flags |= (1 << 29);
+	}
+
 	var EndPos = Writer.GetCurPosition();
 	Writer.Seek(StartPos);
 	Writer.WriteLong(Flags);
@@ -17210,6 +17274,18 @@ CParaPr.prototype.Read_FromBinary = function(Reader)
 	
 	if (Flags & (1 << 25))
 		this.Bidi = Reader.GetBool();
+
+	if (Flags & (1 << 26))
+		this.Kinsoku = Reader.GetBool();
+
+	if (Flags & (1 << 27))
+		this.OverflowPunct = Reader.GetBool();
+
+	if (Flags & (1 << 28))
+		this.AutoSpaceDE = Reader.GetBool();
+
+	if (Flags & (1 << 29))
+		this.AutoSpaceDN = Reader.GetBool();
 };
 CParaPr.prototype.isEqual = function(ParaPrUOld,ParaPrNew)
 {
@@ -17238,6 +17314,10 @@ CParaPr.prototype.isEqual = function(ParaPrUOld,ParaPrNew)
 CParaPr.prototype.Is_Equal = function(ParaPr)
 {
 	return !(this.ContextualSpacing !== ParaPr.ContextualSpacing
+		|| this.Kinsoku !== ParaPr.Kinsoku
+		|| this.OverflowPunct !== ParaPr.OverflowPunct
+		|| this.AutoSpaceDE !== ParaPr.AutoSpaceDE
+		|| this.AutoSpaceDN !== ParaPr.AutoSpaceDN
 		|| true !== IsEqualStyleObjects(this.Ind, ParaPr.Ind)
 		|| this.Jc !== ParaPr.Jc
 		|| this.KeepLines !== ParaPr.KeepLines
@@ -17275,6 +17355,18 @@ CParaPr.prototype.GetDiff = function(oParaPr)
 
 	if (this.ContextualSpacing !== oParaPr.ContextualSpacing)
 		oResultParaPr.ContextualSpacing = this.ContextualSpacing;
+
+	if (this.Kinsoku !== oParaPr.Kinsoku)
+		oResultParaPr.Kinsoku = this.Kinsoku;
+
+	if (this.OverflowPunct !== oParaPr.OverflowPunct)
+		oResultParaPr.OverflowPunct = this.OverflowPunct;
+
+	if (this.AutoSpaceDE !== oParaPr.AutoSpaceDE)
+		oResultParaPr.AutoSpaceDE = this.AutoSpaceDE;
+
+	if (this.AutoSpaceDN !== oParaPr.AutoSpaceDN)
+		oResultParaPr.AutoSpaceDN = this.AutoSpaceDN;
 
 	if (!this.Ind.IsEqual(oParaPr.Ind))
 		oResultParaPr.Ind = this.Ind.Copy();
@@ -17450,6 +17542,10 @@ CParaPr.prototype.Is_Empty = function(oPr)
 {
 	const bIsSingleLvlPresetJSON = !!(oPr && oPr.isSingleLvlPresetJSON);
 	return !(undefined !== this.ContextualSpacing
+		|| undefined !== this.Kinsoku
+		|| undefined !== this.OverflowPunct
+		|| undefined !== this.AutoSpaceDE
+		|| undefined !== this.AutoSpaceDN
 		|| true !== (bIsSingleLvlPresetJSON || this.Ind.Is_Empty())
 		|| undefined !== this.Jc
 		|| undefined !== this.KeepLines
@@ -17499,6 +17595,18 @@ CParaPr.prototype.GetDiffPrChange = function()
 
 	if (this.ContextualSpacing !== PrChange.ContextualSpacing)
 		ParaPr.ContextualSpacing = this.ContextualSpacing;
+
+	if (this.Kinsoku !== PrChange.Kinsoku)
+		ParaPr.Kinsoku = this.Kinsoku;
+
+	if (this.OverflowPunct !== PrChange.OverflowPunct)
+		ParaPr.OverflowPunct = this.OverflowPunct;
+
+	if (this.AutoSpaceDE !== PrChange.AutoSpaceDE)
+		ParaPr.AutoSpaceDE = this.AutoSpaceDE;
+
+	if (this.AutoSpaceDN !== PrChange.AutoSpaceDN)
+		ParaPr.AutoSpaceDN = this.AutoSpaceDN;
 
 	ParaPr.Ind = this.Ind.Get_Diff(PrChange.Ind);
 
@@ -17578,6 +17686,38 @@ CParaPr.prototype.GetContextualSpacing = function()
 CParaPr.prototype.SetContextualSpacing = function(isContextualSpacing)
 {
 	this.ContextualSpacing = isContextualSpacing;
+};
+CParaPr.prototype.GetKinsoku = function()
+{
+	return this.Kinsoku;
+};
+CParaPr.prototype.SetKinsoku = function(value)
+{
+	this.Kinsoku = value;
+};
+CParaPr.prototype.GetOverflowPunct = function()
+{
+	return this.OverflowPunct;
+};
+CParaPr.prototype.SetOverflowPunct = function(value)
+{
+	this.OverflowPunct = value;
+};
+CParaPr.prototype.GetAutoSpaceDE = function()
+{
+	return this.AutoSpaceDE;
+};
+CParaPr.prototype.SetAutoSpaceDE = function(value)
+{
+	this.AutoSpaceDE = value;
+};
+CParaPr.prototype.GetAutoSpaceDN = function()
+{
+	return this.AutoSpaceDN;
+};
+CParaPr.prototype.SetAutoSpaceDN = function(value)
+{
+	this.AutoSpaceDN = value;
 };
 CParaPr.prototype.GetIndLeft = function()
 {
@@ -17767,6 +17907,14 @@ CParaPr.prototype['get_Bidi']                     = CParaPr.prototype.get_Bidi  
 CParaPr.prototype['put_Bidi']                     = CParaPr.prototype.put_Bidi                     = CParaPr.prototype.SetBidi;
 CParaPr.prototype['get_ContextualSpacing']        = CParaPr.prototype.get_ContextualSpacing        = CParaPr.prototype['Get_ContextualSpacing']        = CParaPr.prototype.GetContextualSpacing;
 CParaPr.prototype['put_ContextualSpacing']        = CParaPr.prototype.put_ContextualSpacing        = CParaPr.prototype.SetContextualSpacing;
+CParaPr.prototype['get_Kinsoku']                  = CParaPr.prototype.get_Kinsoku                  = CParaPr.prototype.GetKinsoku;
+CParaPr.prototype['put_Kinsoku']                  = CParaPr.prototype.put_Kinsoku                  = CParaPr.prototype.SetKinsoku;
+CParaPr.prototype['get_OverflowPunct']            = CParaPr.prototype.get_OverflowPunct            = CParaPr.prototype.GetOverflowPunct;
+CParaPr.prototype['put_OverflowPunct']            = CParaPr.prototype.put_OverflowPunct            = CParaPr.prototype.SetOverflowPunct;
+CParaPr.prototype['get_AutoSpaceDE']              = CParaPr.prototype.get_AutoSpaceDE              = CParaPr.prototype.GetAutoSpaceDE;
+CParaPr.prototype['put_AutoSpaceDE']              = CParaPr.prototype.put_AutoSpaceDE              = CParaPr.prototype.SetAutoSpaceDE;
+CParaPr.prototype['get_AutoSpaceDN']              = CParaPr.prototype.get_AutoSpaceDN              = CParaPr.prototype.GetAutoSpaceDN;
+CParaPr.prototype['put_AutoSpaceDN']              = CParaPr.prototype.put_AutoSpaceDN              = CParaPr.prototype.SetAutoSpaceDN;
 CParaPr.prototype['get_IndLeft']                  = CParaPr.prototype.get_IndLeft                  = CParaPr.prototype['Get_IndLeft']                  = CParaPr.prototype.GetIndLeft;
 CParaPr.prototype['get_IndRight']                 = CParaPr.prototype.get_IndRight                 = CParaPr.prototype['Get_IndRight']                 = CParaPr.prototype.GetIndRight;
 CParaPr.prototype['get_IndFirstLine']             = CParaPr.prototype.get_IndFirstLine             = CParaPr.prototype['Get_IndFirstLine']             = CParaPr.prototype.GetIndFirstLine;

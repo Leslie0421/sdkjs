@@ -16600,6 +16600,46 @@
 		this.private_OnChange();
 		return true;
 	};
+	ApiParaPr.prototype.SetKinsoku = function(value)
+	{
+		this.ParaPr.Kinsoku = private_GetBoolean(value);
+		this.private_OnChange();
+		return true;
+	};
+	ApiParaPr.prototype.GetKinsoku = function()
+	{
+		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.Kinsoku : this.ParaPr.Kinsoku;
+	};
+	ApiParaPr.prototype.SetOverflowPunct = function(value)
+	{
+		this.ParaPr.OverflowPunct = private_GetBoolean(value);
+		this.private_OnChange();
+		return true;
+	};
+	ApiParaPr.prototype.GetOverflowPunct = function()
+	{
+		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.OverflowPunct : this.ParaPr.OverflowPunct;
+	};
+	ApiParaPr.prototype.SetAutoSpaceDE = function(value)
+	{
+		this.ParaPr.AutoSpaceDE = private_GetBoolean(value);
+		this.private_OnChange();
+		return true;
+	};
+	ApiParaPr.prototype.GetAutoSpaceDE = function()
+	{
+		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.AutoSpaceDE : this.ParaPr.AutoSpaceDE;
+	};
+	ApiParaPr.prototype.SetAutoSpaceDN = function(value)
+	{
+		this.ParaPr.AutoSpaceDN = private_GetBoolean(value);
+		this.private_OnChange();
+		return true;
+	};
+	ApiParaPr.prototype.GetAutoSpaceDN = function()
+	{
+		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.AutoSpaceDN : this.ParaPr.AutoSpaceDN;
+	};
 	/**
 	 * Sets the paragraph left side indentation.
 	 * @memberof ApiParaPr
@@ -30042,6 +30082,14 @@
 	ApiParaPr.prototype["GetClassType"]              = ApiParaPr.prototype.GetClassType;
 	ApiParaPr.prototype["SetStyle"]                  = ApiParaPr.prototype.SetStyle;
 	ApiParaPr.prototype["SetContextualSpacing"]      = ApiParaPr.prototype.SetContextualSpacing;
+	ApiParaPr.prototype["SetKinsoku"]                = ApiParaPr.prototype.SetKinsoku;
+	ApiParaPr.prototype["GetKinsoku"]                = ApiParaPr.prototype.GetKinsoku;
+	ApiParaPr.prototype["SetOverflowPunct"]          = ApiParaPr.prototype.SetOverflowPunct;
+	ApiParaPr.prototype["GetOverflowPunct"]          = ApiParaPr.prototype.GetOverflowPunct;
+	ApiParaPr.prototype["SetAutoSpaceDE"]            = ApiParaPr.prototype.SetAutoSpaceDE;
+	ApiParaPr.prototype["GetAutoSpaceDE"]            = ApiParaPr.prototype.GetAutoSpaceDE;
+	ApiParaPr.prototype["SetAutoSpaceDN"]            = ApiParaPr.prototype.SetAutoSpaceDN;
+	ApiParaPr.prototype["GetAutoSpaceDN"]            = ApiParaPr.prototype.GetAutoSpaceDN;
 	ApiParaPr.prototype["SetIndLeft"]                = ApiParaPr.prototype.SetIndLeft;
 	ApiParaPr.prototype["SetIndRight"]               = ApiParaPr.prototype.SetIndRight;
 	ApiParaPr.prototype["SetIndFirstLine"]           = ApiParaPr.prototype.SetIndFirstLine;

@@ -387,6 +387,39 @@ $(function () {
 		assert.strictEqual(directTextPr.RFonts.CS.Name, "Arial", "An unspecified font slot keeps its previous value");
 	});
 
+	QUnit.test("Apply East Asian typography through paragraph settings", function(assert)
+	{
+		AscTest.ClearDocument();
+
+		let firstParagraph = AscTest.CreateParagraph();
+		let secondParagraph = AscTest.CreateParagraph();
+		logicDocument.AddToContent(0, firstParagraph);
+		logicDocument.AddToContent(1, secondParagraph);
+		logicDocument.SelectAll();
+
+		let paragraphProps = new Asc.asc_CParagraphProperty();
+		paragraphProps.put_Kinsoku(false);
+		paragraphProps.put_OverflowPunct(true);
+		paragraphProps.put_AutoSpaceDE(false);
+		paragraphProps.put_AutoSpaceDN(true);
+
+		Asc.asc_docs_api.prototype.paraApply.call(AscTest.Editor, paragraphProps);
+
+		for (let paragraph of [firstParagraph, secondParagraph])
+		{
+			assert.deepEqual(
+				[
+					paragraph.Pr.Kinsoku,
+					paragraph.Pr.OverflowPunct,
+					paragraph.Pr.AutoSpaceDE,
+					paragraph.Pr.AutoSpaceDN
+				],
+				[false, true, false, true],
+				"Each selected paragraph receives all four independent properties"
+			);
+		}
+	});
+
 	QUnit.test("Get text/selected text", function(assert)
 	{
 		AscTest.ClearDocument();

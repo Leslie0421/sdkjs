@@ -285,7 +285,11 @@ var c_oSerProp_pPrType = {
 	SnapToGrid: 46,
 	Bidi: 47,
 	Spacing_AfterLines: 48,
-	Spacing_BeforeLines: 49
+	Spacing_BeforeLines: 49,
+	Kinsoku: 50,
+	OverflowPunct: 51,
+	AutoSpaceDE: 52,
+	AutoSpaceDN: 53
 };
 var c_oSerProp_rPrType = {
     Bold:0,
@@ -2552,6 +2556,30 @@ function Binary_pPrWriter(memory, oNumIdMap, oBinaryHeaderFooterTableWriter, sav
 			this.memory.WriteByte(c_oSerProp_pPrType.Bidi);
 			this.memory.WriteByte(c_oSerPropLenType.Byte);
 			this.memory.WriteBool(pPr.Bidi);
+		}
+		if(null != pPr.Kinsoku)
+		{
+			this.memory.WriteByte(c_oSerProp_pPrType.Kinsoku);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(pPr.Kinsoku);
+		}
+		if(null != pPr.OverflowPunct)
+		{
+			this.memory.WriteByte(c_oSerProp_pPrType.OverflowPunct);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(pPr.OverflowPunct);
+		}
+		if(null != pPr.AutoSpaceDE)
+		{
+			this.memory.WriteByte(c_oSerProp_pPrType.AutoSpaceDE);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(pPr.AutoSpaceDE);
+		}
+		if(null != pPr.AutoSpaceDN)
+		{
+			this.memory.WriteByte(c_oSerProp_pPrType.AutoSpaceDN);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(pPr.AutoSpaceDN);
 		}
     };
     this.WriteInd = function(Ind)
@@ -9318,6 +9346,18 @@ function Binary_pPrReader(doc, oReadResult, stream)
         {
 			case c_oSerProp_pPrType.Bidi:
 				pPr.Bidi = this.stream.GetBool();
+				break;
+			case c_oSerProp_pPrType.Kinsoku:
+				pPr.Kinsoku = this.stream.GetBool();
+				break;
+			case c_oSerProp_pPrType.OverflowPunct:
+				pPr.OverflowPunct = this.stream.GetBool();
+				break;
+			case c_oSerProp_pPrType.AutoSpaceDE:
+				pPr.AutoSpaceDE = this.stream.GetBool();
+				break;
+			case c_oSerProp_pPrType.AutoSpaceDN:
+				pPr.AutoSpaceDN = this.stream.GetBool();
 				break;
             case c_oSerProp_pPrType.contextualSpacing:
 				pPr.ContextualSpacing = this.stream.GetBool();

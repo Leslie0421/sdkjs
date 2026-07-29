@@ -4192,6 +4192,12 @@ background-repeat: no-repeat;\
 		var arrAdditional = [];
 		var fontFamilies = Props.get_FontFamilies ? Props.get_FontFamilies() : Props.FontFamilies;
 		var fontFamiliesInfo = fontFamilies ? private_GetTextFontFamiliesInfo(fontFamilies) : null;
+		var eastAsianTypography = {
+			Kinsoku      : Props.get_Kinsoku ? Props.get_Kinsoku() : Props.Kinsoku,
+			OverflowPunct: Props.get_OverflowPunct ? Props.get_OverflowPunct() : Props.OverflowPunct,
+			AutoSpaceDE  : Props.get_AutoSpaceDE ? Props.get_AutoSpaceDE() : Props.AutoSpaceDE,
+			AutoSpaceDN  : Props.get_AutoSpaceDN ? Props.get_AutoSpaceDN() : Props.AutoSpaceDN
+		};
 		if (undefined != Props.DefaultTab)
 		{
 			arrAdditional.push({
@@ -4333,6 +4339,19 @@ background-repeat: no-repeat;\
 
 			if (undefined !== Props.SuppressLineNumbers)
 				oLogicDocument.SetParagraphSuppressLineNumbers(Props.SuppressLineNumbers);
+
+			if (undefined !== eastAsianTypography.Kinsoku
+				|| undefined !== eastAsianTypography.OverflowPunct
+				|| undefined !== eastAsianTypography.AutoSpaceDE
+				|| undefined !== eastAsianTypography.AutoSpaceDN)
+			{
+				oLogicDocument.SetParagraphEastAsianTypography(
+					eastAsianTypography.Kinsoku,
+					eastAsianTypography.OverflowPunct,
+					eastAsianTypography.AutoSpaceDE,
+					eastAsianTypography.AutoSpaceDN
+				);
+			}
 
 			if (undefined !== Props.Bidi)
 				oLogicDocument.SetParagraphBidi(Props.Bidi);

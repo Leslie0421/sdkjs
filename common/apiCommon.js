@@ -3035,6 +3035,10 @@ function (window, undefined) {
 		if (obj) {
 			this.Bidi = undefined !== obj.Bidi ? obj.Bidi : undefined;
 			this.ContextualSpacing = (undefined != obj.ContextualSpacing) ? obj.ContextualSpacing : null;
+			this.Kinsoku = undefined !== obj.Kinsoku ? obj.Kinsoku : undefined;
+			this.OverflowPunct = undefined !== obj.OverflowPunct ? obj.OverflowPunct : undefined;
+			this.AutoSpaceDE = undefined !== obj.AutoSpaceDE ? obj.AutoSpaceDE : undefined;
+			this.AutoSpaceDN = undefined !== obj.AutoSpaceDN ? obj.AutoSpaceDN : undefined;
 			this.Ind = (undefined != obj.Ind && null != obj.Ind) ? new asc_CParagraphInd(obj.Ind) : null;
 			this.KeepLines = (undefined != obj.KeepLines) ? obj.KeepLines : null;
 			this.KeepNext = (undefined != obj.KeepNext) ? obj.KeepNext : undefined;
@@ -3099,6 +3103,10 @@ function (window, undefined) {
 
 			this.Bidi = undefined;
 			this.ContextualSpacing = undefined;
+			this.Kinsoku = undefined;
+			this.OverflowPunct = undefined;
+			this.AutoSpaceDE = undefined;
+			this.AutoSpaceDN = undefined;
 			this.Ind = new asc_CParagraphInd();
 			this.KeepLines = undefined;
 			this.KeepNext = undefined;
@@ -3147,6 +3155,30 @@ function (window, undefined) {
 	};
 	asc_CParagraphProperty.prototype.asc_putContextualSpacing = function (v) {
 		this.ContextualSpacing = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getKinsoku = function () {
+		return this.Kinsoku;
+	};
+	asc_CParagraphProperty.prototype.asc_putKinsoku = function (v) {
+		this.Kinsoku = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getOverflowPunct = function () {
+		return this.OverflowPunct;
+	};
+	asc_CParagraphProperty.prototype.asc_putOverflowPunct = function (v) {
+		this.OverflowPunct = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getAutoSpaceDE = function () {
+		return this.AutoSpaceDE;
+	};
+	asc_CParagraphProperty.prototype.asc_putAutoSpaceDE = function (v) {
+		this.AutoSpaceDE = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getAutoSpaceDN = function () {
+		return this.AutoSpaceDN;
+	};
+	asc_CParagraphProperty.prototype.asc_putAutoSpaceDN = function (v) {
+		this.AutoSpaceDN = v;
 	};
 	asc_CParagraphProperty.prototype.asc_getInd = function () {
 		return this.Ind;
@@ -8768,6 +8800,14 @@ function (window, undefined) {
 	prot["put_RtlDirection"] = prot["asc_putRtlDirection"] = prot.asc_putRtlDirection;
 	prot["get_ContextualSpacing"] = prot["asc_getContextualSpacing"] = prot.asc_getContextualSpacing;
 	prot["put_ContextualSpacing"] = prot["asc_putContextualSpacing"] = prot.asc_putContextualSpacing;
+	prot["get_Kinsoku"] = prot["asc_getKinsoku"] = prot.asc_getKinsoku;
+	prot["put_Kinsoku"] = prot["asc_putKinsoku"] = prot.asc_putKinsoku;
+	prot["get_OverflowPunct"] = prot["asc_getOverflowPunct"] = prot.asc_getOverflowPunct;
+	prot["put_OverflowPunct"] = prot["asc_putOverflowPunct"] = prot.asc_putOverflowPunct;
+	prot["get_AutoSpaceDE"] = prot["asc_getAutoSpaceDE"] = prot.asc_getAutoSpaceDE;
+	prot["put_AutoSpaceDE"] = prot["asc_putAutoSpaceDE"] = prot.asc_putAutoSpaceDE;
+	prot["get_AutoSpaceDN"] = prot["asc_getAutoSpaceDN"] = prot.asc_getAutoSpaceDN;
+	prot["put_AutoSpaceDN"] = prot["asc_putAutoSpaceDN"] = prot.asc_putAutoSpaceDN;
 	prot["get_Ind"] = prot["asc_getInd"] = prot.asc_getInd;
 	prot["put_Ind"] = prot["asc_putInd"] = prot.asc_putInd;
 	prot["get_Jc"] = prot["asc_getJc"] = prot.asc_getJc;

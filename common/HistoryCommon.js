@@ -1986,6 +1986,10 @@
 	window['AscDFH'].historyitem_Paragraph_TextId                    = window['AscDFH'].historyitem_type_Paragraph | 44;
 	window['AscDFH'].historyitem_Paragraph_Spacing_BeforeLines      = window['AscDFH'].historyitem_type_Paragraph | 45;
 	window['AscDFH'].historyitem_Paragraph_Spacing_AfterLines       = window['AscDFH'].historyitem_type_Paragraph | 46;
+	window['AscDFH'].historyitem_Paragraph_Kinsoku                  = window['AscDFH'].historyitem_type_Paragraph | 47;
+	window['AscDFH'].historyitem_Paragraph_OverflowPunct            = window['AscDFH'].historyitem_type_Paragraph | 48;
+	window['AscDFH'].historyitem_Paragraph_AutoSpaceDE              = window['AscDFH'].historyitem_type_Paragraph | 49;
+	window['AscDFH'].historyitem_Paragraph_AutoSpaceDN              = window['AscDFH'].historyitem_type_Paragraph | 50;
 	//------------------------------------------------------------------------------------------------------------------
 	// Типы изменений в классе ParaTextPr
 	//------------------------------------------------------------------------------------------------------------------

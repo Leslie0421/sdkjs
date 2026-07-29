@@ -1029,6 +1029,10 @@
 		if (obj)
 		{
 			this.ContextualSpacing = (undefined != obj.ContextualSpacing) ? obj.ContextualSpacing : null;
+			this.Kinsoku = undefined !== obj.Kinsoku ? obj.Kinsoku : null;
+			this.OverflowPunct = undefined !== obj.OverflowPunct ? obj.OverflowPunct : null;
+			this.AutoSpaceDE = undefined !== obj.AutoSpaceDE ? obj.AutoSpaceDE : null;
+			this.AutoSpaceDN = undefined !== obj.AutoSpaceDN ? obj.AutoSpaceDN : null;
 			this.Ind = (undefined != obj.Ind && null != obj.Ind) ? new Asc.asc_CParagraphInd(obj.Ind) : null;
 			this.Jc = (undefined != obj.Jc) ? obj.Jc : null;
 			this.KeepLines = (undefined != obj.KeepLines) ? obj.KeepLines : null;
@@ -1081,6 +1085,10 @@
 			//
 			//    Tabs : []
 			this.ContextualSpacing = false;
+			this.Kinsoku = true;
+			this.OverflowPunct = true;
+			this.AutoSpaceDE = true;
+			this.AutoSpaceDN = true;
 			this.Ind = new Asc.asc_CParagraphInd();
 			this.Jc = AscCommon.align_Left;
 			this.KeepLines = false;
@@ -1097,6 +1105,22 @@
 	CParagraphPropEx.prototype.get_ContextualSpacing = function ()
 	{
 		return this.ContextualSpacing;
+	};
+	CParagraphPropEx.prototype.get_Kinsoku = function ()
+	{
+		return this.Kinsoku;
+	};
+	CParagraphPropEx.prototype.get_OverflowPunct = function ()
+	{
+		return this.OverflowPunct;
+	};
+	CParagraphPropEx.prototype.get_AutoSpaceDE = function ()
+	{
+		return this.AutoSpaceDE;
+	};
+	CParagraphPropEx.prototype.get_AutoSpaceDN = function ()
+	{
+		return this.AutoSpaceDN;
 	};
 	CParagraphPropEx.prototype.get_Ind = function ()
 	{
@@ -1259,6 +1283,10 @@
 	};
 
 	CParagraphPropEx.prototype['get_ContextualSpacing'] = CParagraphPropEx.prototype.get_ContextualSpacing;
+	CParagraphPropEx.prototype['get_Kinsoku'] = CParagraphPropEx.prototype.get_Kinsoku;
+	CParagraphPropEx.prototype['get_OverflowPunct'] = CParagraphPropEx.prototype.get_OverflowPunct;
+	CParagraphPropEx.prototype['get_AutoSpaceDE'] = CParagraphPropEx.prototype.get_AutoSpaceDE;
+	CParagraphPropEx.prototype['get_AutoSpaceDN'] = CParagraphPropEx.prototype.get_AutoSpaceDN;
 	CParagraphPropEx.prototype['get_Ind'] = CParagraphPropEx.prototype.get_Ind;
 	CParagraphPropEx.prototype['get_Jc'] = CParagraphPropEx.prototype.get_Jc;
 	CParagraphPropEx.prototype['get_KeepLines'] = CParagraphPropEx.prototype.get_KeepLines;

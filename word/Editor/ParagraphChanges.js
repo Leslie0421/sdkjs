@@ -76,6 +76,10 @@ AscDFH.changesFactory[AscDFH.historyitem_Paragraph_SuppressLineNumbers]       = 
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Shd_Fill]                  = CChangesParagraphShdFill;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Shd_ThemeFill]             = CChangesParagraphShdThemeFill;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Bidi]                      = CChangesParagraphBidi;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Kinsoku]                   = CChangesParagraphKinsoku;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_OverflowPunct]             = CChangesParagraphOverflowPunct;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_AutoSpaceDE]               = CChangesParagraphAutoSpaceDE;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_AutoSpaceDN]               = CChangesParagraphAutoSpaceDN;
 
 function private_ParagraphChangesOnLoadPr(oColor)
 {
@@ -271,7 +275,11 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Pr]                      
 	AscDFH.historyitem_Paragraph_PrReviewInfo,
 	AscDFH.historyitem_Paragraph_OutlineLvl,
 	AscDFH.historyitem_Paragraph_SuppressLineNumbers,
-	AscDFH.historyitem_Paragraph_Bidi
+	AscDFH.historyitem_Paragraph_Bidi,
+	AscDFH.historyitem_Paragraph_Kinsoku,
+	AscDFH.historyitem_Paragraph_OverflowPunct,
+	AscDFH.historyitem_Paragraph_AutoSpaceDE,
+	AscDFH.historyitem_Paragraph_AutoSpaceDN
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_PresentationPr_Bullet]     = [
 	AscDFH.historyitem_Paragraph_PresentationPr_Bullet,
@@ -317,6 +325,22 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Shd_ThemeFill]           
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Bidi] = [
 	AscDFH.historyitem_Paragraph_Bidi,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Kinsoku] = [
+	AscDFH.historyitem_Paragraph_Kinsoku,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_OverflowPunct] = [
+	AscDFH.historyitem_Paragraph_OverflowPunct,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_AutoSpaceDE] = [
+	AscDFH.historyitem_Paragraph_AutoSpaceDE,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_AutoSpaceDN] = [
+	AscDFH.historyitem_Paragraph_AutoSpaceDN,
 	AscDFH.historyitem_Paragraph_Pr
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_ParaId] = [
@@ -2147,6 +2171,63 @@ CChangesParagraphBidi.prototype.IsNeedRecalculate = function()
 	return true;
 };
 CChangesParagraphBidi.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+
+function private_InitEastAsianParagraphChange(change, type, applyValue)
+{
+	change.prototype = Object.create(AscDFH.CChangesBaseBoolProperty.prototype);
+	change.prototype.constructor = change;
+	change.prototype.Type = type;
+	change.prototype.private_SetValue = function(value)
+	{
+		let paragraph = this.Class;
+		applyValue(paragraph, value);
+		paragraph.CompiledPr.NeedRecalc = true;
+		paragraph.private_UpdateTrackRevisionOnChangeParaPr(false);
+	};
+	change.prototype.Merge = private_ParagraphChangesOnMergePr;
+	change.prototype.Load = private_ParagraphChangesOnLoadPr;
+	change.prototype.IsNeedRecalculate = function()
+	{
+		return true;
+	};
+	change.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+}
+
+function CChangesParagraphKinsoku(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+private_InitEastAsianParagraphChange(CChangesParagraphKinsoku, AscDFH.historyitem_Paragraph_Kinsoku, function(paragraph, value)
+{
+	paragraph.Pr.Kinsoku = value;
+});
+
+function CChangesParagraphOverflowPunct(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+private_InitEastAsianParagraphChange(CChangesParagraphOverflowPunct, AscDFH.historyitem_Paragraph_OverflowPunct, function(paragraph, value)
+{
+	paragraph.Pr.OverflowPunct = value;
+});
+
+function CChangesParagraphAutoSpaceDE(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+private_InitEastAsianParagraphChange(CChangesParagraphAutoSpaceDE, AscDFH.historyitem_Paragraph_AutoSpaceDE, function(paragraph, value)
+{
+	paragraph.Pr.AutoSpaceDE = value;
+});
+
+function CChangesParagraphAutoSpaceDN(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+private_InitEastAsianParagraphChange(CChangesParagraphAutoSpaceDN, AscDFH.historyitem_Paragraph_AutoSpaceDN, function(paragraph, value)
+{
+	paragraph.Pr.AutoSpaceDN = value;
+});
 
 (function()
 {

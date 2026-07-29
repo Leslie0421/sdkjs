@@ -16564,6 +16564,14 @@
 
 			if (this.ContextualSpacing != null)
 				oResult["contextualSpacing"] = this.ContextualSpacing;
+			if (this.Kinsoku != null)
+				oResult["kinsoku"] = this.Kinsoku;
+			if (this.OverflowPunct != null)
+				oResult["overflowPunct"] = this.OverflowPunct;
+			if (this.AutoSpaceDE != null)
+				oResult["autoSpaceDE"] = this.AutoSpaceDE;
+			if (this.AutoSpaceDN != null)
+				oResult["autoSpaceDN"] = this.AutoSpaceDN;
 			if (this.FramePr != null)
 				oResult["framePr"] = WriterToJSON.prototype.SerFramePr(this.FramePr);
 
@@ -16741,6 +16749,14 @@
 
 			if (oParsedJson["contextualSpacing"] != null)
 				this.ContextualSpacing = oParsedJson["contextualSpacing"];
+			if (oParsedJson["kinsoku"] != null)
+				this.Kinsoku = oParsedJson["kinsoku"];
+			if (oParsedJson["overflowPunct"] != null)
+				this.OverflowPunct = oParsedJson["overflowPunct"];
+			if (oParsedJson["autoSpaceDE"] != null)
+				this.AutoSpaceDE = oParsedJson["autoSpaceDE"];
+			if (oParsedJson["autoSpaceDN"] != null)
+				this.AutoSpaceDN = oParsedJson["autoSpaceDN"];
 			if (oParsedJson["framePr"] != null)
 				this.FramePr = ReaderFromJSON.prototype.FramePrFromJSON(oParsedJson["framePr"]);
 
@@ -22118,4 +22134,3 @@
 	window['AscCommon'].From_XML_ST_LayoutShapeType = From_XML_ST_LayoutShapeType;
 
 })(window);
-

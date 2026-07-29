@@ -45,6 +45,28 @@ $(function ()
 		apiParagraph.SetParaId(0x48151623);
 		assert.strictEqual(apiParagraph.GetParaId(), 0x48151623, "Check paraId");
 	});
+
+	QUnit.test("East Asian typography paragraph properties", function(assert)
+	{
+		let apiParagraph = createApiParagraph();
+		let paraPr = apiParagraph.GetParaPr();
+
+		paraPr.SetKinsoku(false);
+		paraPr.SetOverflowPunct(true);
+		paraPr.SetAutoSpaceDE(false);
+		paraPr.SetAutoSpaceDN(true);
+
+		assert.deepEqual(
+			[
+				paraPr.GetKinsoku(),
+				paraPr.GetOverflowPunct(),
+				paraPr.GetAutoSpaceDE(),
+				paraPr.GetAutoSpaceDN()
+			],
+			[false, true, false, true],
+			"ApiParaPr exposes all East Asian typography properties"
+		);
+	});
 	
 	QUnit.test("GetText", function (assert)
 	{

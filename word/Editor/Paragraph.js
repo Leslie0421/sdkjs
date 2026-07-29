@@ -11656,6 +11656,10 @@ Paragraph.prototype.Clear_Formatting = function()
 	}
 
 	this.Set_ContextualSpacing(undefined);
+	this.SetKinsoku(undefined);
+	this.SetOverflowPunct(undefined);
+	this.SetAutoSpaceDE(undefined);
+	this.SetAutoSpaceDN(undefined);
 	this.Set_Ind(new CParaInd(), true);
 	this.Set_Align(undefined, false);
 	this.Set_KeepLines(undefined);
@@ -14387,6 +14391,10 @@ Paragraph.prototype.Refresh_RecalcData = function(Data)
 			break;
 		}
 		case AscDFH.historyitem_Paragraph_Bidi:
+		case AscDFH.historyitem_Paragraph_Kinsoku:
+		case AscDFH.historyitem_Paragraph_OverflowPunct:
+		case AscDFH.historyitem_Paragraph_AutoSpaceDE:
+		case AscDFH.historyitem_Paragraph_AutoSpaceDN:
 		case AscDFH.historyitem_Paragraph_Align:
 		case AscDFH.historyitem_Paragraph_DefaultTabSize:
 		case AscDFH.historyitem_Paragraph_Ind_First:
@@ -16970,6 +16978,48 @@ Paragraph.prototype.ClearParagraphFormatting = function(isClearParaPr, isClearTe
 Paragraph.prototype.SetParagraphPr = function(oParaPr)
 {
 	this.SetDirectParaPr(oParaPr);
+};
+Paragraph.prototype.private_SetEastAsianParagraphProperty = function(oldValue, value, ChangeClass, applyValue)
+{
+	if (null === value)
+		value = undefined;
+
+	if (oldValue === value)
+		return;
+
+	this.private_AddPrChange();
+	AscCommon.History.Add(new ChangeClass(this, oldValue, value));
+	applyValue(this, value);
+	this.CompiledPr.NeedRecalc = true;
+	this.private_UpdateTrackRevisionOnChangeParaPr(true);
+};
+Paragraph.prototype.SetKinsoku = function(value)
+{
+	this.private_SetEastAsianParagraphProperty(this.Pr.Kinsoku, value, CChangesParagraphKinsoku, function(paragraph, newValue)
+	{
+		paragraph.Pr.Kinsoku = newValue;
+	});
+};
+Paragraph.prototype.SetOverflowPunct = function(value)
+{
+	this.private_SetEastAsianParagraphProperty(this.Pr.OverflowPunct, value, CChangesParagraphOverflowPunct, function(paragraph, newValue)
+	{
+		paragraph.Pr.OverflowPunct = newValue;
+	});
+};
+Paragraph.prototype.SetAutoSpaceDE = function(value)
+{
+	this.private_SetEastAsianParagraphProperty(this.Pr.AutoSpaceDE, value, CChangesParagraphAutoSpaceDE, function(paragraph, newValue)
+	{
+		paragraph.Pr.AutoSpaceDE = newValue;
+	});
+};
+Paragraph.prototype.SetAutoSpaceDN = function(value)
+{
+	this.private_SetEastAsianParagraphProperty(this.Pr.AutoSpaceDN, value, CChangesParagraphAutoSpaceDN, function(paragraph, newValue)
+	{
+		paragraph.Pr.AutoSpaceDN = newValue;
+	});
 };
 Paragraph.prototype.SetParagraphBidi = function(isRtl)
 {

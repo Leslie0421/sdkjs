@@ -57,6 +57,8 @@ SetFontFamilies({
 
 ### S2：四个东亚段落属性进入完整模型
 
+实现状态：代码完成（2026-07-29），待 Microsoft Word/WPS DOCX 样本往返验收。
+
 - 在 `CParaPr`、计算后段落属性和样式合并中增加：
   - `Kinsoku`
   - `OverflowPunct`

@@ -2,6 +2,33 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-29：完成四个东亚段落属性的完整属性链路
+
+- `word/Editor/Styles.js`、`word/fromToJSON.js`
+  - `CParaPr` 增加 `Kinsoku`、`OverflowPunct`、`AutoSpaceDE`、`AutoSpaceDN`，接入复制、合并、比较、差异、清空、JSON 和内部二进制序列化。
+  - 四项均按 OOXML 样式层级逐级继承；整个层级未声明时计算默认值为 `true`，不会把继承值写成直接格式。
+- `common/HistoryCommon.js`、`word/Editor/ParagraphChanges.js`、`Paragraph.js`、`Document.js`
+  - 追加四个段落历史类型和布尔协同变更，支持显式 `false`、继承态 `undefined`、撤销、重做、协同加载及清除直接格式。
+- `word/Editor/Serialize2.js`、`../core/OOXML/Binary/Document`
+  - Editor.bin 段落属性协议同步追加 `Kinsoku = 50`、`OverflowPunct = 51`、`AutoSpaceDE = 52`、`AutoSpaceDN = 53`。
+  - 普通段落、段落样式、编号样式和修订属性共用的双向读写链路均可保留显式 `true` / `false`。
+- `common/apiCommon.js`、`word/apiCommon.js`、`word/api.js`、`word/apiBuilder.js`
+  - `asc_CParagraphProperty`、计算属性对象和 `ApiParaPr` 增加四项独立读写 API；`paraApply` 可在一次历史操作中应用到所选段落。
+- `tests/word/styles/paraPr.js`、`tests/word/api/api.js`、`tests/word/js-api/api-paragraph.js`
+  - 增加缺省值、样式继承、直接格式、复制/比较/合并、清除、撤销重做、协同变更、JSON、二进制、Editor.bin 和公共 API 回归测试。
+
+### 验证状态
+
+- 段落属性 QUnit 30/30、文档 API QUnit 123/123、JS API QUnit 228/228 断言通过；协同变更回归用例已加入同一段落属性测试页。
+- 相关 JavaScript `node --check`、`git diff --check` 通过。
+- `build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- Microsoft Word/WPS DOCX 实体样本往返仍属于后续兼容验收。
+
+### 跨项目依赖
+
+- 对应 core C1 位于 `../core`，协议编号 50–53 已同步。
+- `../web-apps` W2 继续保持未开放；本阶段没有实现 S3/S4/S5 排版算法。
+
 ## 2026-07-29：完成中西文字体分槽设置第一阶段
 
 - `common/apiCommon.js`、`word/apiCommon.js`
