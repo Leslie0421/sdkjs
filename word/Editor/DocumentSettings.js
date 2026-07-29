@@ -72,6 +72,7 @@
 		this.BalanceSingleByteDoubleByteWidth = false;
 		this.UlTrailSpace                     = false;
 		this.UseFELayout                      = false;
+		this.AdjustLineHeightInTable          = false;
 		this.DoNotSnapToGridInCell            = false;
 	}
 	DocumentSettings.prototype.getCompatibilityMode = function()
@@ -81,6 +82,10 @@
 	DocumentSettings.prototype.isDoNotSnapToGridInCell = function()
 	{
 		return this.DoNotSnapToGridInCell;
+	};
+	DocumentSettings.prototype.isAdjustLineHeightInTable = function()
+	{
+		return this.AdjustLineHeightInTable;
 	};
 	DocumentSettings.prototype.isAutoHyphenation = function()
 	{

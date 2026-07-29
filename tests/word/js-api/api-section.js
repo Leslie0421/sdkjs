@@ -143,4 +143,29 @@ $(function () {
 			'Apply-to-all updates each section with identical grid settings'
 		);
 	});
+
+	QUnit.test('Document-grid table compatibility settings survive Editor.bin', function(assert)
+	{
+		let document = AscTest.JsApi.GetDocument().Document;
+		let settings = document.GetDocumentSettings();
+		let oldAdjustLineHeight = settings.AdjustLineHeightInTable;
+		let oldDoNotSnap = settings.DoNotSnapToGridInCell;
+		settings.AdjustLineHeightInTable = true;
+		settings.DoNotSnapToGridInCell = true;
+
+		let writer = AscTest.GetBinaryWriter();
+		new BinarySettingsTableWriter(writer, document, {isCompatible: true}).WriteCompat();
+		settings.AdjustLineHeightInTable = oldAdjustLineHeight;
+		settings.DoNotSnapToGridInCell = oldDoNotSnap;
+
+		let reopenedSettings = new AscWord.DocumentSettings(document);
+		let reader = new Binary_SettingsTableReader(document, new DocReadResult(document), AscTest.GetBinaryReader(writer));
+		reader.bcr.Read1(writer.GetCurPosition(), function(type, length)
+		{
+			return reader.ReadCompat(type, length, reopenedSettings);
+		});
+
+		assert.strictEqual(reopenedSettings.isAdjustLineHeightInTable(), true, 'adjustLineHeightInTable survives Editor.bin');
+		assert.strictEqual(reopenedSettings.isDoNotSnapToGridInCell(), true, 'doNotSnapToGridInCell survives Editor.bin');
+	});
 });
