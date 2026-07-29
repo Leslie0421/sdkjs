@@ -3809,6 +3809,8 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					{
 						Item.ResetTemporaryGrapheme();
 						Item.ResetTemporaryHyphenAfter();
+						Item.ResetAutoSpaceBefore();
+						Item.SetAutoSpaceBefore(PRS.getAutoSpaceBefore(Item, this, ParaPr));
 					}
 
 					if (true !== PRS.IsFastRecalculate())
@@ -3863,7 +3865,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
                     // При проверке, убирается ли слово, мы должны учитывать ширину предшествующих пробелов
 					let LetterLen   = Item.GetWidth();
 					let isLigature  = Item.IsLigature();
-					let GraphemeLen = isLigature ? Item.GetLigatureWidth() : LetterLen;
+					let GraphemeLen = isLigature ? Item.GetLigatureWidth() + Item.GetAutoSpaceBefore() : LetterLen;
 					
 					let isBreakAfter = Item.IsSpaceAfter(textPr.RFonts.Hint);
 

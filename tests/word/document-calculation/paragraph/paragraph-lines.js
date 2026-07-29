@@ -128,7 +128,30 @@ $(function () {
 		para.SetKinsoku(undefined);
 		para.SetOverflowPunct(undefined);
 	});
-	
+
+	QUnit.test("East Asian automatic spacing uses virtual widths", function(assert)
+	{
+		setText("中A中1");
+		para.SetAutoSpaceDE(true);
+		para.SetAutoSpaceDN(true);
+		recalculate(charWidth * 20);
+
+		assert.ok(run.GetElement(1).GetAutoSpaceBefore() > 0, "AutoSpaceDE inserts a virtual CJK/letter gap");
+		assert.ok(run.GetElement(2).GetAutoSpaceBefore() > 0, "AutoSpaceDE also handles a letter/CJK boundary");
+		assert.ok(run.GetElement(3).GetAutoSpaceBefore() > 0, "AutoSpaceDN inserts a virtual CJK/digit gap");
+		assert.strictEqual(para.GetTextOnLine(0), "中A中1", "Virtual spacing does not modify the character stream");
+
+		para.SetAutoSpaceDE(false);
+		para.SetAutoSpaceDN(false);
+		recalculate(charWidth * 20);
+		assert.strictEqual(run.GetElement(1).GetAutoSpaceBefore(), 0, "Disabling AutoSpaceDE removes the virtual gap");
+		assert.strictEqual(run.GetElement(2).GetAutoSpaceBefore(), 0, "All AutoSpaceDE boundaries are cleared on recalculation");
+		assert.strictEqual(run.GetElement(3).GetAutoSpaceBefore(), 0, "Disabling AutoSpaceDN removes the virtual gap");
+
+		para.SetAutoSpaceDE(undefined);
+		para.SetAutoSpaceDN(undefined);
+	});
+
 	QUnit.test("Test line breaks for Asian text", function (assert)
 	{
 		setText("你好世界! 你好世界! 你好世界! 你好世界! ");

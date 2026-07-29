@@ -3670,6 +3670,26 @@ CParagraphRecalculateStateWrap.prototype.getXLimit = function()
 	//       при изменении XEnd сразу расчитывать это значение и заменить вызов на простой this.XEnd
 	return this.Paragraph.IsUseXLimit() ? this.XEnd : MEASUREMENT_MAX_MM_VALUE * 10;
 };
+CParagraphRecalculateStateWrap.prototype.getAutoSpaceBefore = function(item, run, paraPr)
+{
+	if (!item || para_Text !== item.Type || !this.LastItem || para_Text !== this.LastItem.Type || !this.LastItemRun)
+		return 0;
+
+	let currentClass = item.GetAutoSpaceClass();
+	let previousClass = this.LastItem.GetAutoSpaceClass();
+	let isDigitBoundary = ((1 === currentClass && 3 === previousClass) || (3 === currentClass && 1 === previousClass));
+	let isLetterBoundary = ((1 === currentClass && 2 === previousClass) || (2 === currentClass && 1 === previousClass));
+	if ((!isDigitBoundary || false === paraPr.AutoSpaceDN) && (!isLetterBoundary || false === paraPr.AutoSpaceDE))
+		return 0;
+
+	let eastAsianRun = (1 === currentClass ? run : this.LastItemRun);
+	let eastAsianTextPr = eastAsianRun.Get_CompiledPr(false);
+	let fontSize = eastAsianTextPr.FontSize;
+	if (!fontSize || fontSize < 0)
+		return 0;
+
+	return fontSize * g_dKoef_pt_to_mm / 4;
+};
 CParagraphRecalculateStateWrap.prototype.isKinsokuEnabledForRun = function(paraPr, run)
 {
 	if (false !== paraPr.Kinsoku || !run)

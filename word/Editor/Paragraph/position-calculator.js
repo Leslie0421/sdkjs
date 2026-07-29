@@ -214,6 +214,8 @@
 			// for comb forms
 			if (element.LGap)
 				this.posInfo.x += element.LGap;
+			if (element.GetAutoSpaceBefore)
+				this.posInfo.x += element.GetAutoSpaceBefore();
 		}
 		
 		this.x += w;
@@ -396,5 +398,3 @@
 	AscWord.ParagraphPositionCalculator = ParagraphPositionCalculator;
 	
 })(window);
-
-

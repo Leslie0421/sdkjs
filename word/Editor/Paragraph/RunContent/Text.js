@@ -129,6 +129,7 @@
 		this.Flags    = 0x00000000 | 0;
 		this.Grapheme  = AscFonts.NO_GRAPHEME;
 		this.TextScale = 1;
+		this.AutoSpaceBefore = 0;
 
 		this.SetSpaceAfter(this.private_IsSpaceAfter());
 		this.updateRtlFlag();
@@ -351,6 +352,9 @@
 		else
 			width = (this.Width / AscWord.TEXTWIDTH_DIVIDER);
 		
+		if (!(this.Flags & FLAGS_VISIBLE_WIDTH))
+			width += this.AutoSpaceBefore;
+
 		return (width > 0 ? width : 0);
 	};
 	CRunText.prototype.GetWidth = function(textPr)
@@ -368,6 +372,8 @@
 		if (this.Flags & FLAGS_GAPS)
 			nWidth += this.LGap + this.RGap;
 
+		nWidth += this.AutoSpaceBefore;
+
 		return (nWidth > 0 ? nWidth : 0);
 	};
 	CRunText.prototype.GetMeasuredWidth = function()
@@ -380,6 +386,8 @@
 	};
 	CRunText.prototype.Draw = function(X, Y, Context, PDSE, oTextPr, forceGrapheme)
 	{
+		X += this.AutoSpaceBefore;
+
 		if (Context.m_bIsTextDrawer === true)
 		{
 			Context.CheckAddNewPath(X, Y, this);
@@ -430,7 +438,7 @@
 	{
 		let fontInfo   = textPr.GetFontInfo(AscWord.fontslot_ASCII);
 		let graphemeId = AscCommon.g_oTextMeasurer.GetGraphemeByUnicode(0x002D, fontInfo.Name, fontInfo.Style);
-		let shift      = this.GetWidth();
+		let shift      = this.GetWidth() - this.AutoSpaceBefore;
 		AscFonts.DrawGrapheme(graphemeId, context, X + shift, Y, fontSize, undefined, this.TextScale);
 	};
 	CRunText.prototype.Measure = function(oMeasurer, oTextPr)
@@ -455,6 +463,7 @@
 		t.Flags    = this.Flags;
 		t.Grapheme  = this.Grapheme;
 		t.TextScale = this.TextScale;
+		t.AutoSpaceBefore = this.AutoSpaceBefore;
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
@@ -480,6 +489,31 @@
 	CRunText.prototype.IsPunctuation = function()
 	{
 		return !!(undefined !== AscCommon.g_aPunctuation[this.Value]);
+	};
+	CRunText.prototype.GetAutoSpaceClass = function()
+	{
+		if (this.IsCombiningMark() || this.IsLigatureContinue() || this.IsNBSP() || this.IsPunctuation())
+			return 0;
+		if (this.IsDigit())
+			return 3;
+		if (AscCommon.isEastAsianScript(this.Value))
+			return 1;
+		if (this.IsLetter())
+			return 2;
+
+		return 0;
+	};
+	CRunText.prototype.SetAutoSpaceBefore = function(value)
+	{
+		this.AutoSpaceBefore = Math.max(0, value || 0);
+	};
+	CRunText.prototype.ResetAutoSpaceBefore = function()
+	{
+		this.AutoSpaceBefore = 0;
+	};
+	CRunText.prototype.GetAutoSpaceBefore = function()
+	{
+		return this.AutoSpaceBefore;
 	};
 	CRunText.prototype.IsNumber = function()
 	{
@@ -702,7 +736,7 @@
 	};
 	CRunText.prototype.SaveRecalculateObject = function()
 	{
-		let state = [this.Flags, this.Grapheme, this.Width];
+		let state = [this.Flags, this.Grapheme, this.Width, this.AutoSpaceBefore];
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
@@ -733,7 +767,7 @@
 	};
 	CRunText.prototype.LoadRecalculateObject = function(oState)
 	{
-		if (!oState || oState.length < 3)
+		if (!oState || oState.length < 4)
 			return;
 
 		let nPos = 0;
@@ -741,6 +775,7 @@
 		this.Flags    = oState[nPos++];
 		this.Grapheme = oState[nPos++];
 		this.Width    = oState[nPos++];
+		this.AutoSpaceBefore = oState[nPos++];
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
