@@ -3521,13 +3521,14 @@ background-repeat: no-repeat;\
 			if (typeof name !== "string" || !name)
 				continue;
 
-			let fontInfo = g_fontApplication.GetFontInfo(name);
-			let actualName = fontInfo && fontInfo.Name ? fontInfo.Name : name;
-			rFonts[slots[index][0]] = {Name : actualName, Index : -1};
-			if (-1 === names.indexOf(actualName))
-				names.push(actualName);
-			if (fontInfo && -1 === fontsToLoad.indexOf(actualName))
-				fontsToLoad.push(actualName);
+			let fontInfo = g_fontApplication ? g_fontApplication.GetFontInfo(name) : null;
+			// Keep the requested family in the document. GetFontInfo may return a
+			// fallback font file, but that fallback must not replace the OOXML name.
+			rFonts[slots[index][0]] = {Name : name, Index : -1};
+			if (-1 === names.indexOf(name))
+				names.push(name);
+			if (fontInfo && -1 === fontsToLoad.indexOf(name))
+				fontsToLoad.push(name);
 		}
 
 		return {RFonts : rFonts, Names : names, FontsToLoad : fontsToLoad};
@@ -3547,6 +3548,24 @@ background-repeat: no-repeat;\
 			}
 		});
 	}
+	function private_ApplyTextFontFamilies(textPr, fontFamiliesInfo)
+	{
+		if (!textPr || !fontFamiliesInfo)
+			return;
+
+		let slots = [
+			["Ascii", AscWord.fontslot_ASCII],
+			["HAnsi", AscWord.fontslot_HAnsi],
+			["EastAsia", AscWord.fontslot_EastAsia],
+			["CS", AscWord.fontslot_CS]
+		];
+		for (let index = 0; index < slots.length; ++index)
+		{
+			let family = fontFamiliesInfo.RFonts[slots[index][0]];
+			if (family && typeof family.Name === "string" && family.Name)
+				textPr.put_FontFamilyBySlot(slots[index][1], family.Name);
+		}
+	}
 	/**
 	 * Sets one or more OOXML run-font slots without resetting unspecified slots.
 	 * Supported properties: ascii, hAnsi, eastAsia and cs.
@@ -3563,8 +3582,10 @@ background-repeat: no-repeat;\
 		if (!logicDocument || logicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_TextProperties))
 			return;
 
+		let textPr = new AscCommonWord.CTextPr();
+		private_ApplyTextFontFamilies(textPr, fontFamiliesInfo);
 		logicDocument.StartAction(AscDFH.historydescription_Document_SetTextFontName, null, null, fontFamiliesInfo.Names.join(", "));
-		logicDocument.AddToParagraph(new AscCommonWord.ParaTextPr({RFonts : fontFamiliesInfo.RFonts}));
+		logicDocument.AddToParagraph(new AscCommonWord.ParaTextPr(textPr));
 		logicDocument.Recalculate();
 		logicDocument.UpdateInterface();
 		logicDocument.FinalizeAction();
@@ -4169,7 +4190,8 @@ background-repeat: no-repeat;\
 			return;
 
 		var arrAdditional = [];
-		var fontFamiliesInfo = Props.FontFamilies ? private_GetTextFontFamiliesInfo(Props.FontFamilies) : null;
+		var fontFamilies = Props.get_FontFamilies ? Props.get_FontFamilies() : Props.FontFamilies;
+		var fontFamiliesInfo = fontFamilies ? private_GetTextFontFamiliesInfo(fontFamilies) : null;
 		if (undefined != Props.DefaultTab)
 		{
 			arrAdditional.push({
@@ -4364,7 +4386,7 @@ background-repeat: no-repeat;\
 				TextPr.Ligatures = Props.Ligatures;
 
 			if (fontFamiliesInfo && fontFamiliesInfo.Names.length)
-				TextPr.RFonts = fontFamiliesInfo.RFonts;
+				private_ApplyTextFontFamilies(TextPr, fontFamiliesInfo);
 
 			oLogicDocument.AddToParagraph(new AscCommonWord.ParaTextPr(TextPr));
 			oLogicDocument.Recalculate();

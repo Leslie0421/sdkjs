@@ -359,6 +359,34 @@ $(function () {
 		assert.strictEqual(text, "Bold tes", "Backspace should delete the last 't' in 'test'");
 	});
 
+	QUnit.test("Apply East Asian and Western font families through paragraph settings", function(assert)
+	{
+		AscTest.ClearDocument();
+
+		let paragraph = AscTest.CreateParagraph();
+		let run = AscTest.CreateRun();
+		run.AddText("中文123");
+		run.Pr.RFonts.SetAll("Arial");
+		paragraph.AddToContentToEnd(run);
+		logicDocument.AddToContent(0, paragraph);
+		logicDocument.SelectAll();
+
+		let fontFamilies = new AscCommon.asc_CTextFontFamilies();
+		fontFamilies.put_EastAsia("SimSun");
+		fontFamilies.put_Ascii("Times New Roman");
+		fontFamilies.put_HAnsi("Times New Roman");
+		let paragraphProps = new Asc.asc_CParagraphProperty();
+		paragraphProps.put_FontFamilies(fontFamilies);
+
+		Asc.asc_docs_api.prototype.paraApply.call(AscTest.Editor, paragraphProps);
+
+		let directTextPr = logicDocument.GetDirectTextPr();
+		assert.strictEqual(directTextPr.RFonts.EastAsia.Name, "SimSun", "East Asian font is applied to the selected text");
+		assert.strictEqual(directTextPr.RFonts.Ascii.Name, "Times New Roman", "ASCII font is applied to the selected text");
+		assert.strictEqual(directTextPr.RFonts.HAnsi.Name, "Times New Roman", "HAnsi font is applied to the selected text");
+		assert.strictEqual(directTextPr.RFonts.CS.Name, "Arial", "An unspecified font slot keeps its previous value");
+	});
+
 	QUnit.test("Get text/selected text", function(assert)
 	{
 		AscTest.ClearDocument();

@@ -2662,8 +2662,8 @@ function (window, undefined) {
 		if (typeof value === "string")
 			return new asc_CTextFontFamily({Name: value, Index: -1});
 		return new asc_CTextFontFamily({
-			Name: undefined !== value.Name ? value.Name : (value.get_Name ? value.get_Name() : null),
-			Index: undefined !== value.Index ? value.Index : (value.get_Index ? value.get_Index() : -1)
+			Name: undefined !== value["Name"] ? value["Name"] : (value["get_Name"] ? value["get_Name"]() : null),
+			Index: undefined !== value["Index"] ? value["Index"] : (value["get_Index"] ? value["get_Index"]() : -1)
 		});
 	}
 
@@ -2674,11 +2674,17 @@ function (window, undefined) {
 	 */
 	function asc_CTextFontFamilies(obj) {
 		obj = obj || {};
-		this.Ascii = private_CreateTextFontFamily(undefined !== obj.Ascii ? obj.Ascii : obj.ascii);
-		this.HAnsi = private_CreateTextFontFamily(undefined !== obj.HAnsi ? obj.HAnsi : obj.hAnsi);
-		this.EastAsia = private_CreateTextFontFamily(undefined !== obj.EastAsia ? obj.EastAsia : obj.eastAsia);
-		this.CS = private_CreateTextFontFamily(undefined !== obj.CS ? obj.CS : obj.cs);
-		this.Hint = undefined !== obj.Hint ? obj.Hint : obj.hint;
+		let getValue = function(name, alias) {
+			let getter = obj["get_" + name];
+			if (typeof getter === "function")
+				return getter.call(obj);
+			return undefined !== obj[name] ? obj[name] : obj[alias];
+		};
+		this.Ascii = private_CreateTextFontFamily(getValue("Ascii", "ascii"));
+		this.HAnsi = private_CreateTextFontFamily(getValue("HAnsi", "hAnsi"));
+		this.EastAsia = private_CreateTextFontFamily(getValue("EastAsia", "eastAsia"));
+		this.CS = private_CreateTextFontFamily(getValue("CS", "cs"));
+		this.Hint = getValue("Hint", "hint");
 	}
 
 	asc_CTextFontFamilies.prototype.asc_getAscii = function () { return this.Ascii; };

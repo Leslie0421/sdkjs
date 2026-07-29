@@ -15834,9 +15834,9 @@
 				return value;
 			if (!value)
 				return undefined;
-			if (typeof value.Name === "string")
-				return value.Name;
-			return value.get_Name ? value.get_Name() : undefined;
+			if (typeof value["Name"] === "string")
+				return value["Name"];
+			return value["get_Name"] ? value["get_Name"]() : undefined;
 		};
 		let keys = ["ascii", "hAnsi", "eastAsia", "cs"];
 		for (let index = 0; index < keys.length; ++index)

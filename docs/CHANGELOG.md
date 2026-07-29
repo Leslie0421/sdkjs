@@ -10,14 +10,20 @@
   - 新增 `SetFontFamilies` / `put_TextPrFontFamilies`，只更新调用方明确提供的槽位；更新中文字体不会覆盖西文字体或复杂文字字体，反之亦然。
   - 更新直接字体时仅清除对应 theme 字体，保留其他 theme 槽、`w:hint` 和语言信息。
   - `paraApply` 可把字体槽位与高级段落设置放入同一次历史操作；字体文件后台加载完成后只触发重排，不延迟修改选区，避免用户移动光标后误改新位置。
+  - 修复生产压缩构建中把普通 `RFonts` 对象跨编译单元传递后字段被 Closure 重命名、最终未写入选区的问题；现在通过 `CTextPr.put_FontFamilyBySlot` 写入真实字体槽。
+  - 保留用户请求的 OOXML 字体名称，字体查找结果只用于加载对应字体资源，不再用回退字体名称覆盖文档属性。
+  - 公开 API 同时兼容稳定的 `get_*` 方法和普通对象字段，避免 API 实例与插件普通对象在生产构建下出现不同结果。
 - `tests/word/js-api/api-run.js`
   - 增加 11 项断言，覆盖中西文字体互不覆盖、目标 theme 槽清除、非目标 theme 槽和 hint 保留。
+- `tests/word/api/api.js`
+  - 增加真实段落选区回归用例，验证 `paraApply` 分别写入 `eastAsia`、`ascii/hAnsi`，并保留未提交的 `cs` 槽。
 
 ### 验证状态
 
 - `node --check`、`git diff --check` 通过。
 - `build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
 - 浏览器 QUnit 新增用例 11/11 断言通过；全套页面另有 2 个既有 `DrawingDocument.Set_RulerState_Columns` 测试桩失败，与本次字体改动无关。
+- 已在生产部署环境验证高级段落设置可分别修改中文与西文字体；临时诊断日志已清除。
 - Microsoft Word/WPS DOCX 往返样本仍属于后续兼容验收，不在本次代码验证中冒充完成。
 
 ### 跨项目依赖

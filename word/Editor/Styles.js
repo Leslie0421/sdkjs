@@ -15006,15 +15006,22 @@ CTextPr.prototype.SetFontFamilies = function(fontFamilies)
 			return value;
 		if (!value)
 			return undefined;
-		if (typeof value.Name === 'string')
-			return value.Name;
-		return value.get_Name ? value.get_Name() : undefined;
+		if (typeof value['Name'] === 'string')
+			return value['Name'];
+		return value['get_Name'] ? value['get_Name']() : undefined;
+	};
+	let getFamily = function(name, alias)
+	{
+		let getter = fontFamilies['get_' + name];
+		if (typeof getter === 'function')
+			return getter.call(fontFamilies);
+		return undefined !== fontFamilies[name] ? fontFamilies[name] : fontFamilies[alias];
 	};
 
-	let ascii = getName(undefined !== fontFamilies.Ascii ? fontFamilies.Ascii : fontFamilies.ascii);
-	let hAnsi = getName(undefined !== fontFamilies.HAnsi ? fontFamilies.HAnsi : fontFamilies.hAnsi);
-	let eastAsia = getName(undefined !== fontFamilies.EastAsia ? fontFamilies.EastAsia : fontFamilies.eastAsia);
-	let cs = getName(undefined !== fontFamilies.CS ? fontFamilies.CS : fontFamilies.cs);
+	let ascii = getName(getFamily('Ascii', 'ascii'));
+	let hAnsi = getName(getFamily('HAnsi', 'hAnsi'));
+	let eastAsia = getName(getFamily('EastAsia', 'eastAsia'));
+	let cs = getName(getFamily('CS', 'cs'));
 	if (undefined !== ascii)
 		this.SetFontFamilyBySlot(AscWord.fontslot_ASCII, ascii);
 	if (undefined !== hAnsi)
