@@ -3866,11 +3866,17 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					let LetterLen   = Item.GetWidth();
 					let isLigature  = Item.IsLigature();
 					let GraphemeLen = isLigature ? Item.GetLigatureWidth() + Item.GetAutoSpaceBefore() : LetterLen;
+					let overflowPunctuationWidth = (true === ParaPr.OverflowPunct
+						&& para_Text === ItemType
+						&& Item.IsHangingPunctuation(textPr.Lang.EastAsia))
+						? Math.max(0, LetterLen - Item.GetAutoSpaceBefore())
+						: 0;
+					let TextXEnd = XEnd + overflowPunctuationWidth;
 					
 					let isBreakAfter = Item.IsSpaceAfter(textPr.RFonts.Hint);
 
 					if (FirstItemOnLine
-						&& (X + SpaceLen + WordLen + GraphemeLen > XEnd
+						&& (X + SpaceLen + WordLen + GraphemeLen > TextXEnd
 							|| (PRS.IsNeedShapeFirstWord(PRS.Line) && PRS.IsLastElementInWord(this, Pos))))
 					{
 						let oCurrentPos = PRS.CurPos.Copy();
@@ -3888,7 +3894,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 						GraphemeLen = 0;
 						WordLen     = Para.GetContentWidthInRange(PRS.LineBreakPos, oCurrentPos);
 
-						if (X + WordLen > XEnd && (Word || !Para.IsSingleRangeOnLine(ParaLine, ParaRange)))
+						if (X + WordLen > TextXEnd && (Word || !Para.IsSingleRangeOnLine(ParaLine, ParaRange)))
 						{
 							// Слово оказалось единственным элементом в промежутке, и, все равно,
 							// не умещается целиком. Делаем следующее:
@@ -3901,7 +3907,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 							if (Para.IsSingleRangeOnLine(ParaLine, ParaRange))
 							{
 								let oLineStartPos = PRS.LineBreakPos.Copy();
-								PRS.LineBreakPos  = Para.FindLineBreakInLongWord(XEnd - X, PRS.LineBreakPos, oCurrentPos);
+								PRS.LineBreakPos  = Para.FindLineBreakInLongWord(TextXEnd - X, PRS.LineBreakPos, oCurrentPos);
 
 								if (PRS.LineBreakPos.IsEqual(oLineStartPos) || PRS.LineBreakPos.IsEqual(oCurrentPos))
 								{
@@ -3951,7 +3957,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
                         // Если слово только началось, и до него на строке ничего не было, и в строке нет разрывов, тогда не надо проверять убирается ли оно на строке.
                         if (!FirstItemOnLine || !Para.IsSingleRangeOnLine(ParaLine, ParaRange))
 						{
-							if (X + SpaceLen + LetterLen > XEnd)
+							if (X + SpaceLen + LetterLen > TextXEnd)
 							{
 								if (para_Text === ItemType && !Item.CanBeAtBeginOfLine(useKinsoku) && !PRS.LineBreakFirst)
 								{
@@ -3997,7 +4003,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 								// Если текущий символ с переносом, например, дефис, тогда на нем заканчивается слово
 								if (isBreakAfter
 									|| (PRS.canPlaceAutoHyphenAfter(Item)
-										&& X + SpaceLen + LetterLen + PRS.getAutoHyphenWidth(Item, this) <= XEnd
+										&& X + SpaceLen + LetterLen + PRS.getAutoHyphenWidth(Item, this) <= TextXEnd
 										&& (FirstItemOnLine || PRS.checkHyphenationZone(X + SpaceLen))))
 								{
 									if (!isBreakAfter)
@@ -4026,7 +4032,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 						
 						let autoHyphenWidth = PRS.getAutoHyphenWidth(Item, this);
 	
-						let fitOnLine = PRS.isFitOnLine(X, SpaceLen + WordLen + GraphemeLen + autoHyphenWidth);
+						let fitOnLine = PRS.isFitOnLine(X, SpaceLen + WordLen + GraphemeLen + autoHyphenWidth, overflowPunctuationWidth);
 						if (!fitOnLine && !FirstItemOnLine)
 						{
 							MoveToLBP = true;

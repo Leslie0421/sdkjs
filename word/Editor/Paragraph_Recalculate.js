@@ -4260,9 +4260,9 @@ CParagraphRecalculateStateWrap.prototype.AddCondensedSpaceToRange = function(oSp
  * @param width {number} - ширина проверяемого промежутка
  * @returns {boolean}
  */
-CParagraphRecalculateStateWrap.prototype.isFitOnLine = function(x, width)
+CParagraphRecalculateStateWrap.prototype.isFitOnLine = function(x, width, overflowWidth)
 {
-	let xLimit = this.getXLimit();
+	let xLimit = this.getXLimit() + (overflowWidth || 0);
 	if (x + width <= xLimit)
 		return true;
 	

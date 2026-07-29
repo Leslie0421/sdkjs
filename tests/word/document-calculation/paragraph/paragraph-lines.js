@@ -152,6 +152,31 @@ $(function () {
 		para.SetAutoSpaceDN(undefined);
 	});
 
+	QUnit.test("East Asian punctuation can hang outside the text boundary", function(assert)
+	{
+		setText("甲乙，丙");
+		run.Set_Lang_EastAsia(lcid_zhCN);
+		para.SetKinsoku(true);
+		para.SetOverflowPunct(false);
+		recalculate(charWidth * 2.1);
+		let ordinaryLines = [];
+		for (let i = 0; i < para.GetLinesCount(); ++i)
+			ordinaryLines.push(para.GetTextOnLine(i));
+
+		para.SetOverflowPunct(true);
+		recalculate(charWidth * 2.1);
+		let hangingLines = [];
+		for (let i = 0; i < para.GetLinesCount(); ++i)
+			hangingLines.push(para.GetTextOnLine(i));
+
+		assert.notDeepEqual(hangingLines, ordinaryLines, "OverflowPunct changes the line boundary only when enabled");
+		assert.ok(/，$/.test(hangingLines[0]), "Eligible closing punctuation hangs at the end of the first line");
+		assert.strictEqual(hangingLines.join(""), "甲乙，丙", "Hanging punctuation does not modify the character stream");
+
+		para.SetKinsoku(undefined);
+		para.SetOverflowPunct(undefined);
+	});
+
 	QUnit.test("Test line breaks for Asian text", function (assert)
 	{
 		setText("你好世界! 你好世界! 你好世界! 你好世界! ");

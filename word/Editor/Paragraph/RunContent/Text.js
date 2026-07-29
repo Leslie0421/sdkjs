@@ -114,6 +114,16 @@
 		return (lcid_zhHans === primaryLanguage || lcid_ja === primaryLanguage || lcid_ko === primaryLanguage);
 	}
 
+	const HANGING_PUNCTUATION = {};
+	const COMMON_HANGING_PUNCTUATION = [
+		0x3001, 0x3002, 0x3009, 0x300B, 0x300D, 0x300F, 0x3011, 0x3015, 0x3017,
+		0x3019, 0x301B, 0x301E, 0x301F, 0x2019, 0x201D, 0x2026, 0xFF01, 0xFF09,
+		0xFF0C, 0xFF0E, 0xFF1A, 0xFF1B, 0xFF1F, 0xFF3D, 0xFF5D
+	];
+	HANGING_PUNCTUATION[lcid_zhHans] = new Set(COMMON_HANGING_PUNCTUATION);
+	HANGING_PUNCTUATION[lcid_ja] = new Set(COMMON_HANGING_PUNCTUATION.concat([0x30FB]));
+	HANGING_PUNCTUATION[lcid_ko] = new Set(COMMON_HANGING_PUNCTUATION);
+
 	/**
 	 * Класс представляющий текстовый символ
 	 * @param {Number} nCharCode - Юникодное значение символа
@@ -502,6 +512,14 @@
 			return 2;
 
 		return 0;
+	};
+	CRunText.prototype.IsHangingPunctuation = function(lang)
+	{
+		if (!isEastAsianLanguage(lang))
+			return false;
+
+		let punctuation = HANGING_PUNCTUATION[lang & 0x03FF];
+		return !!(punctuation && punctuation.has(this.Value));
 	};
 	CRunText.prototype.SetAutoSpaceBefore = function(value)
 	{
