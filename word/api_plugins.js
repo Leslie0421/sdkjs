@@ -1449,27 +1449,788 @@
 	// Since 9.4 callCommand exposes the Builder API instead of asc_docs_api, legacy editor API calls must be routed
 	// through executeMethod. Keep the legacy behavior here so the connector package does not lose functionality.
 	//------------------------------------------------------------------------------------------------------------------
+	function xytSearchFailure(code, message, detail)
+	{
+		let result = {
+			"code" : code,
+			"data" : false,
+			"count" : 0,
+			"message" : message
+		};
+		if (detail)
+			result["detail"] = detail;
+		return result;
+	}
+
+	function xytSplitSearchText(text)
+	{
+		let parts = [""];
+		for (let pos = 0; pos < text.length; ++pos)
+		{
+			if ("^" !== text.charAt(pos) || pos + 1 >= text.length)
+			{
+				parts[parts.length - 1] += text.charAt(pos);
+				continue;
+			}
+
+			let next = text.charAt(pos + 1);
+			if ("^" === next)
+			{
+				parts[parts.length - 1] += "^^";
+				++pos;
+			}
+			else if ("p" === next || "P" === next)
+			{
+				parts.push("");
+				++pos;
+			}
+			else
+			{
+				parts[parts.length - 1] += "^" + next;
+				++pos;
+			}
+		}
+		return parts;
+	}
+
+	function xytStripNumberingPrefix(text)
+	{
+		// Only remove conventional title/list prefixes. Bare numbers are deliberately
+		// excluded so dates, amounts and ordinary sentence content are not truncated.
+		let match = /^(\s*(?:(?:第[0-9０-９一二三四五六七八九十百千万零〇两]+[章节条款项编篇部分])|(?:[（(][0-9０-９一二三四五六七八九十百千万零〇两]+[）)])|(?:[0-9０-９]+(?:[.．][0-9０-９]+)+(?=\s))|(?:[0-9０-９]+(?:[.．][0-9０-９]+)*[、.．)）])|(?:[一二三四五六七八九十百千万零〇两]+[、.．]))\s*)/.exec(text);
+		if (!match || match[0].length >= text.length)
+			return null;
+
+		return {
+			"prefix" : match[0],
+			"text" : text.substring(match[0].length)
+		};
+	}
+
+	function xytCreateSearchCandidates(searchText)
+	{
+		let parts = xytSplitSearchText(searchText);
+		let stripped = parts.slice();
+		let ignored = [];
+		let changed = false;
+		for (let index = 0; index < parts.length; ++index)
+		{
+			let result = xytStripNumberingPrefix(parts[index]);
+			if (!result)
+				continue;
+
+			stripped[index] = result["text"];
+			ignored.push({"paragraphIndex" : index, "prefix" : result["prefix"]});
+			changed = true;
+		}
+
+		let candidates = [{
+			"text" : searchText,
+			"parts" : parts,
+			"ignoredNumbering" : []
+		}];
+		if (changed)
+		{
+			let firstStripped = parts.slice();
+			let firstIgnored = ignored[0];
+			firstStripped[firstIgnored["paragraphIndex"]] = stripped[firstIgnored["paragraphIndex"]];
+			candidates.push({
+				"text" : firstStripped.join("^p"),
+				"parts" : firstStripped,
+				"ignoredNumbering" : [firstIgnored]
+			});
+			let allText = stripped.join("^p");
+			if (allText !== candidates[candidates.length - 1]["text"])
+			{
+				candidates.push({
+				"text" : allText,
+				"parts" : stripped,
+				"ignoredNumbering" : ignored
+				});
+			}
+		}
+		return candidates;
+	}
+
+	function xytNormalizeCharacter(character, mode, matchCase)
+	{
+		let result = character;
+		try
+		{
+			result = result.normalize("NFKC");
+		}
+		catch (error)
+		{
+			// Old embedded browsers may not expose String#normalize. Searching still
+			// works there, only the full-width compatibility fold is unavailable.
+		}
+
+		result = result.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
+		if ("loose" === mode)
+		{
+			result = result
+				.replace(/[‘’‚‛]/g, "'")
+				.replace(/[“”„‟]/g, "\"")
+				.replace(/[‐‑‒–—―﹘]/g, "-")
+				.replace(/…/g, "...")
+				.replace(/[·•]/g, "·");
+		}
+
+		if (!matchCase)
+			result = result.toLowerCase();
+		return result;
+	}
+
+	function xytNormalizeTokens(tokens, mode, matchCase)
+	{
+		let text = "";
+		let map = [];
+		let pendingSpace = null;
+		for (let tokenIndex = 0; tokenIndex < tokens.length; ++tokenIndex)
+		{
+			let token = tokens[tokenIndex];
+			let normalized = xytNormalizeCharacter(token["text"], mode, matchCase);
+			for (let offset = 0; offset < normalized.length; ++offset)
+			{
+				let character = normalized.charAt(offset);
+				if (/\s/.test(character))
+				{
+					if ("loose" === mode)
+						continue;
+					if (!pendingSpace)
+					{
+						pendingSpace = {
+							"text" : " ",
+							"start" : token["start"],
+							"end" : token["end"],
+							"tokenIndex" : token["tokenIndex"],
+							"endTokenIndex" : token["tokenIndex"]
+						};
+					}
+					else
+					{
+						pendingSpace["end"] = token["end"];
+						pendingSpace["endTokenIndex"] = token["tokenIndex"];
+					}
+					continue;
+				}
+
+				if (pendingSpace && text.length)
+				{
+					text += " ";
+					map.push(pendingSpace);
+				}
+				pendingSpace = null;
+				text += character;
+				map.push(token);
+			}
+		}
+
+		return {"text" : text, "map" : map};
+	}
+
+	function xytNormalizeText(text, mode, matchCase)
+	{
+		let tokens = [];
+		for (let index = 0; index < text.length; ++index)
+		{
+			let codePoint = text.codePointAt(index);
+			let character = String.fromCodePoint(codePoint);
+			tokens.push({"text" : character});
+			if (character.length > 1)
+				++index;
+		}
+		return xytNormalizeTokens(tokens, mode, matchCase)["text"];
+	}
+
+	function xytVisibleTextReader()
+	{
+		this["tokens"] = [];
+	}
+	xytVisibleTextReader.prototype["read"] = function(paragraph)
+	{
+		this["tokens"] = [];
+		// api_plugins.js is evaluated before every Word subsystem has finished
+		// initializing. Resolve DocumentVisitor only when a search actually needs
+		// the visible-text fallback; touching AscWord at module load time aborts
+		// sdk-all.js and causes unrelated editor constructors to be missing.
+		let wordNamespace = window["AscWord"];
+		if (!wordNamespace || !wordNamespace.DocumentVisitor)
+			throw new Error("Word 可见文本遍历器尚未初始化");
+
+		let reader = this;
+		let visitor = new wordNamespace.DocumentVisitor();
+		visitor.run = function(run)
+		{
+			return reader["readRun"](run);
+		};
+		visitor.traverseParagraph(paragraph);
+		return this["tokens"];
+	};
+	xytVisibleTextReader.prototype["readRun"] = function(run)
+	{
+		for (let position = 0; position < run.GetElementsCount(); ++position)
+		{
+			let item = run.GetElement(position);
+			let character = null;
+			if (item.IsSpace && (item.IsSpace() || (item.IsText && item.IsText() && item.IsNBSP && item.IsNBSP())))
+				character = " ";
+			else if (item.IsText && item.IsText())
+				character = String.fromCodePoint(item.GetCodePoint());
+			else if (item.IsTab && item.IsTab())
+				character = "\t";
+			else if (item.IsBreak && item.IsBreak())
+				character = "\n";
+
+			if (null === character)
+				continue;
+
+			this["tokens"].push({
+				"text" : character,
+				"start" : run.GetParagraphContentPosFromObject(position),
+				"end" : run.GetParagraphContentPosFromObject(position + 1),
+				"tokenIndex" : this["tokens"].length
+			});
+		}
+		return true;
+	};
+
+	function xytGetMainParagraphs(logicDocument)
+	{
+		let paragraphs = [];
+		let props = {"All" : true, "Shapes" : false, "DoNotAddRemoved" : true};
+		for (let index = 0; index < logicDocument.Content.length; ++index)
+			logicDocument.Content[index].GetAllParagraphs(props, paragraphs);
+
+		let unique = [];
+		let seen = new Set();
+		for (let index = 0; index < paragraphs.length; ++index)
+		{
+			let paragraph = paragraphs[index];
+			let id = paragraph.GetId ? paragraph.GetId() : paragraph;
+			if (seen.has(id))
+				continue;
+			seen.add(id);
+			unique.push(paragraph);
+		}
+		return unique;
+	}
+
+	function xytParagraphTouchesPage(paragraph, pageIndex)
+	{
+		if (null === pageIndex)
+			return true;
+		for (let relativePage = 0; relativePage < paragraph.GetPagesCount(); ++relativePage)
+		{
+			if (paragraph.GetAbsolutePage(relativePage) === pageIndex)
+				return true;
+		}
+		return false;
+	}
+
+	function xytGetParagraphRecord(paragraph, cache, reader, mode, matchCase)
+	{
+		let record = cache.get(paragraph);
+		if (!record)
+		{
+			let tokens = reader["read"](paragraph);
+			record = {"tokens" : tokens, "normalized" : {}};
+			cache.set(paragraph, record);
+		}
+
+		let key = mode + ":" + (matchCase ? "1" : "0");
+		if (!record["normalized"][key])
+			record["normalized"][key] = xytNormalizeTokens(record["tokens"], mode, matchCase);
+		return {
+			"tokens" : record["tokens"],
+			"text" : record["normalized"][key]["text"],
+			"map" : record["normalized"][key]["map"]
+		};
+	}
+
+	function xytIsAsciiWordCharacter(character)
+	{
+		return !!character && /[A-Za-z0-9_]/.test(character);
+	}
+
+	function xytFindTextIndexes(text, query, wholeWords)
+	{
+		let indexes = [];
+		if (!query)
+			return indexes;
+
+		let offset = 0;
+		while (offset <= text.length - query.length)
+		{
+			let index = text.indexOf(query, offset);
+			if (-1 === index)
+				break;
+
+			let before = index > 0 ? text.charAt(index - 1) : "";
+			let afterIndex = index + query.length;
+			let after = afterIndex < text.length ? text.charAt(afterIndex) : "";
+			let boundaryMatches = !wholeWords
+				|| ((!xytIsAsciiWordCharacter(query.charAt(0)) || !xytIsAsciiWordCharacter(before))
+					&& (!xytIsAsciiWordCharacter(query.charAt(query.length - 1)) || !xytIsAsciiWordCharacter(after)));
+			if (boundaryMatches)
+				indexes.push(index);
+			offset = index + Math.max(1, query.length);
+		}
+		return indexes;
+	}
+
+	function xytActualText(record, startMap, endMap)
+	{
+		if (!startMap || !endMap)
+			return "";
+		let result = "";
+		let endTokenIndex = undefined === endMap["endTokenIndex"] ? endMap["tokenIndex"] : endMap["endTokenIndex"];
+		for (let index = startMap["tokenIndex"]; index <= endTokenIndex; ++index)
+			result += record["tokens"][index]["text"];
+		return result;
+	}
+
+	function xytParagraphMatchesNumbering(paragraph, prefix)
+	{
+		if (!paragraph || !paragraph.GetNumPr || !paragraph.GetNumberingTextWithSuffix)
+			return false;
+		let numPr = paragraph.GetNumPr();
+		if (!numPr || (numPr.IsValid && !numPr.IsValid()))
+			return false;
+
+		let expected = xytNormalizeText(prefix, "loose", false);
+		let actual = xytNormalizeText(paragraph.GetNumberingTextWithSuffix(), "loose", false);
+		return !!expected && expected === actual;
+	}
+
+	function xytSelectedParagraphsMatchNumbering(logicDocument, candidate)
+	{
+		if (!candidate["ignoredNumbering"].length)
+			return true;
+		let paragraphs = logicDocument.GetSelectedParagraphs ? logicDocument.GetSelectedParagraphs() : [];
+		for (let index = 0; index < candidate["ignoredNumbering"].length; ++index)
+		{
+			let ignored = candidate["ignoredNumbering"][index];
+			if (!xytParagraphMatchesNumbering(paragraphs[ignored["paragraphIndex"]], ignored["prefix"]))
+				return false;
+		}
+		return true;
+	}
+
+	function xytVisibleMatchMatchesNumbering(match, candidate)
+	{
+		if (!candidate["ignoredNumbering"].length)
+			return true;
+		let startIndex = match["startParagraph"].GetIndex();
+		for (let index = 0; index < candidate["ignoredNumbering"].length; ++index)
+		{
+			let ignored = candidate["ignoredNumbering"][index];
+			let paragraph = match["parent"].Content[startIndex + ignored["paragraphIndex"]];
+			if (!xytParagraphMatchesNumbering(paragraph, ignored["prefix"]))
+				return false;
+		}
+		return true;
+	}
+
+	function xytFindSingleParagraphMatches(paragraphs, query, options, cache, reader, pageIndex)
+	{
+		let matches = [];
+		let normalizedQuery = xytNormalizeText(query, options["mode"], options["matchCase"]);
+		if (!normalizedQuery)
+			return matches;
+
+		for (let index = 0; index < paragraphs.length; ++index)
+		{
+			let paragraph = paragraphs[index];
+			if (!xytParagraphTouchesPage(paragraph, pageIndex))
+				continue;
+
+			let record = xytGetParagraphRecord(paragraph, cache, reader, options["mode"], options["matchCase"]);
+			let indexes = xytFindTextIndexes(record["text"], normalizedQuery, options["wholeWords"]);
+			for (let matchIndex = 0; matchIndex < indexes.length; ++matchIndex)
+			{
+				let startIndex = indexes[matchIndex];
+				let endIndex = startIndex + normalizedQuery.length - 1;
+				let startMap = record["map"][startIndex];
+				let endMap = record["map"][endIndex];
+				if (!startMap || !endMap)
+					continue;
+				matches.push({
+					"parent" : paragraph.GetParent(),
+					"startParagraph" : paragraph,
+					"endParagraph" : paragraph,
+					"startPos" : startMap["start"],
+					"endPos" : endMap["end"],
+					"actualText" : xytActualText(record, startMap, endMap)
+				});
+			}
+		}
+		return matches;
+	}
+
+	function xytFindMultiParagraphMatches(paragraphs, parts, options, cache, reader, pageIndex)
+	{
+		let matches = [];
+		let normalizedParts = parts.map(function(part)
+		{
+			return xytNormalizeText(part, options["mode"], options["matchCase"]);
+		});
+		let breakCount = parts.length - 1;
+		let lastPartEmpty = "" === normalizedParts[normalizedParts.length - 1];
+
+		for (let paraIndex = 0; paraIndex < paragraphs.length; ++paraIndex)
+		{
+			let startParagraph = paragraphs[paraIndex];
+			let parent = startParagraph.GetParent();
+			let startIndexInParent = startParagraph.GetIndex();
+			if (!parent || startIndexInParent < 0)
+				continue;
+
+			let sequence = [];
+			let sequenceCount = lastPartEmpty ? breakCount : breakCount + 1;
+			let validSequence = sequenceCount > 0;
+			for (let partIndex = 0; partIndex < sequenceCount; ++partIndex)
+			{
+				let paragraph = parent.Content[startIndexInParent + partIndex];
+				if (!paragraph || !paragraph.IsParagraph || !paragraph.IsParagraph())
+				{
+					validSequence = false;
+					break;
+				}
+				sequence.push(paragraph);
+			}
+			if (!validSequence)
+				continue;
+
+			if (null !== pageIndex && !sequence.some(function(paragraph){ return xytParagraphTouchesPage(paragraph, pageIndex); }))
+				continue;
+
+			let firstRecord = xytGetParagraphRecord(startParagraph, cache, reader, options["mode"], options["matchCase"]);
+			let firstQuery = normalizedParts[0];
+			let firstIndexes;
+			if ("" === firstQuery)
+				firstIndexes = [firstRecord["text"].length];
+			else
+				firstIndexes = xytFindTextIndexes(firstRecord["text"], firstQuery, options["wholeWords"]).filter(function(index)
+				{
+					return index + firstQuery.length === firstRecord["text"].length;
+				});
+
+			for (let firstMatchIndex = 0; firstMatchIndex < firstIndexes.length; ++firstMatchIndex)
+			{
+				let isMatch = true;
+				let actualParts = [];
+				let firstTextIndex = firstIndexes[firstMatchIndex];
+				let firstStartMap = firstTextIndex < firstRecord["map"].length ? firstRecord["map"][firstTextIndex] : null;
+				let startPos = firstStartMap ? firstStartMap["start"] : startParagraph.Get_EndPos(true);
+				let firstEndMap = firstQuery ? firstRecord["map"][firstTextIndex + firstQuery.length - 1] : null;
+				actualParts.push(firstQuery ? xytActualText(firstRecord, firstStartMap, firstEndMap) : "");
+
+				for (let partIndex = 1; partIndex < breakCount; ++partIndex)
+				{
+					let middleRecord = xytGetParagraphRecord(sequence[partIndex], cache, reader, options["mode"], options["matchCase"]);
+					if (middleRecord["text"] !== normalizedParts[partIndex])
+					{
+						isMatch = false;
+						break;
+					}
+					actualParts.push(middleRecord["tokens"].map(function(token){ return token["text"]; }).join(""));
+				}
+				if (!isMatch)
+					continue;
+
+				let endParagraph;
+				let endPos;
+				if (lastPartEmpty)
+				{
+					endParagraph = sequence[sequence.length - 1];
+					endPos = endParagraph.Get_EndPos(true);
+				}
+				else
+				{
+					endParagraph = sequence[breakCount];
+					let lastRecord = xytGetParagraphRecord(endParagraph, cache, reader, options["mode"], options["matchCase"]);
+					let lastQuery = normalizedParts[breakCount];
+					let lastIndexes = xytFindTextIndexes(lastRecord["text"], lastQuery, options["wholeWords"]);
+					if (!lastIndexes.length || 0 !== lastIndexes[0])
+						continue;
+					let lastEndMap = lastRecord["map"][lastQuery.length - 1];
+					if (!lastEndMap)
+						continue;
+					endPos = lastEndMap["end"];
+					actualParts.push(xytActualText(lastRecord, lastRecord["map"][0], lastEndMap));
+				}
+
+				matches.push({
+					"parent" : parent,
+					"startParagraph" : startParagraph,
+					"endParagraph" : endParagraph,
+					"startPos" : startPos,
+					"endPos" : endPos,
+					"actualText" : actualParts.join("\n")
+				});
+			}
+		}
+		return matches;
+	}
+
+	function xytSelectVisibleMatch(logicDocument, match)
+	{
+		let startParagraph = match["startParagraph"];
+		let endParagraph = match["endParagraph"];
+		let parent = match["parent"];
+		logicDocument.ClearSearch();
+
+		if (startParagraph === endParagraph)
+		{
+			logicDocument.RemoveSelection();
+			startParagraph.Selection.Use = true;
+			startParagraph.Selection.Start = false;
+			startParagraph.Set_SelectionContentPos(match["startPos"], match["endPos"], false);
+			startParagraph.Set_ParaContentPos(match["endPos"], false, -1, -1);
+			startParagraph.Document_SetThisElementCurrent(true);
+		}
+		else
+		{
+			let startIndex = startParagraph.GetIndex();
+			let endIndex = endParagraph.GetIndex();
+			if (!parent || startIndex < 0 || endIndex < startIndex)
+				return false;
+
+			endParagraph.Document_SetThisElementCurrent(false);
+			parent.RemoveSelection();
+			parent.SetDocPosType(docpostype_Content);
+			parent.Selection.Use = true;
+			parent.Selection.Start = false;
+			parent.Selection.Flag = selectionflag_Common;
+			parent.Selection.StartPos = startIndex;
+			parent.Selection.EndPos = endIndex;
+			parent.CurPos.ContentPos = endIndex;
+
+			startParagraph.Selection.Use = true;
+			startParagraph.Selection.Start = false;
+			startParagraph.Set_SelectionContentPos(match["startPos"], startParagraph.Get_EndPos(true), false);
+			for (let index = startIndex + 1; index < endIndex; ++index)
+				parent.Content[index].SelectAll(1);
+
+			endParagraph.Selection.Use = true;
+			endParagraph.Selection.Start = false;
+			endParagraph.Set_SelectionContentPos(endParagraph.Get_StartPos(), match["endPos"], false);
+			endParagraph.Set_ParaContentPos(match["endPos"], false, -1, -1);
+		}
+
+		if (logicDocument.RecalculateCurPos)
+			logicDocument.RecalculateCurPos();
+		if (logicDocument.Document_UpdateInterfaceState)
+			logicDocument.Document_UpdateInterfaceState();
+		if (logicDocument.Document_UpdateSelectionState)
+			logicDocument.Document_UpdateSelectionState();
+		if (logicDocument.ScrollToTarget)
+			logicDocument.ScrollToTarget();
+		return true;
+	}
+
+	function xytNativeSearch(api, params, candidate, matchMode)
+	{
+		let searchSettings = new AscCommon.CSearchSettings();
+		searchSettings.put_Text(candidate["text"]);
+		searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : !!params["matchCase"]);
+		searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : !!params["wholeWords"]);
+
+		let isNext = undefined === params["isNext"] ? true : !!params["isNext"];
+		let count = api.asc_findText(searchSettings, isNext);
+		if (!count)
+			return null;
+
+		let logicDocument = api.private_GetLogicDocument();
+		let validIds = null;
+		if (candidate["ignoredNumbering"].length && logicDocument && logicDocument.SearchEngine)
+		{
+			validIds = [];
+			for (let resultId = 0; resultId < count; ++resultId)
+			{
+				logicDocument.RemoveSelection();
+				logicDocument.SearchEngine.Select(resultId, false);
+				if (xytSelectedParagraphsMatchNumbering(logicDocument, candidate))
+					validIds.push(resultId);
+			}
+			if (!validIds.length)
+				return null;
+			count = validIds.length;
+		}
+
+		let requestedIndex = undefined === params["selectIndex"] ? 0 : Math.floor(Number(params["selectIndex"]));
+		if (!Number.isFinite(requestedIndex) || requestedIndex < 0)
+			requestedIndex = 0;
+		let selectedIndex = Math.min(requestedIndex, count - 1);
+		if (validIds && logicDocument.SelectSearchElement)
+			logicDocument.SelectSearchElement(validIds[selectedIndex]);
+		else if (count > 1)
+			api.asc_FindRepeatText(selectedIndex);
+
+		let result = {
+			"code" : selectedIndex === requestedIndex ? 200 : 206,
+			"data" : true,
+			"count" : count,
+			"selectedIndex" : selectedIndex,
+			"matchMode" : matchMode,
+			"requestedText" : params["searchVal"],
+			"matchedText" : candidate["text"],
+			"ignoredNumbering" : candidate["ignoredNumbering"],
+			"page" : logicDocument && logicDocument.Get_CurPage ? logicDocument.Get_CurPage() + 1 : null,
+			"coarse" : false
+		};
+		if (selectedIndex !== requestedIndex)
+			result["message"] = "指定的匹配序号超出范围，已定位最后一个匹配项。";
+		return result;
+	}
+
+	/**
+	 * Locates text without modifying document content. The lookup order is:
+	 * native exact search, native search after removing conventional paragraph numbering,
+	 * whole-word relaxation over the full document, safe visible-text normalization,
+	 * and finally loose punctuation/whitespace normalization.
+	 * Visible-text fallback may inspect `page` (1-based OCR page) first to choose a candidate/mode, but `selectIndex`
+	 * and `count` always use that candidate's full-document match list; page never changes the index scope.
+	 * Every normalized character retains its real run position, so hyperlinks, run boundaries and multi-paragraph `^p`
+	 * matches create an actual Word selection that later replace/insert/comment APIs can consume.
+	 */
 	Api.prototype["pluginMethod_XytSearch"] = function(params)
 	{
 		params = params || {};
 		let searchVal = params["searchVal"];
 		if (!searchVal)
-			return -1;
+			return xytSearchFailure(400, "请传入 searchVal！");
 
 		try
 		{
-			let searchSettings = new AscCommon.CSearchSettings();
-			searchSettings.put_Text(searchVal);
-			searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : params["matchCase"]);
-			searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : params["wholeWords"]);
+			let candidates = xytCreateSearchCandidates(searchVal);
+			let nativeResult = xytNativeSearch(this, params, candidates[0], "exact");
+			if (nativeResult)
+				return nativeResult;
 
-			let isNext = undefined === params["isNext"] ? true : params["isNext"];
-			let selectIndex = undefined === params["selectIndex"] ? 0 : params["selectIndex"];
-			let length = this.asc_findText(searchSettings, isNext) || -1;
-			if (length > 1)
-				this.asc_FindRepeatText(selectIndex);
+			for (let candidateIndex = 1; candidateIndex < candidates.length; ++candidateIndex)
+			{
+				nativeResult = xytNativeSearch(this, params, candidates[candidateIndex], "numbering-stripped");
+				if (nativeResult)
+					return nativeResult;
+			}
 
-			return length;
+			let requestedWholeWords = undefined === params["wholeWords"] ? true : !!params["wholeWords"];
+			if (requestedWholeWords)
+			{
+				let relaxedParams = {};
+				for (let paramName in params)
+				{
+					if (Object.prototype.hasOwnProperty.call(params, paramName))
+						relaxedParams[paramName] = params[paramName];
+				}
+				relaxedParams["wholeWords"] = false;
+				for (let candidateIndex = 0; candidateIndex < candidates.length; ++candidateIndex)
+				{
+					nativeResult = xytNativeSearch(this, relaxedParams, candidates[candidateIndex], "whole-word-relaxed");
+					if (!nativeResult)
+						continue;
+
+					let indexMessage = nativeResult["message"];
+					nativeResult["code"] = 206;
+					nativeResult["requestedText"] = searchVal;
+					nativeResult["wholeWordsRelaxed"] = true;
+					nativeResult["pagePriorityApplied"] = false;
+					nativeResult["message"] = "全词匹配未命中，已按全文非全词匹配完成定位。"
+						+ (indexMessage ? " " + indexMessage : "");
+					return nativeResult;
+				}
+			}
+
+			let logicDocument = this.private_GetLogicDocument();
+			if (!logicDocument)
+				return xytSearchFailure(404, "未找到定位文本，且当前文档不支持可见文本归一化定位。");
+
+			let requestedPage = Math.floor(Number(params["page"]));
+			let pageIndex = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage - 1 : null;
+			let paragraphs = xytGetMainParagraphs(logicDocument);
+			let reader = new xytVisibleTextReader();
+			let cache = new Map();
+			let matchCase = undefined === params["matchCase"] ? true : !!params["matchCase"];
+			// 到达归一化阶段时，严格全词和全文非全词原生搜索均已失败。
+			// 后续继续使用非全词边界，避免字符归一化成功后再次被原始全词边界拦截。
+			let wholeWords = false;
+			let scopes = null === pageIndex ? [null] : [pageIndex, null];
+
+			for (let scopeIndex = 0; scopeIndex < scopes.length; ++scopeIndex)
+			{
+				let scopePage = scopes[scopeIndex];
+				for (let modeIndex = 0; modeIndex < 2; ++modeIndex)
+				{
+					let mode = 0 === modeIndex ? "safe" : "loose";
+					for (let candidateIndex = 0; candidateIndex < candidates.length; ++candidateIndex)
+					{
+						let candidate = candidates[candidateIndex];
+						let options = {"mode" : mode, "matchCase" : matchCase, "wholeWords" : wholeWords};
+						let findMatches = function(targetPage)
+						{
+							let found = candidate["parts"].length > 1
+								? xytFindMultiParagraphMatches(paragraphs, candidate["parts"], options, cache, reader, targetPage)
+								: xytFindSingleParagraphMatches(paragraphs, candidate["text"], options, cache, reader, targetPage);
+							if (candidate["ignoredNumbering"].length)
+								found = found.filter(function(match){ return xytVisibleMatchMatchesNumbering(match, candidate); });
+							return found;
+						};
+						let matches = findMatches(scopePage);
+						if (!matches.length)
+							continue;
+						// page 只负责优先发现更可能的候选文本，不参与 selectIndex 计数。
+						// 一旦页内发现候选，仍重新取得该候选在全文中的有序匹配列表。
+						if (null !== scopePage)
+							matches = findMatches(null);
+
+						let requestedIndex = undefined === params["selectIndex"] ? 0 : Math.floor(Number(params["selectIndex"]));
+						if (!Number.isFinite(requestedIndex) || requestedIndex < 0)
+							requestedIndex = 0;
+						let selectedIndex = Math.min(requestedIndex, matches.length - 1);
+						let selectedMatch = matches[selectedIndex];
+						if (!xytSelectVisibleMatch(logicDocument, selectedMatch))
+							return xytSearchFailure(500, "已找到归一化文本，但无法建立文档选区。");
+
+						let result = {
+							"code" : !requestedWholeWords && selectedIndex === requestedIndex ? 200 : 206,
+							"data" : true,
+							"count" : matches.length,
+							"selectedIndex" : selectedIndex,
+							"matchMode" : "safe" === mode ? "visible-normalized" : "visible-loose",
+							"requestedText" : searchVal,
+							"matchedText" : candidate["text"],
+							"actualText" : selectedMatch["actualText"],
+							"ignoredNumbering" : candidate["ignoredNumbering"],
+							"page" : selectedMatch["startParagraph"].GetAbsolutePage(0) + 1,
+							"pagePriorityApplied" : null !== scopePage,
+							"selectIndexScope" : "document",
+							"wholeWordsRelaxed" : requestedWholeWords,
+							"coarse" : false
+						};
+						let resultMessages = [];
+						if (requestedWholeWords)
+							resultMessages.push("全词匹配未命中，已在非全词边界下完成归一化定位");
+						if (selectedIndex !== requestedIndex)
+							resultMessages.push("指定的匹配序号超出范围，已定位最后一个匹配项");
+						if (resultMessages.length)
+							result["message"] = resultMessages.join("；") + "。";
+						return result;
+					}
+				}
+			}
+
+			logicDocument.ClearSearch();
+			let attemptedModes = ["exact", "numbering-stripped"];
+			if (requestedWholeWords)
+				attemptedModes.push("whole-word-relaxed");
+			attemptedModes.push("visible-normalized", "visible-loose");
+			return xytSearchFailure(404, "未找到定位文本。", {
+				"requestedPage" : null === pageIndex ? null : pageIndex + 1,
+				"attemptedModes" : attemptedModes,
+				"selectIndexScope" : "document"
+			});
 		}
 		catch (oError)
 		{
@@ -1480,39 +2241,67 @@
 			let oLogicDocument = this.private_GetLogicDocument();
 			if (oLogicDocument && oLogicDocument.ClearSearch)
 				oLogicDocument.ClearSearch();
-			return -1;
+			return xytSearchFailure(500, oError && oError.message ? oError.message : "文本定位失败！");
 		}
 	};
 
+	/**
+	 * Convenience API built on XytSearch. A single replacement is performed only after a confirmed selection;
+	 * therefore a failed lookup never writes at the current cursor. Replace-all remains exact single-paragraph only:
+	 * normalized, loose and multi-paragraph matches must be located and handled individually by the caller.
+	 */
 	Api.prototype["pluginMethod_XytSearchAndReplace"] = function(params)
 	{
 		params = params || {};
 		let searchVal = params["searchVal"];
 		if (!searchVal)
-		{
-			console.warn("请传入 searchVal！");
-			return;
-		}
-
-		let searchSettings = new AscCommon.CSearchSettings();
-		searchSettings.put_Text(searchVal);
-		searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : params["matchCase"]);
-		searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : params["wholeWords"]);
+			return xytSearchFailure(400, "请传入 searchVal！");
 
 		let replaceVal = undefined === params["replaceVal"] ? "" : params["replaceVal"];
 		let isReplaceAll = true === params["isReplaceAll"];
 		if (isReplaceAll)
 		{
-			this.asc_replaceText(searchSettings, replaceVal, true);
-			return;
+			if (xytSplitSearchText(searchVal).length > 1)
+				return xytSearchFailure(422, "跨段落文本不支持批量替换，请先定位后逐项替换。");
+
+			let searchSettings = new AscCommon.CSearchSettings();
+			searchSettings.put_Text(searchVal);
+			searchSettings.put_MatchCase(undefined === params["matchCase"] ? true : !!params["matchCase"]);
+			searchSettings.put_WholeWords(undefined === params["wholeWords"] ? true : !!params["wholeWords"]);
+			let count = this.asc_findText(searchSettings, true);
+			if (!count)
+				return xytSearchFailure(404, "未找到可批量精确替换的文本；归一化或宽松匹配请逐项定位后替换。");
+			let logicDocument = this.private_GetLogicDocument();
+			let replaced = logicDocument && logicDocument.ReplaceSearchElement
+				? logicDocument.ReplaceSearchElement(replaceVal, true, -1)
+				: false;
+			return {
+				"code" : replaced ? 200 : 423,
+				"data" : !!replaced,
+				"count" : count,
+				"replacedCount" : replaced ? count : 0,
+				"matchMode" : "exact",
+				"message" : replaced ? undefined : "匹配内容处于不可编辑或锁定区域，未执行批量替换。"
+			};
 		}
 
-		let isNext = undefined === params["isNext"] ? false : params["isNext"];
-		let selectIndex = undefined === params["selectIndex"] ? 0 : params["selectIndex"];
-		let length = this.asc_findText(searchSettings, isNext) || -1;
-		if (length)
-			this.asc_FindRepeatText(selectIndex);
+		let searchResult = this["pluginMethod_XytSearch"](params);
+		if (!searchResult || true !== searchResult["data"])
+			return searchResult || xytSearchFailure(500, "文本定位失败！");
+
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument || logicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_Content))
+		{
+			searchResult["code"] = 423;
+			searchResult["data"] = false;
+			searchResult["message"] = "匹配内容处于不可编辑或锁定区域，未执行替换。";
+			searchResult["replacedCount"] = 0;
+			return searchResult;
+		}
+
 		this["Add_Text"](replaceVal);
+		searchResult["replacedCount"] = 1;
+		return searchResult;
 	};
 
 	Api.prototype["pluginMethod_XytInsertParagraph"] = function(params)
@@ -2159,19 +2948,22 @@
 	};
 
 	/**
-	 * 按 OCR 页面坐标语义定位表格行。
-	 * 参数依次为页码、本页顶层正文表格序号、本页可见行号，全部从 1 开始。
-	 * 本页可见行包含重复标题行，也包含从上一页延续过来的跨页行。
-	 * 表格按页面上的 Top、Left 排序；只统计正文文档树中的顶层表格。
+	 * 定位并选中正文顶层表格中的一整行，所有序号均从 1 开始。
+	 * 传入 pageNumber 时，按 OCR 页内语义查找：tableNumber 是本页第几个表格，rowNumber 是本页第几个可见行；
+	 * 不传 pageNumber 时，按正文文档顺序查找：tableNumber 是正文第几个表格，rowNumber 是表格的逻辑行号。
+	 * 页内可见行包含重复标题行和从上一页延续的跨页行；页内表格按页面上的 Top、Left 排序。
 	 * 表格或行越界时仍会选中最近的兜底目标，并以 code=206、data=true 和 message 返回偏差信息。
-	 * 成功时 data 为 true，detail 会返回实际逻辑行号及跨页状态；失败原因放在 message 中。
 	 *
 	 * @memberof Api
 	 * @alias SelectTable
 	 * @since 8.2.0.147
-	 * @param {number[]} params [pageNumber, tableNumberOnPage, rowNumberOnPage]
+	 * @param {Object} params
+	 * @param {number} [params.pageNumber] OCR 页码；省略后按正文全局表格顺序定位
+	 * @param {number} params.tableNumber 页内或正文中的表格序号
+	 * @param {number} params.rowNumber 页内可见行号或表格逻辑行号
 	 * @example
-	 * window.Asc.plugin.executeMethod("SelectTable", [[2, 1, 2]]);
+	 * window.Asc.plugin.executeMethod("SelectTable", [{pageNumber: 2, tableNumber: 1, rowNumber: 2}]);
+	 * window.Asc.plugin.executeMethod("SelectTable", [{tableNumber: 3, rowNumber: 2}]);
 	 */
 	Api.prototype["pluginMethod_SelectTable"] = function(params)
 	{
@@ -2189,37 +2981,29 @@
 
 		try
 		{
-			if (!Array.isArray(params)
-				|| params.length !== 3
-				|| !Number.isInteger(params[0]) || params[0] < 1
-				|| !Number.isInteger(params[1]) || params[1] < 1
-				|| !Number.isInteger(params[2]) || params[2] < 1)
+			if (!params || typeof(params) !== "object" || Array.isArray(params))
 			{
-				return failure(400, "参数必须为 [页码, 本页表格序号, 本页可见行号]，并且全部从 1 开始！");
+				return failure(400, "参数必须为 { pageNumber?, tableNumber, rowNumber } 对象，序号全部从 1 开始！");
 			}
 
-			let pageNumber       = params[0];
-			let pageTableNumber  = params[1];
-			let pageRowNumber    = params[2];
-			let absolutePage     = pageNumber - 1;
+			let hasPageNumber = Object.prototype.hasOwnProperty.call(params, "pageNumber");
+			let pageNumber = params["pageNumber"];
+			let tableNumber = params["tableNumber"];
+			let rowNumber = params["rowNumber"];
+			if ((hasPageNumber && (!Number.isInteger(pageNumber) || pageNumber < 1))
+				|| !Number.isInteger(tableNumber) || tableNumber < 1
+				|| !Number.isInteger(rowNumber) || rowNumber < 1)
+			{
+				return failure(400, "pageNumber（可选）、tableNumber、rowNumber 必须是从 1 开始的整数！");
+			}
+
 			let logicDocument    = this.private_GetLogicDocument();
 			if (!logicDocument)
 				return failure(500, "逻辑文档初始化失败！");
 
 			let pageCount = logicDocument.Pages ? logicDocument.Pages.length : 0;
-			if (absolutePage >= pageCount || !logicDocument.Pages[absolutePage])
-			{
-				return failure(200, "所选页面不存在！", {
-					"pageNumber" : pageNumber,
-					"pageCount" : pageCount
-				});
-			}
-
-			// 不直接使用 GetAllTablesOnPage：该方法会受到当前光标是否位于页眉页脚的影响。
-			// 先取得主文档表格，再根据每个表格的分页信息建立所有页面的视觉表格列表，供向后兜底使用。
 			let allTables = logicDocument.GetAllTables({"OnlyMainDocument" : true}) || [];
-			let tablesByPage = [];
-			let hasPendingLayout = false;
+			let mainTables = [];
 			for (let tableOrder = 0; tableOrder < allTables.length; ++tableOrder)
 			{
 				let currentTable = allTables[tableOrder];
@@ -2230,6 +3014,135 @@
 				{
 					continue;
 				}
+				mainTables.push(currentTable);
+			}
+
+			if (!mainTables.length)
+				return failure(200, "正文中没有可定位的顶层表格！", {"documentTableCount" : 0});
+
+			let fallbackReasons = [];
+			let fallbackMessages = [];
+			let selectRow = function(table, logicalRowIndex, absolutePage, scrollBounds)
+			{
+				if (AscCommon.CollaborativeEditing.Get_GlobalLockSelection())
+					return false;
+
+				logicDocument.RemoveSelection();
+				table.SelectRows(logicalRowIndex, logicalRowIndex);
+				table.Document_SetThisElementCurrent(false);
+				logicDocument.CheckComplexFieldsInSelection();
+				logicDocument.Document_UpdateSelectionState();
+				logicDocument.Document_UpdateInterfaceState();
+
+				if (this.WordControl && typeof(this.WordControl.ScrollToPosition) === "function" && scrollBounds
+					&& Number.isInteger(absolutePage) && absolutePage >= 0)
+				{
+					this.WordControl.ScrollToPosition(
+						scrollBounds.Left,
+						scrollBounds.Top,
+						absolutePage,
+						Math.max(5, scrollBounds.Bottom - scrollBounds.Top)
+					);
+				}
+				else
+				{
+					logicDocument.ScrollToTarget();
+				}
+				return true;
+			}.bind(this);
+
+			// 未传页码时不依赖分页信息，直接按正文中的顶层表格顺序和逻辑行号定位。
+			if (!hasPageNumber)
+			{
+				let actualTableNumber = tableNumber;
+				if (tableNumber > mainTables.length)
+				{
+					actualTableNumber = mainTables.length;
+					fallbackReasons.push("table-out-of-range");
+					fallbackMessages.push("请求的正文第 " + tableNumber + " 个表格不存在，已定位正文最后一个表格（第 " + actualTableNumber + " 个）");
+				}
+
+				let table = mainTables[actualTableNumber - 1];
+				let rowsCount = table.GetRowsCount();
+				if (!rowsCount)
+				{
+					return failure(200, "目标表格没有可定位行！", {
+						"locationMode" : "document",
+						"requestedTableNumber" : tableNumber,
+						"requestedRowNumber" : rowNumber,
+						"tableNumber" : actualTableNumber,
+						"documentTableCount" : mainTables.length
+					});
+				}
+
+				let actualRowNumber = rowNumber;
+				if (rowNumber > rowsCount)
+				{
+					actualRowNumber = rowsCount;
+					fallbackReasons.push("row-out-of-range");
+					fallbackMessages.push("请求的第 " + rowNumber + " 行不存在，已定位该表格最后一行（第 " + actualRowNumber + " 行）");
+				}
+
+				let logicalRowIndex = actualRowNumber - 1;
+				let rowInfo = table.RowsInfo ? table.RowsInfo[logicalRowIndex] : null;
+				let relativePage = rowInfo && Number.isInteger(rowInfo.StartPage) ? rowInfo.StartPage : 0;
+				let absolutePage = table.IsRecalculated() && table.Pages && table.Pages.length
+					? table.GetAbsolutePage(relativePage)
+					: null;
+				let rowBounds = table.IsRecalculated() && table.getRowBounds
+					? table.getRowBounds(logicalRowIndex, relativePage)
+					: null;
+				let scrollBounds = rowBounds
+					&& typeof(rowBounds.Left) === "number"
+					&& typeof(rowBounds.Top) === "number"
+					&& typeof(rowBounds.Bottom) === "number"
+					&& rowBounds.Bottom > rowBounds.Top
+					? rowBounds
+					: null;
+				if (!selectRow(table, logicalRowIndex, absolutePage, scrollBounds))
+					return failure(200, "编辑器正在更新选区，请稍后重试！");
+
+				let documentResult = {
+					"code" : fallbackReasons.length ? 206 : 200,
+					"data" : true,
+					"detail" : {
+						"locationMode" : "document",
+						"requestedTableNumber" : tableNumber,
+						"requestedRowNumber" : rowNumber,
+						"tableNumber" : actualTableNumber,
+						"rowNumber" : actualRowNumber,
+						"logicalRowNumber" : actualRowNumber,
+						"pageNumber" : Number.isInteger(absolutePage) && absolutePage >= 0 ? absolutePage + 1 : null,
+						"documentTableCount" : mainTables.length,
+						"tableRowCount" : rowsCount,
+						"fallbackApplied" : fallbackReasons.length > 0,
+						"fallbackReasons" : fallbackReasons,
+						"repeatedHeader" : false,
+						"continuedFromPreviousPage" : false,
+						"continuesToNextPage" : !!(rowInfo && rowInfo.Pages > 1)
+					}
+				};
+				if (fallbackMessages.length)
+					documentResult["message"] = fallbackMessages.join("；") + "。";
+				return documentResult;
+			}
+
+			let absolutePage = pageNumber - 1;
+			if (absolutePage >= pageCount || !logicDocument.Pages[absolutePage])
+			{
+				return failure(200, "所选页面不存在！", {
+					"requestedPageNumber" : pageNumber,
+					"pageCount" : pageCount
+				});
+			}
+
+			// 不直接使用 GetAllTablesOnPage：该方法会受到当前光标是否位于页眉页脚的影响。
+			// 根据正文顶层表格的分页信息建立页面视觉表格列表，供页内定位和向后兜底使用。
+			let tablesByPage = [];
+			let hasPendingLayout = false;
+			for (let mainTableOrder = 0; mainTableOrder < mainTables.length; ++mainTableOrder)
+			{
+				let currentTable = mainTables[mainTableOrder];
 
 				if (!currentTable.IsRecalculated() || !currentTable.Pages || !currentTable.Pages.length)
 				{
@@ -2255,7 +3168,7 @@
 						"table" : currentTable,
 						"relativePage" : relativePage,
 						"bounds" : bounds,
-						"tableOrder" : tableOrder
+						"tableOrder" : mainTableOrder
 					});
 				}
 			}
@@ -2277,24 +3190,22 @@
 					sortPageTables(tablesByPage[sortPage]);
 			}
 
-			let fallbackReasons = [];
-			let fallbackMessages = [];
 			let targetAbsolutePage = absolutePage;
 			let pageTables = tablesByPage[targetAbsolutePage] || [];
 			let targetEntry = null;
-			let actualTableNumber = pageTableNumber;
+			let actualTableNumber = tableNumber;
 			if (pageTables.length)
 			{
-				if (pageTableNumber <= pageTables.length)
+				if (tableNumber <= pageTables.length)
 				{
-					targetEntry = pageTables[pageTableNumber - 1];
+					targetEntry = pageTables[tableNumber - 1];
 				}
 				else
 				{
 					actualTableNumber = pageTables.length;
 					targetEntry = pageTables[actualTableNumber - 1];
 					fallbackReasons.push("table-out-of-range");
-					fallbackMessages.push("请求的第 " + pageTableNumber + " 个表格不存在，已定位第 " + pageNumber + " 页最后一个表格（第 " + actualTableNumber + " 个）");
+					fallbackMessages.push("请求的第 " + tableNumber + " 个表格不存在，已定位第 " + pageNumber + " 页最后一个表格（第 " + actualTableNumber + " 个）");
 				}
 			}
 			else
@@ -2366,32 +3277,23 @@
 			{
 				return failure(200, "兜底目标表格在当前页面中没有可定位行！", {
 					"requestedPageNumber" : pageNumber,
-					"requestedTableNumberOnPage" : pageTableNumber,
-					"requestedRowNumberOnPage" : pageRowNumber,
+					"requestedTableNumber" : tableNumber,
+					"requestedRowNumber" : rowNumber,
 					"pageNumber" : targetAbsolutePage + 1,
-					"tableNumberOnPage" : actualTableNumber,
+					"tableNumber" : actualTableNumber,
 					"pageVisibleRowCount" : visibleRows.length
 				});
 			}
-			let actualPageRowNumber = pageRowNumber;
-			if (pageRowNumber > visibleRows.length)
+			let actualPageRowNumber = rowNumber;
+			if (rowNumber > visibleRows.length)
 			{
 				actualPageRowNumber = visibleRows.length;
 				fallbackReasons.push("row-out-of-range");
-				fallbackMessages.push("请求的第 " + pageRowNumber + " 行不存在，已定位该表格在第 " + (targetAbsolutePage + 1) + " 页的最后一个可见行（第 " + actualPageRowNumber + " 行）");
+				fallbackMessages.push("请求的第 " + rowNumber + " 行不存在，已定位该表格在第 " + (targetAbsolutePage + 1) + " 页的最后一个可见行（第 " + actualPageRowNumber + " 行）");
 			}
-
-			if (AscCommon.CollaborativeEditing.Get_GlobalLockSelection())
-				return failure(200, "编辑器正在更新选区，请稍后重试！");
 
 			let targetRow = visibleRows[actualPageRowNumber - 1];
 			let logicalRowIndex = targetRow["rowIndex"];
-			logicDocument.RemoveSelection();
-			table.SelectRows(logicalRowIndex, logicalRowIndex);
-			table.Document_SetThisElementCurrent(false);
-			logicDocument.CheckComplexFieldsInSelection();
-			logicDocument.Document_UpdateSelectionState();
-			logicDocument.Document_UpdateInterfaceState();
 
 			// 选区按照逻辑行建立；滚动则使用 OCR 指定页上的行片段，跨页行不会被带回起始页。
 			let rowBounds = !targetRow["repeatedHeader"] && table.getRowBounds
@@ -2403,19 +3305,8 @@
 				&& rowBounds.Bottom > rowBounds.Top
 				? rowBounds
 				: targetEntry["bounds"];
-			if (this.WordControl && typeof(this.WordControl.ScrollToPosition) === "function" && scrollBounds)
-			{
-				this.WordControl.ScrollToPosition(
-					scrollBounds.Left,
-					scrollBounds.Top,
-					targetAbsolutePage,
-					Math.max(5, scrollBounds.Bottom - scrollBounds.Top)
-				);
-			}
-			else
-			{
-				logicDocument.ScrollToTarget();
-			}
+			if (!selectRow(table, logicalRowIndex, targetAbsolutePage, scrollBounds))
+				return failure(200, "编辑器正在更新选区，请稍后重试！");
 
 			let rowInfo = table.RowsInfo ? table.RowsInfo[logicalRowIndex] : null;
 			let continuedFromPreviousPage = !targetRow["repeatedHeader"]
@@ -2427,13 +3318,15 @@
 				"code" : fallbackReasons.length ? 206 : 200,
 				"data" : true,
 				"detail" : {
+					"locationMode" : "page",
 					"requestedPageNumber" : pageNumber,
-					"requestedTableNumberOnPage" : pageTableNumber,
-					"requestedRowNumberOnPage" : pageRowNumber,
+					"requestedTableNumber" : tableNumber,
+					"requestedRowNumber" : rowNumber,
 					"pageNumber" : targetAbsolutePage + 1,
-					"tableNumberOnPage" : actualTableNumber,
-					"rowNumberOnPage" : actualPageRowNumber,
+					"tableNumber" : actualTableNumber,
+					"rowNumber" : actualPageRowNumber,
 					"logicalRowNumber" : logicalRowIndex + 1,
+					"documentTableCount" : mainTables.length,
 					"pageTableCount" : pageTables.length,
 					"pageVisibleRowCount" : visibleRows.length,
 					"fallbackApplied" : fallbackReasons.length > 0,
@@ -2452,98 +3345,148 @@
 			return failure(500, error && error.message ? error.message : "表格行定位失败！");
 		}
 	};
-		/**
-	 * 通过坐标高亮显示文本
+	/**
+	 * Uses a PDF/OCR page coordinate as the final coarse fallback for Word positioning.
+	 * `box` is the PaddleOCR polygon, `pageWidthPx/pageHeightPx` are the rendered PDF page dimensions,
+	 * and `mode` is `paragraph` (default, select the nearest paragraph) or `cursor`.
+	 * Coordinates are converted proportionally to the current Word page in millimetres; no fixed DPI is assumed.
+	 * If coordinate conversion cannot establish a content position, the method still moves to the requested page
+	 * and returns code 206 so the caller can show a degradation warning.
 	 * @memberof Api
 	 * @alias SearchByPos
 	 * @since 8.2.0.147
-	 * @example
-	 * window.Asc.plugin.executeMethod("SearchByPos");
 	 */
 	Api.prototype["pluginMethod_SearchByPos"] = function(params)
 	{
-		if (!params || !Array.isArray(params["box"]))
-			return null;
-
 		let logicDocument = this.private_GetLogicDocument();
-		if (!logicDocument)
-			return null;
+		if (!logicDocument || !logicDocument.Pages || !logicDocument.Pages.length)
+			return xytSearchFailure(500, "当前文档尚未完成分页，无法执行坐标定位。");
 
-		let page = Number(params["page"]);
-		let targetY = Number(params["box"][1]);
-		if (!Number.isFinite(page) || !Number.isFinite(targetY))
-			return null;
+		params = params || {};
+		let requestedPage = Math.floor(Number(params["page"]));
+		if (!Number.isFinite(requestedPage) || requestedPage < 1)
+			return xytSearchFailure(400, "page 必须是从 1 开始的有效页码。");
 
-		let paragraphs = (logicDocument.GetAllParagraphs() || []).filter(function(paragraph)
+		let actualPage = Math.min(requestedPage, logicDocument.Pages.length);
+		let pageIndex = actualPage - 1;
+		let moveToPage = function()
 		{
-			return paragraph.GetAbsolutePage() + 1 === page;
-		});
-		if (!paragraphs.length)
-			return null;
+			logicDocument.GoToPage(pageIndex);
+			if (this.WordControl && typeof(this.WordControl.ScrollToPosition) === "function")
+				this.WordControl.ScrollToPosition(0, 0, pageIndex, 5);
+		}.bind(this);
+		moveToPage();
 
-		let toOfficeYpx = function(paragraph)
+		let pageOnly = function(message, detail)
 		{
-			return paragraph.Y * (144 / 25.4);
+			return {
+				"code" : 206,
+				"data" : true,
+				"level" : "page",
+				"mode" : "page-only",
+				"page" : actualPage,
+				"coarse" : true,
+				"message" : message,
+				"detail" : detail || {}
+			};
 		};
-		let candidates = [];
-		let pushCandidate = function(paragraph, referenceY)
-		{
-			candidates.push({
-				"paragraph" : paragraph,
-				"distance" : Math.abs(referenceY - targetY)
-			});
-		};
 
-		for (let index = 0; index < paragraphs.length; ++index)
+		let box = params["box"];
+		let points = [];
+		if (Array.isArray(box))
 		{
-			let paragraph = paragraphs[index];
-			let nextParagraph = paragraphs[index + 1];
-			let paragraphY = toOfficeYpx(paragraph);
-			if (!nextParagraph)
+			if (box.length && Array.isArray(box[0]))
 			{
-				let previousParagraph = paragraphs[index - 1];
-				if (!previousParagraph)
+				for (let pointIndex = 0; pointIndex < box.length; ++pointIndex)
 				{
-					pushCandidate(paragraph, paragraphY);
-					continue;
+					if (box[pointIndex].length >= 2)
+						points.push([Number(box[pointIndex][0]), Number(box[pointIndex][1])]);
 				}
-
-				let previousY = toOfficeYpx(previousParagraph);
-				if ((previousY <= paragraphY && targetY >= paragraphY)
-					|| (previousY > paragraphY && targetY <= paragraphY))
-				{
-					pushCandidate(paragraph, paragraphY);
-				}
-				break;
 			}
-
-			let nextY = toOfficeYpx(nextParagraph);
-			if ((paragraphY <= nextY && targetY >= paragraphY && targetY < nextY)
-				|| (paragraphY > nextY && targetY > nextY && targetY <= paragraphY))
+			else
 			{
-				pushCandidate(paragraph, paragraphY);
+				for (let coordinateIndex = 0; coordinateIndex + 1 < box.length; coordinateIndex += 2)
+					points.push([Number(box[coordinateIndex]), Number(box[coordinateIndex + 1])]);
 			}
 		}
 
-		if (!candidates.length)
-			return null;
-
-		candidates.sort(function(first, second)
+		let pageWidthPx = Number(params["pageWidthPx"]);
+		let pageHeightPx = Number(params["pageHeightPx"]);
+		let validPoints = points.length && points.every(function(point)
 		{
-			return first["distance"] - second["distance"];
+			return Number.isFinite(point[0]) && Number.isFinite(point[1]);
 		});
-		let bestParagraph = candidates[0]["paragraph"];
+		if (!validPoints || !(pageWidthPx > 0) || !(pageHeightPx > 0))
+		{
+			return pageOnly("OCR 坐标或纸张像素尺寸无效，已降级移动到目标页。", {
+				"requestedPage" : requestedPage,
+				"actualPage" : actualPage
+			});
+		}
 
-		// 与 ApiParagraph.Select 保持一致，支持表格、页眉页脚等嵌套段落。
+		let xs = points.map(function(point){ return point[0]; });
+		let ys = points.map(function(point){ return point[1]; });
+		let centerX = (Math.min.apply(Math, xs) + Math.max.apply(Math, xs)) / 2;
+		let centerY = (Math.min.apply(Math, ys) + Math.max.apply(Math, ys)) / 2;
+		let pageLimits = logicDocument.Get_PageLimits(pageIndex);
+		if (!pageLimits || !(pageLimits.XLimit > 0) || !(pageLimits.YLimit > 0))
+			return pageOnly("无法取得目标页纸张尺寸，已降级移动到目标页。");
+
+		let officeX = Math.max(0, Math.min(pageLimits.XLimit, centerX / pageWidthPx * pageLimits.XLimit));
+		let officeY = Math.max(0, Math.min(pageLimits.YLimit, centerY / pageHeightPx * pageLimits.YLimit));
+		let anchor = logicDocument.Get_NearestPos(pageIndex, officeX, officeY);
+		if (!anchor || !anchor.Paragraph || !anchor.ContentPos)
+		{
+			return pageOnly("未能将 OCR 坐标映射到 Word 内容，已降级移动到目标页。", {
+				"x" : officeX,
+				"y" : officeY
+			});
+		}
+
+		let mode = "cursor" === params["mode"] ? "cursor" : "paragraph";
+		let paragraph = anchor.Paragraph;
 		logicDocument.RemoveSelection();
-		bestParagraph.SelectAll();
-		bestParagraph.Document_SetThisElementCurrent(true);
+		if ("cursor" === mode)
+		{
+			let documentPosition = logicDocument.AnchorPositionToDocumentPosition(anchor);
+			if (!documentPosition || !documentPosition.length || documentPosition[0].Class !== logicDocument)
+				return pageOnly("已找到邻近内容，但无法建立光标位置，已降级移动到目标页。");
+			logicDocument.SetContentPosition(documentPosition, 0, 0);
+			paragraph.Document_SetThisElementCurrent(true);
+		}
+		else
+		{
+			paragraph.SelectAll();
+			paragraph.Document_SetThisElementCurrent(true);
+		}
 
-		return {
-			"paraId" : bestParagraph.GetParaId(),
-			"page" : bestParagraph.GetAbsolutePage() + 1,
-			"text" : bestParagraph.GetText()
+		if (logicDocument.Document_UpdateInterfaceState)
+			logicDocument.Document_UpdateInterfaceState();
+		if (logicDocument.Document_UpdateSelectionState)
+			logicDocument.Document_UpdateSelectionState();
+		if (logicDocument.ScrollToTarget)
+			logicDocument.ScrollToTarget();
+
+		let result = {
+			"code" : requestedPage === actualPage ? 200 : 206,
+			"data" : true,
+			"level" : "paragraph" === mode ? "paragraph" : "cursor",
+			"mode" : "coordinate-" + mode,
+			"page" : actualPage,
+			"paragraphPage" : paragraph.GetAbsolutePage(0) + 1,
+			"paraId" : paragraph.GetParaId(),
+			"text" : paragraph.GetText({"Numbering" : false, "ParaSeparator" : ""}),
+			"coarse" : true,
+			"detail" : {
+				"requestedPage" : requestedPage,
+				"actualPage" : actualPage,
+				"x" : officeX,
+				"y" : officeY
+			}
 		};
+		if (requestedPage !== actualPage)
+			result["message"] = "请求页码超出文档范围，已定位到文档最后一页的邻近内容。";
+		return result;
 	};
 	/**
 	 * 处理中文和数字之间的间距

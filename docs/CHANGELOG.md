@@ -2,6 +2,67 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-29：增加全文非全词搜索兜底并统一匹配索引口径
+
+- `word/api_plugins.js`
+  - `pluginMethod_XytSearch` 的顺序调整为：常规全词搜索、去编号全词搜索、全文非全词搜索、可见文本安全归一化、标点/空白宽松归一化；坐标定位仍由调用方在文本定位失败后单独调用。
+  - 只有调用方请求 `wholeWords=true` 且严格搜索失败时才执行全文非全词重试；命中返回 `code=206、matchMode=whole-word-relaxed、wholeWordsRelaxed=true`。
+  - 全文非全词重试完全忽略 OCR `page` 的过滤作用，`count` 和 `selectIndex` 始终按正文全文匹配列表计算。
+  - 归一化阶段仍可先用 `page` 发现更可能的候选和匹配模式，但真正选择结果前会重新取得该候选的全文有序匹配列表；返回 `selectIndexScope=document`，避免把算法提供的全文索引误当成页内索引。
+  - 进入归一化阶段代表严格全词和原生非全词均已失败，归一化匹配继续使用非全词边界，避免归一化成功后再次被全词边界拦截。
+
+### 跨项目依赖
+
+- `../office-plugin/src/officeApi/documentAPI/onSearch.ts` 已暴露新的匹配模式和全文索引范围字段。
+
+## 2026-07-29：表格行定位改为对象参数并支持正文全局模式
+
+- `word/api_plugins.js`
+  - `pluginMethod_SelectTable` 入参由数组改为 `{ pageNumber?, tableNumber, rowNumber }`，字段名称直接表达页码、表格序号和行号，不再兼容数组协议。
+  - 传入 `pageNumber` 时维持 OCR 页内定位：表格按页内视觉顺序计数，行按本页可见行计数，继续支持跨页续行和重复标题行。
+  - 省略 `pageNumber` 时改为正文全局定位：从正文开头按文档顺序统计顶层表格，`rowNumber` 按整张表格的逻辑行计数，不依赖分页完成状态。
+  - 两种模式均保留表格/行越界兜底，实际完成选区时返回 `code=206、data=true`；`detail.locationMode` 标识 `page | document`，并返回请求位置、实际位置和正文表格总数。
+
+### 跨项目依赖
+
+- 类型化对象协议位于 `../office-plugin/src/officeApi/documentAPI/selectTable.ts`。
+- 可编辑的两种模式测试入口位于 `../custom_office/src/pages/home/components/SearchTestWorkspace.tsx`。
+
+## 2026-07-28：修复 Word SDK 加载阶段 `AscWord` 未定义
+
+- `word/api_plugins.js`
+  - 可见文本读取器不再在 `sdk-all.js` 模块求值阶段继承 `AscWord.DocumentVisitor`。
+  - 仅当原生搜索和去编号搜索均失败、确实进入可见文本归一化流程时，才从 `window.AscWord` 动态创建 `DocumentVisitor`。
+  - 修复 `ReferenceError: AscWord is not defined` 导致整个 Word SDK 中断的问题；后续 `Asc.asc_CAdjustPrint is not a constructor` 属于 SDK 未完整加载产生的连锁错误，无需单独修改打印模块。
+
+### 验证状态
+
+- `node --check word/api_plugins.js`、`git diff --check` 通过。
+- `build/grunt compile-word` Closure 全量编译通过。
+
+## 2026-07-28：OCR 文本分层定位与坐标兜底
+
+- `word/api_plugins.js`
+  - 重构 `pluginMethod_XytSearch` 为只建立选区的分层定位 API，依次执行原生精确搜索、去标题/列表编号搜索、可见文本安全归一化和标点/空白宽松定位。
+  - 归一化阶段支持 OCR `page`（从 1 开始）：先解析该页涉及的正文段落，页内无匹配才扩大到正文全文；原生精确搜索仍保持 OnlyOffice 的全文行为。
+  - 可见文本按 Run 字符建立“归一化字符到真实段落位置”的映射，忽略零宽字符，兼容全半角、普通文本与超链接显示文本的边界，并支持连续段落内的 `^p` 选区。
+  - 标题编号支持 `一、`、`（一）`、`(1)`、`1.`、`1.2.3`、`第一条/章` 等常见形式；先搜索原文，失败后才去编号，避免截断普通数字内容。
+  - 搜索返回 `code/data/count/matchMode/page` 等结构化结果；匹配序号越界时选中最后一项并返回 `206`。
+  - 修复 `pluginMethod_XytSearchAndReplace` 未命中仍向当前光标写入内容的问题。单项替换现在严格执行“定位成功且选区可编辑后再替换”；批量替换仅允许原生精确的单段文本，跨段或宽松匹配交由调用方逐项处理。
+  - 重构 `pluginMethod_SearchByPos`：接收 PaddleOCR 多边形、PDF 页面像素宽高和 `paragraph | cursor` 模式，按页面比例换算 Word 毫米坐标，不再依赖固定 144 DPI 或仅使用 Y 坐标。
+  - 坐标定位失败时至少移动到请求页并返回 `code=206、level=page、mode=page-only`；页码越界时定位到最后一页并明确报告请求页与实际页。
+
+### 接口约定
+
+- 归一化全文指正文文档树（包含正文表格），不跨表格单元格拼接多段文本，也不把页眉页脚或文本框与正文串联。
+- `visible-normalized` 执行 NFKC、大小写配置、零宽字符清理和空白折叠；`visible-loose` 进一步统一引号、横线、省略号并忽略空白，因此只作为精确/安全归一化失败后的低优先级定位。
+- 坐标定位是最终粗粒度兜底，`paragraph` 默认选择邻近整段，调用方在执行破坏性修改前应检查 `coarse=true` 和返回级别。
+
+### 验证状态
+
+- `node --check word/api_plugins.js`、`git diff --check` 通过。
+- `build/grunt compile-word` Closure 全量编译通过。
+
 ## 2026-07-28：按 OCR 页内位置定位 Word 表格行
 
 - `word/api_plugins.js`
