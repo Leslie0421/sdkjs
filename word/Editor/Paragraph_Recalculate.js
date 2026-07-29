@@ -3670,6 +3670,14 @@ CParagraphRecalculateStateWrap.prototype.getXLimit = function()
 	//       при изменении XEnd сразу расчитывать это значение и заменить вызов на простой this.XEnd
 	return this.Paragraph.IsUseXLimit() ? this.XEnd : MEASUREMENT_MAX_MM_VALUE * 10;
 };
+CParagraphRecalculateStateWrap.prototype.isKinsokuEnabledForRun = function(paraPr, run)
+{
+	if (false !== paraPr.Kinsoku || !run)
+		return true;
+
+	let textPr = run.Get_CompiledPr(false);
+	return !AscWord.IsEastAsianLanguage(textPr.Lang.EastAsia);
+};
 CParagraphRecalculateStateWrap.prototype.ResetLastAutoHyphen = function()
 {
 	if (!this.LastHyphenItem)

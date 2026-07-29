@@ -102,6 +102,32 @@ $(function () {
 			"34"
 		]);
 	});
+
+	QUnit.test("East Asian kinsoku can be disabled without changing text", function(assert)
+	{
+		setText("甲乙，丙");
+		run.Set_Lang_EastAsia(lcid_zhCN);
+		para.SetOverflowPunct(false);
+		para.SetKinsoku(true);
+		recalculate(charWidth * 2.1);
+		let enabledLines = [];
+		for (let i = 0; i < para.GetLinesCount(); ++i)
+			enabledLines.push(para.GetTextOnLine(i));
+
+		para.SetKinsoku(false);
+		recalculate(charWidth * 2.1);
+		let disabledLines = [];
+		for (let i = 0; i < para.GetLinesCount(); ++i)
+			disabledLines.push(para.GetTextOnLine(i));
+
+		assert.notDeepEqual(disabledLines, enabledLines, "Kinsoku changes a reproducible East Asian line boundary");
+		assert.ok(disabledLines.some(function(line) { return 0 === line.indexOf("，"); }), "Disabled kinsoku permits closing punctuation at line start");
+		assert.notOk(enabledLines.some(function(line) { return 0 === line.indexOf("，"); }), "Enabled kinsoku keeps closing punctuation off line start");
+		assert.strictEqual(disabledLines.join(""), "甲乙，丙", "Line breaking never changes the character stream");
+
+		para.SetKinsoku(undefined);
+		para.SetOverflowPunct(undefined);
+	});
 	
 	QUnit.test("Test line breaks for Asian text", function (assert)
 	{

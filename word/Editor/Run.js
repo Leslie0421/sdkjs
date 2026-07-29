@@ -3722,6 +3722,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 	let isSkipFillRange = false;
 	
 	let textPr = this.Get_CompiledPr(false);
+	let useKinsoku = PRS.isKinsokuEnabledForRun(ParaPr, this);
 
 	// TODO: Сделать возможность показывать инструкцию
     var isHiddenCFPart = PRS.ComplexFields.isHiddenComplexFieldPart();
@@ -3845,8 +3846,8 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					let isBreakBefore = Item.IsSpaceBefore(textPr.RFonts.Hint);
 					if (isBreakBefore
 						&& Word
-						&& PRS.LastItem.CanBeAtEndOfLine()
-						&& Item.CanBeAtBeginOfLine())
+						&& PRS.LastItem.CanBeAtEndOfLine(PRS.isKinsokuEnabledForRun(ParaPr, PRS.LastItemRun))
+						&& Item.CanBeAtBeginOfLine(useKinsoku))
 					{
 						PRS.Set_LineBreakPos(Pos, FirstItemOnLine);
 						
@@ -3950,7 +3951,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 						{
 							if (X + SpaceLen + LetterLen > XEnd)
 							{
-								if (para_Text === ItemType && !Item.CanBeAtBeginOfLine() && !PRS.LineBreakFirst)
+								if (para_Text === ItemType && !Item.CanBeAtBeginOfLine(useKinsoku) && !PRS.LineBreakFirst)
 								{
 									MoveToLBP = true;
 									NewRange  = true;
@@ -3972,7 +3973,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 							// тогда общую ширину пробелов прибавляем к ширине символа.
 							// Если разрыв были и с данного символа не может начинаться строка, тогда испоьльзуем
 							// предыдущий разрыв.
-							if (PRS.LineBreakFirst && !Item.CanBeAtBeginOfLine())
+							if (PRS.LineBreakFirst && !Item.CanBeAtBeginOfLine(useKinsoku))
 							{
 								Word            = true;
 								FirstItemOnLine = true;
@@ -3985,7 +3986,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 							}
 							else
 							{
-								if (Item.CanBeAtBeginOfLine())
+								if (Item.CanBeAtBeginOfLine(useKinsoku))
 								{
 									PRS.Set_LineBreakPos(Pos, FirstItemOnLine);
 									PRS.checkLastAutoHyphen();
@@ -4135,7 +4136,8 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					else
 						Item.ResetCondensedWidth();
 
-					if (Word && PRS.LastItem && para_Text === PRS.LastItem.Type && !PRS.LastItem.CanBeAtEndOfLine())
+					if (Word && PRS.LastItem && para_Text === PRS.LastItem.Type
+						&& !PRS.LastItem.CanBeAtEndOfLine(PRS.isKinsokuEnabledForRun(ParaPr, PRS.LastItemRun)))
 					{
 						WordLen += Item.GetWidth();
 						break;

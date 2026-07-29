@@ -105,6 +105,15 @@
 		);
 	}
 
+	function isEastAsianLanguage(lang)
+	{
+		if (undefined === lang || null === lang)
+			return false;
+
+		let primaryLanguage = lang & 0x03FF;
+		return (lcid_zhHans === primaryLanguage || lcid_ja === primaryLanguage || lcid_ko === primaryLanguage);
+	}
+
 	/**
 	 * Класс представляющий текстовый символ
 	 * @param {Number} nCharCode - Юникодное значение символа
@@ -579,17 +588,21 @@
 			&& !AscCommon.isHangul(this.Value)
 			&& !AscCommon.isEastAsianPunctuation(this.Value));
 	};
-	CRunText.prototype.CanBeAtBeginOfLine = function()
+	CRunText.prototype.CanBeAtBeginOfLine = function(useKinsoku)
 	{
 		if (this.IsNBSP())
 			return false;
+		if (false === useKinsoku)
+			return true;
 
 		return (!(AscCommon.g_aPunctuation[this.Value] & AscCommon.PUNCTUATION_FLAG_CANT_BE_AT_BEGIN));
 	};
-	CRunText.prototype.CanBeAtEndOfLine = function()
+	CRunText.prototype.CanBeAtEndOfLine = function(useKinsoku)
 	{
 		if (this.IsNBSP())
 			return false;
+		if (false === useKinsoku)
+			return true;
 
 		return (!(AscCommon.g_aPunctuation[this.Value] & AscCommon.PUNCTUATION_FLAG_CANT_BE_AT_END));
 	};
@@ -771,6 +784,7 @@
 	//--------------------------------------------------------export----------------------------------------------------
 	window['AscWord'] = window['AscWord'] || {};
 	window['AscWord'].CRunText = CRunText;
+	window['AscWord'].IsEastAsianLanguage = isEastAsianLanguage;
 	window['AscWord'].CreateNonBreakingHyphen = CreateNonBreakingHyphen;
 	window['AscWord'].isCombiningMark = isCombiningMark;
 	
