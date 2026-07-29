@@ -2,6 +2,35 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-29：完成东亚禁则、自动间距、溢出标点和文档网格排版
+
+- S3（`6090d59281`）
+  - `RunContent/Text.js`、`Run.js` 将 `Kinsoku` 接入既有换行路径，按简中、繁中、日文、韩文 Run 语言判断行首/行尾字符；NBSP 始终保持不可断语义。
+  - 属性关闭时允许东亚禁则字符按普通规则换行，开启或继承默认值时维持禁则；与溢出标点冲突时由溢出规则优先。
+- S4（`e5c3e2f295`）
+  - 在东亚文字与拉丁文字/数字边界增加四分之一全角的虚拟排版宽度，分别受 `AutoSpaceDE`、`AutoSpaceDN` 控制。
+  - 虚拟间距不进入字符流，并同步参与测量、换行、绘制、光标、选择、命中测试和 PDF 路径；标点、空白、字段边界和不适用 Run 不产生间距。
+- S5（`5533532469`）
+  - 按东亚语言维护可悬挂标点集合，在行尾以真实字形宽度允许目标标点溢出；关闭 `OverflowPunct` 后恢复普通边界判断。
+- S6（`999d1c9f75`、`c13115cc29`）
+  - `SectPr` 增加原始 OOXML `DocGrid` 模型、历史/协同、复制和 Editor.bin 双向读写；协议与 core 的 `secPr.docGrid=14`、子项 `0/1/2` 对齐。
+  - 段落及 Run 增加 `SnapToGrid` 的样式继承、直接格式、清除、历史/协同、JSON、模型二进制、Editor.bin 和公共 API。
+  - 排版支持节行基线、东亚全角文字/标点/全角数字字符网格、拉丁文字自然宽度、段落/Run 关闭网格及 `doNotSnapToGridInCell`；页边距预览可绘制行/字符网格。
+  - 公共节属性同时暴露原始 `linePitch/charSpace` 和“每页行数/每行字符数”换算，支持当前节、所选节和整篇文档且不替换分节符。
+  - 补齐 settings flags2 bit 2 的 `adjustLineHeightInTable` 无损读写，并与 bit 10 的 `doNotSnapToGridInCell` 一并加入 Editor.bin 定向测试。
+
+### 验证状态
+
+- 新增 QUnit 覆盖禁则语言边界、跨 Run 自动间距、溢出宽度、行/字符网格、全角标点和数字、直接格式、样式继承、撤销重做、协同、Editor.bin、公共 API、多节整篇应用及表格兼容位。
+- 最终相关 JavaScript `node --check`、`git diff --check` 通过；`compile-word` Closure 全量编译两次通过，稳定 API 名称在压缩产物中保留。
+- 本环境没有 `node-qunit-puppeteer`，且桌面浏览器安全策略拒绝本地 `file://` 测试页，因此本轮新增 QUnit 尚未实际执行；不将“测试已编写”表述为“测试已通过”。
+- core C2/C3 已完成静态双向链路与协议编号审查，但按部署条件尚未执行 Windows/Ubuntu 官方 build-tools；Microsoft Word/WPS DOCX 往返、打印/PDF 实体输出和协同服务器联调仍待集中验收。
+
+### 跨项目依赖
+
+- `../core` 现有 C2/C3 代码静态确认覆盖 `docGrid`、段落/Run `snapToGrid`、四字体槽/theme/hint/语言和表格兼容位，无新增 C++ 修补。
+- `../web-apps` 对应 W2 提交 `5a85004128`，W3 提交 `dd43e07758`。
+
 ## 2026-07-29：完成四个东亚段落属性的完整属性链路
 
 - `word/Editor/Styles.js`、`word/fromToJSON.js`
