@@ -35,6 +35,8 @@
 
 ### S1：中文/西文字体分别设置
 
+实现状态：代码完成（2026-07-29），待 Microsoft Word/WPS DOCX 往返样本验收。
+
 - 保留现有 `CRFonts.Ascii/HAnsi/EastAsia/CS` 模型和 Unicode 字体槽位分类。
 - 新增按槽位设置字体的内部方法与公共 API；“西文字体”同时设置 `ascii` 和 `hAnsi`，但不覆盖 `eastAsia` 和 `cs`。
 - 正确处理 theme 字体与直接字体的互斥关系，并保留 `hint` 和语言信息。

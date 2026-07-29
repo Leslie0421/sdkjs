@@ -2,6 +2,28 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-29：完成中西文字体分槽设置第一阶段
+
+- `common/apiCommon.js`、`word/apiCommon.js`
+  - 新增公开的 `asc_CTextFontFamilies`，分别暴露 `ascii`、`hAnsi`、`eastAsia`、`cs` 和 `hint`；段落/文字计算属性可返回各字体槽位及混合值。
+- `word/Editor/Styles.js`、`word/api.js`、`word/apiBuilder.js`
+  - 新增 `SetFontFamilies` / `put_TextPrFontFamilies`，只更新调用方明确提供的槽位；更新中文字体不会覆盖西文字体或复杂文字字体，反之亦然。
+  - 更新直接字体时仅清除对应 theme 字体，保留其他 theme 槽、`w:hint` 和语言信息。
+  - `paraApply` 可把字体槽位与高级段落设置放入同一次历史操作；字体文件后台加载完成后只触发重排，不延迟修改选区，避免用户移动光标后误改新位置。
+- `tests/word/js-api/api-run.js`
+  - 增加 11 项断言，覆盖中西文字体互不覆盖、目标 theme 槽清除、非目标 theme 槽和 hint 保留。
+
+### 验证状态
+
+- `node --check`、`git diff --check` 通过。
+- `build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 浏览器 QUnit 新增用例 11/11 断言通过；全套页面另有 2 个既有 `DrawingDocument.Set_RulerState_Columns` 测试桩失败，与本次字体改动无关。
+- Microsoft Word/WPS DOCX 往返样本仍属于后续兼容验收，不在本次代码验证中冒充完成。
+
+### 跨项目依赖
+
+- 对应原生设置界面位于 `../web-apps`；`core` 已具备四个 `w:rFonts` 槽位的读写能力，本阶段未修改 `core`。
+
 ## 2026-07-29：建立东亚精细排版实施计划
 
 - 新增 `docs/EAST_ASIAN_TYPOGRAPHY_IMPLEMENTATION_PLAN.md`。

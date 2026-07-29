@@ -99,4 +99,31 @@ $(function ()
 		apiRun.SetShd('clear', autoColor);
 		assert.strictEqual(apiRun.GetShd().IsAutoColor(), true, 'Shading check after setting shading with ApiColor (auto)');
 	});
+
+	QUnit.test('SetFontFamilies preserves unrelated OOXML font slots', function (assert) {
+		const apiRun = createApiRun();
+		const textPr = apiRun.GetTextPr();
+
+		textPr.SetFontFamily('Arial');
+		textPr.TextPr.RFonts.EastAsiaTheme = 'majorEastAsia';
+		textPr.SetFontFamilies({ eastAsia: 'Times New Roman' });
+
+		assert.strictEqual(textPr.GetFontFamily('ascii'), 'Arial', 'East Asian font does not replace ASCII font');
+		assert.strictEqual(textPr.GetFontFamily('hAnsi'), 'Arial', 'East Asian font does not replace HAnsi font');
+		assert.strictEqual(textPr.GetFontFamily('eastAsia'), 'Times New Roman', 'East Asian slot is updated');
+		assert.strictEqual(textPr.GetFontFamily('cs'), 'Arial', 'East Asian font does not replace complex-script font');
+		assert.strictEqual(textPr.TextPr.RFonts.EastAsiaTheme, undefined, 'Updating East Asian font clears its theme slot');
+
+		textPr.TextPr.RFonts.Hint = 2;
+		textPr.TextPr.RFonts.AsciiTheme = 'majorAscii';
+		textPr.SetFontFamilies({ eastAsia: 'Times New Roman' });
+		assert.strictEqual(textPr.TextPr.RFonts.AsciiTheme, 'majorAscii', 'Updating East Asian font preserves the ASCII theme slot');
+		assert.strictEqual(textPr.TextPr.RFonts.Hint, 2, 'Updating a font slot preserves the font hint');
+
+		textPr.SetFontFamilies({ ascii: 'Courier New', hAnsi: 'Courier New' });
+		assert.strictEqual(textPr.GetFontFamily('ascii'), 'Courier New', 'ASCII slot is updated');
+		assert.strictEqual(textPr.GetFontFamily('hAnsi'), 'Courier New', 'HAnsi slot is updated');
+		assert.strictEqual(textPr.GetFontFamily('eastAsia'), 'Times New Roman', 'Western font does not replace East Asian font');
+		assert.strictEqual(textPr.GetFontFamily('cs'), 'Arial', 'Western font does not replace complex-script font');
+	});
 });

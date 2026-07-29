@@ -2656,6 +2656,42 @@ function (window, undefined) {
 		this.Index = v;
 	};
 
+	function private_CreateTextFontFamily(value) {
+		if (undefined === value || null === value)
+			return null;
+		if (typeof value === "string")
+			return new asc_CTextFontFamily({Name: value, Index: -1});
+		return new asc_CTextFontFamily({
+			Name: undefined !== value.Name ? value.Name : (value.get_Name ? value.get_Name() : null),
+			Index: undefined !== value.Index ? value.Index : (value.get_Index ? value.get_Index() : -1)
+		});
+	}
+
+	/**
+	 * Public representation of the four OOXML run-font slots.
+	 * Missing slots stay null so callers can update one script without resetting the others.
+	 * @constructor
+	 */
+	function asc_CTextFontFamilies(obj) {
+		obj = obj || {};
+		this.Ascii = private_CreateTextFontFamily(undefined !== obj.Ascii ? obj.Ascii : obj.ascii);
+		this.HAnsi = private_CreateTextFontFamily(undefined !== obj.HAnsi ? obj.HAnsi : obj.hAnsi);
+		this.EastAsia = private_CreateTextFontFamily(undefined !== obj.EastAsia ? obj.EastAsia : obj.eastAsia);
+		this.CS = private_CreateTextFontFamily(undefined !== obj.CS ? obj.CS : obj.cs);
+		this.Hint = undefined !== obj.Hint ? obj.Hint : obj.hint;
+	}
+
+	asc_CTextFontFamilies.prototype.asc_getAscii = function () { return this.Ascii; };
+	asc_CTextFontFamilies.prototype.asc_getHAnsi = function () { return this.HAnsi; };
+	asc_CTextFontFamilies.prototype.asc_getEastAsia = function () { return this.EastAsia; };
+	asc_CTextFontFamilies.prototype.asc_getCS = function () { return this.CS; };
+	asc_CTextFontFamilies.prototype.asc_getHint = function () { return this.Hint; };
+	asc_CTextFontFamilies.prototype.asc_putAscii = function (v) { this.Ascii = private_CreateTextFontFamily(v); };
+	asc_CTextFontFamilies.prototype.asc_putHAnsi = function (v) { this.HAnsi = private_CreateTextFontFamily(v); };
+	asc_CTextFontFamilies.prototype.asc_putEastAsia = function (v) { this.EastAsia = private_CreateTextFontFamily(v); };
+	asc_CTextFontFamilies.prototype.asc_putCS = function (v) { this.CS = private_CreateTextFontFamily(v); };
+	asc_CTextFontFamilies.prototype.asc_putHint = function (v) { this.Hint = v; };
+
 	/** @constructor */
 	function asc_CParagraphTab(Pos, Value, Leader) {
 		this.Pos = Pos;
@@ -3030,6 +3066,7 @@ function (window, undefined) {
 				oBullet.FirstTextPr = obj.FirstTextPr;
 			}
 			this.Ligatures = undefined !== obj.Ligatures ? obj.Ligatures : undefined;
+			this.FontFamilies = obj.FontFamilies ? new AscCommon.asc_CTextFontFamilies(obj.FontFamilies) : undefined;
 
 			this.CanDeleteBlockCC = undefined !== obj.CanDeleteBlockCC ? obj.CanDeleteBlockCC : true;
 			this.CanEditBlockCC = undefined !== obj.CanEditBlockCC ? obj.CanEditBlockCC : true;
@@ -3084,6 +3121,7 @@ function (window, undefined) {
 			this.SuppressLineNumbers = false;
 			this.Bullet = undefined;
 			this.Ligatures = undefined;
+			this.FontFamilies = undefined;
 
 			this.CanDeleteBlockCC = true;
 			this.CanEditBlockCC = true;
@@ -3340,6 +3378,12 @@ function (window, undefined) {
 	};
 	asc_CParagraphProperty.prototype.asc_putLigatures = function (v) {
 		this.Ligatures = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getFontFamilies = function () {
+		return this.FontFamilies;
+	};
+	asc_CParagraphProperty.prototype.asc_putFontFamilies = function (v) {
+		this.FontFamilies = v ? new AscCommon.asc_CTextFontFamilies(v) : v;
 	};
 
 	/** @constructor */
@@ -8617,6 +8661,20 @@ function (window, undefined) {
 	prot["put_Name"] = prot["asc_putName"] = prot.put_Name = prot.asc_putName;
 	prot["put_Index"] = prot["asc_putIndex"] = prot.put_Index = prot.asc_putIndex;
 
+	window["AscCommon"].asc_CTextFontFamilies = asc_CTextFontFamilies;
+	window["AscCommon"]["asc_CTextFontFamilies"] = asc_CTextFontFamilies;
+	prot = asc_CTextFontFamilies.prototype;
+	prot["get_Ascii"] = prot["asc_getAscii"] = prot.get_Ascii = prot.asc_getAscii;
+	prot["get_HAnsi"] = prot["asc_getHAnsi"] = prot.get_HAnsi = prot.asc_getHAnsi;
+	prot["get_EastAsia"] = prot["asc_getEastAsia"] = prot.get_EastAsia = prot.asc_getEastAsia;
+	prot["get_CS"] = prot["asc_getCS"] = prot.get_CS = prot.asc_getCS;
+	prot["get_Hint"] = prot["asc_getHint"] = prot.get_Hint = prot.asc_getHint;
+	prot["put_Ascii"] = prot["asc_putAscii"] = prot.put_Ascii = prot.asc_putAscii;
+	prot["put_HAnsi"] = prot["asc_putHAnsi"] = prot.put_HAnsi = prot.asc_putHAnsi;
+	prot["put_EastAsia"] = prot["asc_putEastAsia"] = prot.put_EastAsia = prot.asc_putEastAsia;
+	prot["put_CS"] = prot["asc_putCS"] = prot.put_CS = prot.asc_putCS;
+	prot["put_Hint"] = prot["asc_putHint"] = prot.put_Hint = prot.asc_putHint;
+
 	window["Asc"]["asc_CParagraphTab"] = window["Asc"].asc_CParagraphTab = asc_CParagraphTab;
 	prot = asc_CParagraphTab.prototype;
 	prot["get_Value"] = prot["asc_getValue"] = prot.asc_getValue;
@@ -8773,6 +8831,8 @@ function (window, undefined) {
 	prot["can_EditInlineContentControl"] = prot["asc_canEditInlineContentControl"] = prot.asc_canEditInlineContentControl;
 	prot["get_Ligatures"] = prot["asc_getLigatures"] = prot.asc_getLigatures;
 	prot["put_Ligatures"] = prot["asc_putLigatures"] = prot.asc_putLigatures;
+	prot["get_FontFamilies"] = prot["asc_getFontFamilies"] = prot.asc_getFontFamilies;
+	prot["put_FontFamilies"] = prot["asc_putFontFamilies"] = prot.asc_putFontFamilies;
 
 	window["AscCommon"].asc_CTexture = asc_CTexture;
 	prot = asc_CTexture.prototype;

@@ -14963,6 +14963,67 @@ CTextPr.prototype.GetFontFamily = function(fontSlot)
 	
 	return undefined;
 };
+CTextPr.prototype.GetFontFamilies = function()
+{
+	return this.RFonts ? this.RFonts.Copy() : new CRFonts();
+};
+CTextPr.prototype.SetFontFamilyBySlot = function(fontSlot, sFontName)
+{
+	if (typeof sFontName !== 'string')
+		return;
+	if (!this.RFonts)
+		this.RFonts = new CRFonts();
+
+	let font = {Name : sFontName, Index : -1};
+	switch (fontSlot)
+	{
+		case AscWord.fontslot_ASCII:
+			this.RFonts.Ascii = font;
+			this.RFonts.AsciiTheme = undefined;
+			break;
+		case AscWord.fontslot_HAnsi:
+			this.RFonts.HAnsi = font;
+			this.RFonts.HAnsiTheme = undefined;
+			break;
+		case AscWord.fontslot_EastAsia:
+			this.RFonts.EastAsia = font;
+			this.RFonts.EastAsiaTheme = undefined;
+			break;
+		case AscWord.fontslot_CS:
+			this.RFonts.CS = font;
+			this.RFonts.CSTheme = undefined;
+			break;
+	}
+};
+CTextPr.prototype.SetFontFamilies = function(fontFamilies)
+{
+	if (!fontFamilies)
+		return;
+
+	let getName = function(value)
+	{
+		if (typeof value === 'string')
+			return value;
+		if (!value)
+			return undefined;
+		if (typeof value.Name === 'string')
+			return value.Name;
+		return value.get_Name ? value.get_Name() : undefined;
+	};
+
+	let ascii = getName(undefined !== fontFamilies.Ascii ? fontFamilies.Ascii : fontFamilies.ascii);
+	let hAnsi = getName(undefined !== fontFamilies.HAnsi ? fontFamilies.HAnsi : fontFamilies.hAnsi);
+	let eastAsia = getName(undefined !== fontFamilies.EastAsia ? fontFamilies.EastAsia : fontFamilies.eastAsia);
+	let cs = getName(undefined !== fontFamilies.CS ? fontFamilies.CS : fontFamilies.cs);
+	if (undefined !== ascii)
+		this.SetFontFamilyBySlot(AscWord.fontslot_ASCII, ascii);
+	if (undefined !== hAnsi)
+		this.SetFontFamilyBySlot(AscWord.fontslot_HAnsi, hAnsi);
+	if (undefined !== eastAsia)
+		this.SetFontFamilyBySlot(AscWord.fontslot_EastAsia, eastAsia);
+	if (undefined !== cs)
+		this.SetFontFamilyBySlot(AscWord.fontslot_CS, cs);
+};
 CTextPr.prototype.SetFontFamily = function(sFontName)
 {
 	if (!this.RFonts || typeof sFontName !== 'string')
@@ -15372,6 +15433,9 @@ CTextPr.prototype['get_Position']   = CTextPr.prototype.get_Position   = CTextPr
 CTextPr.prototype['put_Position']   = CTextPr.prototype.put_Position   = CTextPr.prototype.SetPosition;
 CTextPr.prototype['get_FontFamily'] = CTextPr.prototype.get_FontFamily = CTextPr.prototype['Get_FontFamily'] = CTextPr.prototype.GetFontFamily;
 CTextPr.prototype['put_FontFamily'] = CTextPr.prototype.put_FontFamily = CTextPr.prototype.SetFontFamily;
+CTextPr.prototype['get_FontFamilies'] = CTextPr.prototype.get_FontFamilies = CTextPr.prototype['Get_FontFamilies'] = CTextPr.prototype.GetFontFamilies;
+CTextPr.prototype['put_FontFamilyBySlot'] = CTextPr.prototype.put_FontFamilyBySlot = CTextPr.prototype.SetFontFamilyBySlot;
+CTextPr.prototype['put_FontFamilies'] = CTextPr.prototype.put_FontFamilies = CTextPr.prototype.SetFontFamilies;
 CTextPr.prototype['get_FontSize']   = CTextPr.prototype.get_FontSize   = CTextPr.prototype['Get_FontSize']   = CTextPr.prototype.GetFontSize;
 CTextPr.prototype['put_FontSize']   = CTextPr.prototype.put_FontSize   = CTextPr.prototype.SetFontSize;
 CTextPr.prototype['get_Lang']       = CTextPr.prototype.get_Lang       = CTextPr.prototype['Get_Lang']       = CTextPr.prototype.GetLang;

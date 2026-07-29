@@ -1148,6 +1148,7 @@
 			this.Underline = (undefined != obj.Underline) ? obj.Underline : null;
 			this.Strikeout = (undefined != obj.Strikeout) ? obj.Strikeout : null;
 			this.FontFamily = (undefined != obj.FontFamily && null != obj.FontFamily) ? new AscCommon.asc_CTextFontFamily(obj.FontFamily) : new AscCommon.asc_CTextFontFamily({Name : "", Index : -1});
+			this.FontFamilies = new AscCommon.asc_CTextFontFamilies(obj.RFonts);
 			this.FontSize = (undefined != obj.FontSize) ? obj.FontSize : null;
 			this.Color = (undefined != obj.Color && null != obj.Color) ? AscCommon.CreateAscColorCustom(obj.Color.r, obj.Color.g, obj.Color.b) : null;
 			this.VertAlign = (undefined != obj.VertAlign) ? obj.VertAlign : null;
@@ -1183,6 +1184,7 @@
 			this.Underline = false;
 			this.Strikeout = false;
 			this.FontFamily = new AscCommon.asc_CTextFontFamily();
+			this.FontFamilies = new AscCommon.asc_CTextFontFamilies();
 			this.FontSize = 12;
 			this.Color = AscCommon.CreateAscColorCustom(0, 0, 0);
 			this.VertAlign = AscCommon.vertalign_Baseline;
@@ -1214,6 +1216,10 @@
 	CTextProp.prototype.get_FontFamily = function ()
 	{
 		return this.FontFamily;
+	};
+	CTextProp.prototype.get_FontFamilies = function ()
+	{
+		return this.FontFamilies;
 	};
 	CTextProp.prototype.get_FontSize = function ()
 	{
@@ -1268,6 +1274,7 @@
 	CTextProp.prototype['get_Underline'] = CTextProp.prototype.get_Underline;
 	CTextProp.prototype['get_Strikeout'] = CTextProp.prototype.get_Strikeout;
 	CTextProp.prototype['get_FontFamily'] = CTextProp.prototype.get_FontFamily;
+	CTextProp.prototype['get_FontFamilies'] = CTextProp.prototype.get_FontFamilies;
 	CTextProp.prototype['get_FontSize'] = CTextProp.prototype.get_FontSize;
 	CTextProp.prototype['get_Color'] = CTextProp.prototype.get_Color;
 	CTextProp.prototype['get_VertAlign'] = CTextProp.prototype.get_VertAlign;
@@ -1283,6 +1290,7 @@
 	CTextProp.prototype['put_Underline'] = CTextProp.prototype.put_Underline = function(v){this.Underline = v;};
 	CTextProp.prototype['put_Strikeout'] = CTextProp.prototype.put_Strikeout = function(v){this.Strikeout = v;};
 	CTextProp.prototype['put_FontFamily'] = CTextProp.prototype.put_FontFamily = function(v){this.FontFamily = v;};
+	CTextProp.prototype['put_FontFamilies'] = CTextProp.prototype.put_FontFamilies = function(v){this.FontFamilies = v;};
 	CTextProp.prototype['put_FontSize'] = CTextProp.prototype.put_FontSize = function(v){this.FontSize = v;};
 	CTextProp.prototype['put_Color'] = CTextProp.prototype.put_Color = function(v){this.Color = v;};
 	CTextProp.prototype['put_VertAlign'] = CTextProp.prototype.put_VertAlign = function(v){this.VertAlign = v;};

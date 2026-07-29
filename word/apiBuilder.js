@@ -15815,6 +15815,45 @@
 	};
 
 	/**
+	 * Sets one or more OOXML font slots without changing unspecified slots.
+	 * Use `eastAsia` for Chinese/Japanese/Korean text and set both `ascii` and `hAnsi`
+	 * when assigning a Western font.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @param {Object} fontFamilies - Font slot map: `{ascii?, hAnsi?, eastAsia?, cs?}`.
+	 * @return {ApiTextPr} - this text properties.
+	 */
+	ApiTextPr.prototype.SetFontFamilies = function(fontFamilies)
+	{
+		if (!fontFamilies || typeof fontFamilies !== "object")
+			return this;
+
+		let getName = function(value)
+		{
+			if (typeof value === "string")
+				return value;
+			if (!value)
+				return undefined;
+			if (typeof value.Name === "string")
+				return value.Name;
+			return value.get_Name ? value.get_Name() : undefined;
+		};
+		let keys = ["ascii", "hAnsi", "eastAsia", "cs"];
+		for (let index = 0; index < keys.length; ++index)
+		{
+			let key = keys[index];
+			let upperKey = "cs" === key ? "CS" : key.charAt(0).toUpperCase() + key.slice(1);
+			let name = getName(undefined !== fontFamilies[key] ? fontFamilies[key] : fontFamilies[upperKey]);
+			if (name)
+				LoadFont(name);
+		}
+
+		this.TextPr.SetFontFamilies(fontFamilies);
+		this.private_OnChange();
+		return this;
+	};
+
+	/**
 	 * Returns the font family from the current text properties.
 	 * The method automatically calculates the font from the theme if the font was set via the theme.
 	 * @memberof ApiTextPr
@@ -29968,6 +30007,7 @@
 	ApiTextPr.prototype["SetUnderline"]              = ApiTextPr.prototype.SetUnderline;
 	ApiTextPr.prototype["GetUnderline"]              = ApiTextPr.prototype.GetUnderline;
 	ApiTextPr.prototype["SetFontFamily"]             = ApiTextPr.prototype.SetFontFamily;
+	ApiTextPr.prototype["SetFontFamilies"]           = ApiTextPr.prototype.SetFontFamilies;
 	ApiTextPr.prototype["GetFontFamily"]             = ApiTextPr.prototype.GetFontFamily;
 	ApiTextPr.prototype["SetFontSize"]               = ApiTextPr.prototype.SetFontSize;
 	ApiTextPr.prototype["GetFontSize"]               = ApiTextPr.prototype.GetFontSize;

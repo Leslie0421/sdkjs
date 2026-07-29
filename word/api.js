@@ -2125,6 +2125,7 @@ background-repeat: no-repeat;\
 			this.sync_StrikeoutCallBack(TextPr.Strikeout);
 			this.sync_TextPrFontSizeCallBack(TextPr.FontSize);
 			this.sync_TextPrFontFamilyCallBack(TextPr.FontFamily);
+			this.sync_TextPrFontFamiliesCallBack(TextPr.RFonts);
 			this.sync_VerticalAlign(TextPr.VertAlign);
 			this.sync_TextHighLight(TextPr.HighLight);
 			this.sync_TextSpacing(TextPr.Spacing);
@@ -2193,6 +2194,7 @@ background-repeat: no-repeat;\
 		ParaPr.TextScale   = TextPr.TextScale;
 		ParaPr.Position    = TextPr.Position;
 		ParaPr.Ligatures   = TextPr.Ligatures;
+		ParaPr.FontFamilies = new AscCommon.asc_CTextFontFamilies(TextPr.RFonts);
 		//-----------------------------------------------------------------------------
 
 		if (true === ParaPr.Spacing.AfterAutoSpacing)
@@ -3500,6 +3502,74 @@ background-repeat: no-repeat;\
 			}
 		}
 	};
+	function private_GetTextFontFamiliesInfo(fontFamilies)
+	{
+		let families = new AscCommon.asc_CTextFontFamilies(fontFamilies);
+		let slots = [
+			["Ascii", families.get_Ascii()],
+			["HAnsi", families.get_HAnsi()],
+			["EastAsia", families.get_EastAsia()],
+			["CS", families.get_CS()]
+		];
+		let rFonts = {};
+		let names = [];
+		let fontsToLoad = [];
+		for (let index = 0; index < slots.length; ++index)
+		{
+			let family = slots[index][1];
+			let name = family && family.get_Name ? family.get_Name() : null;
+			if (typeof name !== "string" || !name)
+				continue;
+
+			let fontInfo = g_fontApplication.GetFontInfo(name);
+			let actualName = fontInfo && fontInfo.Name ? fontInfo.Name : name;
+			rFonts[slots[index][0]] = {Name : actualName, Index : -1};
+			if (-1 === names.indexOf(actualName))
+				names.push(actualName);
+			if (fontInfo && -1 === fontsToLoad.indexOf(actualName))
+				fontsToLoad.push(actualName);
+		}
+
+		return {RFonts : rFonts, Names : names, FontsToLoad : fontsToLoad};
+	}
+	function private_LoadTextFontFamilies(api, fontFamiliesInfo)
+	{
+		if (!fontFamiliesInfo || !fontFamiliesInfo.FontsToLoad.length)
+			return;
+
+		AscCommon.g_font_loader.LoadFonts(fontFamiliesInfo.FontsToLoad, function()
+		{
+			let logicDocument = api.private_GetLogicDocument();
+			if (logicDocument)
+			{
+				logicDocument.Recalculate();
+				logicDocument.UpdateInterface();
+			}
+		});
+	}
+	/**
+	 * Sets one or more OOXML run-font slots without resetting unspecified slots.
+	 * Supported properties: ascii, hAnsi, eastAsia and cs.
+	 * @param {Object} fontFamilies
+	 */
+	asc_docs_api.prototype.put_TextPrFontFamilies = function(fontFamilies)
+	{
+		let fontFamiliesInfo = private_GetTextFontFamiliesInfo(fontFamilies);
+		if (!fontFamiliesInfo.Names.length)
+			return;
+
+		let api = this;
+		let logicDocument = api.private_GetLogicDocument();
+		if (!logicDocument || logicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_TextProperties))
+			return;
+
+		logicDocument.StartAction(AscDFH.historydescription_Document_SetTextFontName, null, null, fontFamiliesInfo.Names.join(", "));
+		logicDocument.AddToParagraph(new AscCommonWord.ParaTextPr({RFonts : fontFamiliesInfo.RFonts}));
+		logicDocument.Recalculate();
+		logicDocument.UpdateInterface();
+		logicDocument.FinalizeAction();
+		private_LoadTextFontFamilies(api, fontFamiliesInfo);
+	};
 	asc_docs_api.prototype.put_TextPrFontSize = function(size)
 	{
 		if (false === this.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_TextProperties))
@@ -4003,6 +4073,10 @@ background-repeat: no-repeat;\
 		else
 			this.sendEvent("asc_onFontFamily", new asc_CTextFontFamily({Name : "", Index : -1}));
 	};
+	asc_docs_api.prototype.sync_TextPrFontFamiliesCallBack = function(RFonts)
+	{
+		this.sendEvent("asc_onFontFamilies", new AscCommon.asc_CTextFontFamilies(RFonts));
+	};
 	asc_docs_api.prototype.sync_TextPrFontSizeCallBack   = function(FontSize)
 	{
 		this.sendEvent("asc_onFontSize", FontSize);
@@ -4095,6 +4169,7 @@ background-repeat: no-repeat;\
 			return;
 
 		var arrAdditional = [];
+		var fontFamiliesInfo = Props.FontFamilies ? private_GetTextFontFamiliesInfo(Props.FontFamilies) : null;
 		if (undefined != Props.DefaultTab)
 		{
 			arrAdditional.push({
@@ -4111,7 +4186,8 @@ background-repeat: no-repeat;\
 			|| undefined !== Props.AllCaps
 			|| undefined !== Props.TextSpacing
 			|| undefined !== Props.TextScale
-			|| undefined !== Props.Position)
+			|| undefined !== Props.Position
+			|| fontFamiliesInfo && fontFamiliesInfo.Names.length)
 		{
 			arrAdditional.push({
 				Type  : AscCommon.changestype_2_AdditionalTypes,
@@ -4287,10 +4363,14 @@ background-repeat: no-repeat;\
 			if (undefined !== Props.Ligatures)
 				TextPr.Ligatures = Props.Ligatures;
 
+			if (fontFamiliesInfo && fontFamiliesInfo.Names.length)
+				TextPr.RFonts = fontFamiliesInfo.RFonts;
+
 			oLogicDocument.AddToParagraph(new AscCommonWord.ParaTextPr(TextPr));
 			oLogicDocument.Recalculate();
 			oLogicDocument.UpdateInterface();
 			oLogicDocument.FinalizeAction();
+			private_LoadTextFontFamilies(this, fontFamiliesInfo);
 		}
 	};
 
@@ -15207,6 +15287,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_ReplaceAllCallback']                   = asc_docs_api.prototype.sync_ReplaceAllCallback;
 	asc_docs_api.prototype['sync_SearchEndCallback']                    = asc_docs_api.prototype.sync_SearchEndCallback;
 	asc_docs_api.prototype['put_TextPrFontName']                        = asc_docs_api.prototype.put_TextPrFontName;
+	asc_docs_api.prototype['put_TextPrFontFamilies']                    = asc_docs_api.prototype.put_TextPrFontFamilies;
 	asc_docs_api.prototype['put_TextPrFontSize']                        = asc_docs_api.prototype.put_TextPrFontSize;
 	asc_docs_api.prototype['put_TextPrBold']                            = asc_docs_api.prototype.put_TextPrBold;
 	asc_docs_api.prototype['put_TextPrItalic']                          = asc_docs_api.prototype.put_TextPrItalic;
@@ -15237,6 +15318,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_UnderlineCallBack']                    = asc_docs_api.prototype.sync_UnderlineCallBack;
 	asc_docs_api.prototype['sync_StrikeoutCallBack']                    = asc_docs_api.prototype.sync_StrikeoutCallBack;
 	asc_docs_api.prototype['sync_TextPrFontFamilyCallBack']             = asc_docs_api.prototype.sync_TextPrFontFamilyCallBack;
+	asc_docs_api.prototype['sync_TextPrFontFamiliesCallBack']           = asc_docs_api.prototype.sync_TextPrFontFamiliesCallBack;
 	asc_docs_api.prototype['sync_TextPrFontSizeCallBack']               = asc_docs_api.prototype.sync_TextPrFontSizeCallBack;
 	asc_docs_api.prototype['sync_PrLineSpacingCallBack']                = asc_docs_api.prototype.sync_PrLineSpacingCallBack;
 	asc_docs_api.prototype['paraApply']                                 = asc_docs_api.prototype.paraApply;
