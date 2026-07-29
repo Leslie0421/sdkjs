@@ -49,6 +49,54 @@ var section_footnote_RestartEachPage   = 0x02;
 (function()
 {
 	/**
+	 * Raw OOXML document-grid settings. CharSpace is stored in 1/4096 of a point
+	 * and LinePitch is stored in twips, matching w:docGrid and Editor.bin.
+	 * @constructor
+	 */
+	function SectionDocGrid(type, charSpace, linePitch)
+	{
+		this.Type      = type;
+		this.CharSpace = charSpace;
+		this.LinePitch = linePitch;
+	}
+	SectionDocGrid.prototype.Copy = function()
+	{
+		return new SectionDocGrid(this.Type, this.CharSpace, this.LinePitch);
+	};
+	SectionDocGrid.prototype.IsEqual = function(other)
+	{
+		return !!other
+			&& this.Type === other.Type
+			&& this.CharSpace === other.CharSpace
+			&& this.LinePitch === other.LinePitch;
+	};
+	SectionDocGrid.prototype.Write_ToBinary = function(writer)
+	{
+		let flags = 0;
+		if (undefined !== this.Type)
+			flags |= 1;
+		if (undefined !== this.CharSpace)
+			flags |= 2;
+		if (undefined !== this.LinePitch)
+			flags |= 4;
+
+		writer.WriteLong(flags);
+		if (flags & 1)
+			writer.WriteByte(this.Type);
+		if (flags & 2)
+			writer.WriteLong(this.CharSpace);
+		if (flags & 4)
+			writer.WriteLong(this.LinePitch);
+	};
+	SectionDocGrid.prototype.Read_FromBinary = function(reader)
+	{
+		let flags = reader.GetLong();
+		this.Type      = flags & 1 ? reader.GetByte() : undefined;
+		this.CharSpace = flags & 2 ? reader.GetLong() : undefined;
+		this.LinePitch = flags & 4 ? reader.GetLong() : undefined;
+	};
+
+	/**
 	 * @param {AscWord.Document} logicDocument
 	 * @constructor
 	 */
@@ -81,6 +129,7 @@ var section_footnote_RestartEachPage   = 0x02;
 		this.EndnotePr  = new AscWord.FootnotePr();
 		
 		this.LnNumType = undefined;
+		this.DocGrid   = undefined;
 		
 		// Добавляем данный класс в таблицу Id (обязательно в конце конструктора)
 		AscCommon.g_oTableId.Add(this, this.Id);
@@ -187,6 +236,24 @@ var section_footnote_RestartEachPage   = 0x02;
 		
 		if (Other.HaveLineNumbers())
 			this.SetLineNumbers(Other.GetLineNumbersCountBy(), Other.GetLineNumbersDistance(), Other.GetLineNumbersStart(), Other.GetLineNumbersRestart());
+
+		this.SetDocGrid(Other.DocGrid ? Other.DocGrid.Copy() : undefined);
+	};
+	SectPr.prototype.SetDocGrid = function(docGrid, charSpace, linePitch)
+	{
+		let value = docGrid;
+		if (undefined !== docGrid && !(docGrid instanceof SectionDocGrid))
+			value = new SectionDocGrid(docGrid, charSpace, linePitch);
+
+		if ((!this.DocGrid && !value) || (this.DocGrid && this.DocGrid.IsEqual(value)))
+			return;
+
+		AscCommon.History.Add(new AscDFH.CChangesSectionDocGrid(this, this.DocGrid, value));
+		this.DocGrid = value;
+	};
+	SectPr.prototype.GetDocGrid = function()
+	{
+		return this.DocGrid;
 	};
 	SectPr.prototype.RemoveAllHdrFtr = function()
 	{
@@ -1439,4 +1506,5 @@ var section_footnote_RestartEachPage   = 0x02;
 	}
 	//--------------------------------------------------------export----------------------------------------------------
 	AscWord.SectPr = SectPr;
+	AscWord.SectionDocGrid = SectionDocGrid;
 })();

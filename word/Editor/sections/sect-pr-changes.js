@@ -75,6 +75,7 @@
 	AscDFH.historyitem_Section_PageNumType_Format    = AscDFH.historyitem_type_Section | 39;
 	AscDFH.historyitem_Section_PageNumType_ChapStyle = AscDFH.historyitem_type_Section | 40;
 	AscDFH.historyitem_Section_PageNumType_ChapSep   = AscDFH.historyitem_type_Section | 41;
+	AscDFH.historyitem_Section_DocGrid               = AscDFH.historyitem_type_Section | 42;
 	
 	//------------------------------------------------------------------------------------------------------------------
 	// Карта зависимости изменений
@@ -120,6 +121,7 @@
 	AscDFH.changesRelationMap[AscDFH.historyitem_Section_PageNumType_Format]    = [AscDFH.historyitem_Section_PageNumType_Format];
 	AscDFH.changesRelationMap[AscDFH.historyitem_Section_PageNumType_ChapStyle] = [AscDFH.historyitem_Section_PageNumType_ChapStyle];
 	AscDFH.changesRelationMap[AscDFH.historyitem_Section_PageNumType_ChapSep]   = [AscDFH.historyitem_Section_PageNumType_ChapSep];
+	AscDFH.changesRelationMap[AscDFH.historyitem_Section_DocGrid]               = [AscDFH.historyitem_Section_DocGrid];
 
 	//------------------------------------------------------------------------------------------------------------------
 	
@@ -1175,4 +1177,27 @@
 		}
 	);
 	AscDFH.CChangesSectionPageNumTypeChapSep = CChangesSectionPageNumTypeChapSep;
+
+	/**
+	 * @constructor
+	 * @extends {AscDFH.CChangesBaseObjectProperty}
+	 */
+	function CChangesSectionDocGrid(Class, Old, New)
+	{
+		AscDFH.CChangesBaseObjectProperty.call(this, Class, Old, New);
+	}
+	AscDFH.InheritPropertyObjectChange(
+		CChangesSectionDocGrid,
+		AscDFH.CChangesBaseObjectProperty,
+		AscDFH.historyitem_Section_DocGrid,
+		function()
+		{
+			return new AscWord.SectionDocGrid();
+		},
+		function(Value)
+		{
+			this.Class.DocGrid = Value;
+		}
+	);
+	AscDFH.CChangesSectionDocGrid = CChangesSectionDocGrid;
 })();

@@ -16141,6 +16141,31 @@
 	};
 
 	/**
+	 * Specifies whether the run is aligned to the active document grid.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @param {boolean} value - Whether the run uses the document grid.
+	 * @return {ApiTextPr} - this text properties.
+	 */
+	ApiTextPr.prototype.SetSnapToGrid = function(value)
+	{
+		this.TextPr.SnapToGrid = private_GetBoolean(value);
+		this.private_OnChange();
+		return this;
+	};
+
+	/**
+	 * Returns whether the run is aligned to the active document grid.
+	 * @memberof ApiTextPr
+	 * @typeofeditors ["CDE"]
+	 * @return {?boolean}
+	 */
+	ApiTextPr.prototype.GetSnapToGrid = function()
+	{
+		return this.TextPr.GetSnapToGrid();
+	};
+
+	/**
 	 * Specifies that the contents of the run are displayed with two horizontal lines through each character displayed on the line.
 	 * @memberof ApiTextPr
 	 * @typeofeditors ["CDE", "CSE", "CPE", "PDFE"]
@@ -16639,6 +16664,16 @@
 	ApiParaPr.prototype.GetAutoSpaceDN = function()
 	{
 		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.AutoSpaceDN : this.ParaPr.AutoSpaceDN;
+	};
+	ApiParaPr.prototype.SetSnapToGrid = function(value)
+	{
+		this.ParaPr.SnapToGrid = private_GetBoolean(value);
+		this.private_OnChange();
+		return true;
+	};
+	ApiParaPr.prototype.GetSnapToGrid = function()
+	{
+		return this.Parent ? this.Parent.private_GetImpl().Get_CompiledPr2().ParaPr.SnapToGrid : this.ParaPr.SnapToGrid;
 	};
 	/**
 	 * Sets the paragraph left side indentation.
@@ -30059,6 +30094,8 @@
 	ApiTextPr.prototype["GetHighlight"]              = ApiTextPr.prototype.GetHighlight;
 	ApiTextPr.prototype["SetSpacing"]                = ApiTextPr.prototype.SetSpacing;
 	ApiTextPr.prototype["GetSpacing"]                = ApiTextPr.prototype.GetSpacing;
+	ApiTextPr.prototype["SetSnapToGrid"]             = ApiTextPr.prototype.SetSnapToGrid;
+	ApiTextPr.prototype["GetSnapToGrid"]             = ApiTextPr.prototype.GetSnapToGrid;
 	ApiTextPr.prototype["SetDoubleStrikeout"]        = ApiTextPr.prototype.SetDoubleStrikeout;
 	ApiTextPr.prototype["GetDoubleStrikeout"]        = ApiTextPr.prototype.GetDoubleStrikeout;
 	ApiTextPr.prototype["SetCaps"]                   = ApiTextPr.prototype.SetCaps;
@@ -30090,6 +30127,8 @@
 	ApiParaPr.prototype["GetAutoSpaceDE"]            = ApiParaPr.prototype.GetAutoSpaceDE;
 	ApiParaPr.prototype["SetAutoSpaceDN"]            = ApiParaPr.prototype.SetAutoSpaceDN;
 	ApiParaPr.prototype["GetAutoSpaceDN"]            = ApiParaPr.prototype.GetAutoSpaceDN;
+	ApiParaPr.prototype["SetSnapToGrid"]             = ApiParaPr.prototype.SetSnapToGrid;
+	ApiParaPr.prototype["GetSnapToGrid"]             = ApiParaPr.prototype.GetSnapToGrid;
 	ApiParaPr.prototype["SetIndLeft"]                = ApiParaPr.prototype.SetIndLeft;
 	ApiParaPr.prototype["SetIndRight"]               = ApiParaPr.prototype.SetIndRight;
 	ApiParaPr.prototype["SetIndFirstLine"]           = ApiParaPr.prototype.SetIndFirstLine;

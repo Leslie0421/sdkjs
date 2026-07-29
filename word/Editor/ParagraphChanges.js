@@ -80,6 +80,7 @@ AscDFH.changesFactory[AscDFH.historyitem_Paragraph_Kinsoku]                   = 
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_OverflowPunct]             = CChangesParagraphOverflowPunct;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_AutoSpaceDE]               = CChangesParagraphAutoSpaceDE;
 AscDFH.changesFactory[AscDFH.historyitem_Paragraph_AutoSpaceDN]               = CChangesParagraphAutoSpaceDN;
+AscDFH.changesFactory[AscDFH.historyitem_Paragraph_SnapToGrid]                = CChangesParagraphSnapToGrid;
 
 function private_ParagraphChangesOnLoadPr(oColor)
 {
@@ -279,7 +280,8 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_Pr]                      
 	AscDFH.historyitem_Paragraph_Kinsoku,
 	AscDFH.historyitem_Paragraph_OverflowPunct,
 	AscDFH.historyitem_Paragraph_AutoSpaceDE,
-	AscDFH.historyitem_Paragraph_AutoSpaceDN
+	AscDFH.historyitem_Paragraph_AutoSpaceDN,
+	AscDFH.historyitem_Paragraph_SnapToGrid
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_PresentationPr_Bullet]     = [
 	AscDFH.historyitem_Paragraph_PresentationPr_Bullet,
@@ -341,6 +343,10 @@ AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_AutoSpaceDE] = [
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_AutoSpaceDN] = [
 	AscDFH.historyitem_Paragraph_AutoSpaceDN,
+	AscDFH.historyitem_Paragraph_Pr
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_SnapToGrid] = [
+	AscDFH.historyitem_Paragraph_SnapToGrid,
 	AscDFH.historyitem_Paragraph_Pr
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_Paragraph_ParaId] = [
@@ -2227,6 +2233,15 @@ function CChangesParagraphAutoSpaceDN(Class, Old, New, Color)
 private_InitEastAsianParagraphChange(CChangesParagraphAutoSpaceDN, AscDFH.historyitem_Paragraph_AutoSpaceDN, function(paragraph, value)
 {
 	paragraph.Pr.AutoSpaceDN = value;
+});
+
+function CChangesParagraphSnapToGrid(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+private_InitEastAsianParagraphChange(CChangesParagraphSnapToGrid, AscDFH.historyitem_Paragraph_SnapToGrid, function(paragraph, value)
+{
+	paragraph.Pr.SnapToGrid = value;
 });
 
 (function()

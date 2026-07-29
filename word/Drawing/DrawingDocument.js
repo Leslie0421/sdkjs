@@ -3635,8 +3635,44 @@ function CDrawingDocument()
 			l = (l * rPR) >> 0;
 			r = (r * rPR) >> 0;
 			b = (b * rPR) >> 0;
+			var gridTop = (t * rPR) >> 0;
 			lf = (lf * rPR) >> 0;
 			rf = (rf * rPR) >> 0;
+
+			var gridType = props.get_DocGridType ? props.get_DocGridType() : props.DocGridType;
+			var showLineGrid = (Asc.c_oAscDocGridType.Lines === gridType || Asc.c_oAscDocGridType.LinesAndChars === gridType);
+			var showCharGrid = (Asc.c_oAscDocGridType.SnapToChars === gridType || Asc.c_oAscDocGridType.LinesAndChars === gridType);
+			if (showLineGrid || showCharGrid)
+			{
+				ctx.save();
+				ctx.strokeStyle = "#9abbd8";
+				ctx.lineWidth = Math.max(1, Math.round(0.5 * rPR));
+				if (showLineGrid)
+				{
+					var lineCount = props.get_DocGridLinesPerPage ? props.get_DocGridLinesPerPage() : 0;
+					lineCount = Math.min(200, Math.max(1, lineCount || 1));
+					for (var gridLineIndex = 0; gridLineIndex <= lineCount; ++gridLineIndex)
+					{
+						var gridY = gridTop + (b - gridTop) * gridLineIndex / lineCount;
+						ctx.moveTo(l, gridY);
+						ctx.lineTo(r, gridY);
+					}
+				}
+				if (showCharGrid)
+				{
+					var charCount = props.get_DocGridCharsPerLine ? props.get_DocGridCharsPerLine() : 0;
+					charCount = Math.min(200, Math.max(1, charCount || 1));
+					for (var gridCharIndex = 0; gridCharIndex <= charCount; ++gridCharIndex)
+					{
+						var gridX = l + (r - l) * gridCharIndex / charCount;
+						ctx.moveTo(gridX, gridTop);
+						ctx.lineTo(gridX, b);
+					}
+				}
+				ctx.stroke();
+				ctx.beginPath();
+				ctx.restore();
+			}
 			var cur = ((t * rPR) >> 0) + indent;
 			var cur_offset = 2 * lineW;
 			var cur_offset_end = 6 * lineW;

@@ -88,6 +88,7 @@ AscDFH.changesFactory[AscDFH.historyitem_ParaRun_CS]                    = CChang
 AscDFH.changesFactory[AscDFH.historyitem_ParaRun_RTL]                   = CChangesRunRTL;
 AscDFH.changesFactory[AscDFH.historyitem_ParaRun_MathMetaData]          = CChangesRunMathMetaData;
 AscDFH.changesFactory[AscDFH.historyitem_ParaRun_TextScale]             = CChangesRunTextScale;
+AscDFH.changesFactory[AscDFH.historyitem_ParaRun_SnapToGrid]            = CChangesRunSnapToGrid;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Карта зависимости изменений
@@ -182,6 +183,7 @@ AscDFH.changesRelationMap[AscDFH.historyitem_ParaRun_TextPr]            = [
 	AscDFH.historyitem_ParaRun_RFonts_EastAsia_Theme,
 	AscDFH.historyitem_ParaRun_Ligatures,
 	AscDFH.historyitem_ParaRun_TextScale,
+	AscDFH.historyitem_ParaRun_SnapToGrid,
 	AscDFH.historyitem_ParaRun_CS,
 	AscDFH.historyitem_ParaRun_RTL
 ];
@@ -241,6 +243,10 @@ AscDFH.changesRelationMap[AscDFH.historyitem_ParaRun_Ligatures] = [
 AscDFH.changesRelationMap[AscDFH.historyitem_ParaRun_TextScale] = [
 	AscDFH.historyitem_ParaRun_TextPr,
 	AscDFH.historyitem_ParaRun_TextScale
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_ParaRun_SnapToGrid] = [
+	AscDFH.historyitem_ParaRun_TextPr,
+	AscDFH.historyitem_ParaRun_SnapToGrid
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_ParaRun_CS] = [
 	AscDFH.historyitem_ParaRun_TextPr,
@@ -1845,6 +1851,11 @@ CChangesRunTextPr.prototype.Merge = function(oChange)
 			this.New.TextScale = oChange.New;
 			break;
 		}
+		case AscDFH.historyitem_ParaRun_SnapToGrid:
+		{
+			this.New.SnapToGrid = oChange.New;
+			break;
+		}
 	}
 
 	return true;
@@ -2765,6 +2776,27 @@ CChangesRunTextScale.prototype.private_SetValue = function(Value)
 };
 CChangesRunTextScale.prototype.Merge = private_ParaRunChangesOnMergeTextPr;
 CChangesRunTextScale.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseBoolProperty}
+ */
+function CChangesRunSnapToGrid(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+CChangesRunSnapToGrid.prototype = Object.create(AscDFH.CChangesBaseBoolProperty.prototype);
+CChangesRunSnapToGrid.prototype.constructor = CChangesRunSnapToGrid;
+CChangesRunSnapToGrid.prototype.Type = AscDFH.historyitem_ParaRun_SnapToGrid;
+CChangesRunSnapToGrid.prototype.private_SetValue = function(Value)
+{
+	let run = this.Class;
+	run.Pr.SnapToGrid = Value;
+	run.Recalc_CompiledPr(true);
+	run.private_UpdateTrackRevisionOnChangeTextPr(false);
+};
+CChangesRunSnapToGrid.prototype.Load = private_ParaRunChangesLoadTextPr;
+CChangesRunSnapToGrid.prototype.Merge = private_ParaRunChangesOnMergeTextPr;
+CChangesRunSnapToGrid.prototype.CheckLock = private_ParagraphContentChangesCheckLock;
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseBoolProperty}

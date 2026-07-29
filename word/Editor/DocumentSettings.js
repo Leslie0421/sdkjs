@@ -72,10 +72,15 @@
 		this.BalanceSingleByteDoubleByteWidth = false;
 		this.UlTrailSpace                     = false;
 		this.UseFELayout                      = false;
+		this.DoNotSnapToGridInCell            = false;
 	}
 	DocumentSettings.prototype.getCompatibilityMode = function()
 	{
 		return this.CompatibilityMode;
+	};
+	DocumentSettings.prototype.isDoNotSnapToGridInCell = function()
+	{
+		return this.DoNotSnapToGridInCell;
 	};
 	DocumentSettings.prototype.isAutoHyphenation = function()
 	{

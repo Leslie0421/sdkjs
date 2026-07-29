@@ -3811,6 +3811,9 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 						Item.ResetTemporaryHyphenAfter();
 						Item.ResetAutoSpaceBefore();
 						Item.SetAutoSpaceBefore(PRS.getAutoSpaceBefore(Item, this, ParaPr));
+						let gridSpace = PRS.getCharGridSpaceBefore(Item, this, ParaPr, X + SpaceLen + WordLen);
+						if (null !== gridSpace)
+							Item.SetAutoSpaceBefore(gridSpace);
 					}
 
 					if (true !== PRS.IsFastRecalculate())
@@ -5076,6 +5079,8 @@ ParaRun.prototype.Recalculate_LineMetrics = function(PRS, ParaPr, _CurLine, _Cur
 	var LineRule              = ParaPr.Spacing.LineRule;
 	
 	let textPr = this.Get_CompiledPr(false);
+	if (StartPos < EndPos && false === textPr.SnapToGrid)
+		PRS.LineSnapToGrid = false;
 	if (this.IsUseAscFont(textPr))
 	{
 		textPr = textPr.Copy();
@@ -8649,6 +8654,9 @@ ParaRun.prototype.Apply_Pr = function(TextPr)
 	if (undefined !== TextPr.TextScale)
 		this.SetTextScale(null === TextPr.TextScale ? undefined : TextPr.TextScale);
 
+	if (undefined !== TextPr.SnapToGrid)
+		this.SetSnapToGrid(null === TextPr.SnapToGrid ? undefined : TextPr.SnapToGrid);
+
 	for (var nPos = 0, nCount = this.Content.length; nPos < nCount; ++nPos)
 	{
 		if (para_End === this.Content[nPos].Type)
@@ -9451,6 +9459,16 @@ ParaRun.prototype.SetTextScale = function(nValue)
 	this.Pr.TextScale = nValue;
 	this.Recalc_CompiledPr(true);
 	this.private_UpdateShapeText();
+	this.private_UpdateTrackRevisionOnChangeTextPr(false);
+};
+ParaRun.prototype.SetSnapToGrid = function(value)
+{
+	if (this.Pr.SnapToGrid === value)
+		return;
+
+	AscCommon.History.Add(new CChangesRunSnapToGrid(this, this.Pr.SnapToGrid, value));
+	this.Pr.SnapToGrid = value;
+	this.Recalc_CompiledPr(true);
 	this.private_UpdateTrackRevisionOnChangeTextPr(false);
 };
 ParaRun.prototype.IsCS = function()

@@ -1990,6 +1990,7 @@
 	window['AscDFH'].historyitem_Paragraph_OverflowPunct            = window['AscDFH'].historyitem_type_Paragraph | 48;
 	window['AscDFH'].historyitem_Paragraph_AutoSpaceDE              = window['AscDFH'].historyitem_type_Paragraph | 49;
 	window['AscDFH'].historyitem_Paragraph_AutoSpaceDN              = window['AscDFH'].historyitem_type_Paragraph | 50;
+	window['AscDFH'].historyitem_Paragraph_SnapToGrid               = window['AscDFH'].historyitem_type_Paragraph | 51;
 	//------------------------------------------------------------------------------------------------------------------
 	// Типы изменений в классе ParaTextPr
 	//------------------------------------------------------------------------------------------------------------------
@@ -2031,6 +2032,7 @@
 	window['AscDFH'].historyitem_TextPr_ItalicCS              = window['AscDFH'].historyitem_type_TextPr | 36;
 	window['AscDFH'].historyitem_TextPr_Ligatures             = window['AscDFH'].historyitem_type_TextPr | 37;
 	window['AscDFH'].historyitem_TextPr_TextScale             = window['AscDFH'].historyitem_type_TextPr | 38;
+	window['AscDFH'].historyitem_TextPr_SnapToGrid            = window['AscDFH'].historyitem_type_TextPr | 39;
 	//------------------------------------------------------------------------------------------------------------------
 	// Типы изменений в классе ParaDrawing
 	//------------------------------------------------------------------------------------------------------------------
@@ -2313,6 +2315,7 @@
 	window['AscDFH'].historyitem_ParaRun_RTL                   = window['AscDFH'].historyitem_type_ParaRun | 54;
 	window['AscDFH'].historyitem_ParaRun_MathMetaData          = window['AscDFH'].historyitem_type_ParaRun | 55;
 	window['AscDFH'].historyitem_ParaRun_TextScale             = window['AscDFH'].historyitem_type_ParaRun | 56;
+	window['AscDFH'].historyitem_ParaRun_SnapToGrid            = window['AscDFH'].historyitem_type_ParaRun | 57;
 	
 	//------------------------------------------------------------------------------------------------------------------
 	// Типы изменений в классе AscCommon.ParaComment

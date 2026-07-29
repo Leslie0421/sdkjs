@@ -16572,6 +16572,8 @@
 				oResult["autoSpaceDE"] = this.AutoSpaceDE;
 			if (this.AutoSpaceDN != null)
 				oResult["autoSpaceDN"] = this.AutoSpaceDN;
+			if (this.SnapToGrid != null)
+				oResult["snapToGrid"] = this.SnapToGrid;
 			if (this.FramePr != null)
 				oResult["framePr"] = WriterToJSON.prototype.SerFramePr(this.FramePr);
 
@@ -16757,6 +16759,8 @@
 				this.AutoSpaceDE = oParsedJson["autoSpaceDE"];
 			if (oParsedJson["autoSpaceDN"] != null)
 				this.AutoSpaceDN = oParsedJson["autoSpaceDN"];
+			if (oParsedJson["snapToGrid"] != null)
+				this.SnapToGrid = oParsedJson["snapToGrid"];
 			if (oParsedJson["framePr"] != null)
 				this.FramePr = ReaderFromJSON.prototype.FramePrFromJSON(oParsedJson["framePr"]);
 
@@ -17033,6 +17037,8 @@
 				oResult["u"] = this.Underline;	
 			if (this.Vanish != null)
 				oResult["vanish"] = this.Vanish;
+			if (this.SnapToGrid != null)
+				oResult["snapToGrid"] = this.SnapToGrid;
 			if (sVAlign != null)
 				oResult["vertAlign"] = sVAlign;
 			if (this.Unifill != null)
@@ -17258,6 +17264,8 @@
 				this.Underline = oParsedJson["u"];
 			if (oParsedJson["vanish"] != null)
 				this.Vanish = oParsedJson["vanish"];
+			if (oParsedJson["snapToGrid"] != null)
+				this.SnapToGrid = oParsedJson["snapToGrid"];
 			if (nVAlign != null)
 				this.VertAlign = nVAlign;
 			if (oParsedJson["uniFill"] != null)

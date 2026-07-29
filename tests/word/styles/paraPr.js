@@ -89,34 +89,36 @@ $(function () {
 		assert.strictEqual(defaults.OverflowPunct, true, "OverflowPunct defaults to true");
 		assert.strictEqual(defaults.AutoSpaceDE, true, "AutoSpaceDE defaults to true");
 		assert.strictEqual(defaults.AutoSpaceDN, true, "AutoSpaceDN defaults to true");
+		assert.strictEqual(defaults.SnapToGrid, true, "Paragraph SnapToGrid defaults to true");
 
 		let paraPr = AscWord.CParaPr.fromObject({
 			Kinsoku      : false,
 			OverflowPunct: true,
 			AutoSpaceDE  : false,
-			AutoSpaceDN  : true
+			AutoSpaceDN  : true,
+			SnapToGrid   : false
 		});
 		let copy = paraPr.Copy();
 
 		assert.ok(paraPr.IsEqual(copy), "Copy preserves all East Asian properties");
 		assert.deepEqual(
-			[copy.Kinsoku, copy.OverflowPunct, copy.AutoSpaceDE, copy.AutoSpaceDN],
-			[false, true, false, true],
+			[copy.Kinsoku, copy.OverflowPunct, copy.AutoSpaceDE, copy.AutoSpaceDN, copy.SnapToGrid],
+			[false, true, false, true, false],
 			"Copied values are unchanged"
 		);
 
-		let overlay = AscWord.CParaPr.fromObject({AutoSpaceDE: true, AutoSpaceDN: false});
+		let overlay = AscWord.CParaPr.fromObject({AutoSpaceDE: true, AutoSpaceDN: false, SnapToGrid: true});
 		copy.Merge(overlay);
 		assert.deepEqual(
-			[copy.Kinsoku, copy.OverflowPunct, copy.AutoSpaceDE, copy.AutoSpaceDN],
-			[false, true, true, false],
+			[copy.Kinsoku, copy.OverflowPunct, copy.AutoSpaceDE, copy.AutoSpaceDN, copy.SnapToGrid],
+			[false, true, true, false, true],
 			"Merge changes only explicitly declared values"
 		);
 
 		let compared = paraPr.Compare(paraPr.Copy());
 		assert.deepEqual(
-			[compared.Kinsoku, compared.OverflowPunct, compared.AutoSpaceDE, compared.AutoSpaceDN],
-			[false, true, false, true],
+			[compared.Kinsoku, compared.OverflowPunct, compared.AutoSpaceDE, compared.AutoSpaceDN, compared.SnapToGrid],
+			[false, true, false, true, false],
 			"Compare retains common values"
 		);
 	});
@@ -131,13 +133,14 @@ $(function () {
 			Kinsoku      : false,
 			OverflowPunct: false,
 			AutoSpaceDE  : false,
-			AutoSpaceDN  : false
+			AutoSpaceDN  : false,
+			SnapToGrid   : false
 		});
 
 		let derivedStyle = new AscWord.CStyle();
 		stylesManager.Add(derivedStyle);
 		derivedStyle.SetBasedOn(baseStyle.GetId());
-		derivedStyle.SetParaPr({OverflowPunct: true, AutoSpaceDN: true});
+		derivedStyle.SetParaPr({OverflowPunct: true, AutoSpaceDN: true, SnapToGrid: true});
 
 		let paragraph = new AscWord.Paragraph();
 		logicDocument.AddToContent(0, paragraph);
@@ -145,25 +148,26 @@ $(function () {
 
 		let compiledPr = paragraph.GetCompiledParaPr();
 		assert.deepEqual(
-			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN],
-			[false, true, false, true],
+			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN, compiledPr.SnapToGrid],
+			[false, true, false, true, true],
 			"Derived style overrides only declared values and inherits the rest"
 		);
 
 		paragraph.SetKinsoku(true);
 		paragraph.SetAutoSpaceDE(true);
+		paragraph.SetSnapToGrid(false);
 		compiledPr = paragraph.GetCompiledParaPr();
 		assert.deepEqual(
-			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN],
-			[true, true, true, true],
+			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN, compiledPr.SnapToGrid],
+			[true, true, true, true, false],
 			"Direct formatting overrides inherited values"
 		);
 
 		paragraph.Clear_Formatting();
 		compiledPr = paragraph.GetCompiledParaPr();
 		assert.deepEqual(
-			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN],
-			[true, true, true, true],
+			[compiledPr.Kinsoku, compiledPr.OverflowPunct, compiledPr.AutoSpaceDE, compiledPr.AutoSpaceDN, compiledPr.SnapToGrid],
+			[true, true, true, true, true],
 			"Clearing paragraph formatting removes direct values and restores defaults"
 		);
 	});
@@ -180,25 +184,26 @@ $(function () {
 		paragraph.SetOverflowPunct(false);
 		paragraph.SetAutoSpaceDE(false);
 		paragraph.SetAutoSpaceDN(false);
+		paragraph.SetSnapToGrid(false);
 		logicDocument.FinalizeAction();
 
 		assert.deepEqual(
-			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN],
-			[false, false, false, false],
+			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN, paragraph.Pr.SnapToGrid],
+			[false, false, false, false, false],
 			"Direct properties are applied"
 		);
 
 		logicDocument.Document_Undo();
 		assert.deepEqual(
-			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN],
-			[undefined, undefined, undefined, undefined],
+			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN, paragraph.Pr.SnapToGrid],
+			[undefined, undefined, undefined, undefined, undefined],
 			"Undo restores inherited state"
 		);
 
 		logicDocument.Document_Redo();
 		assert.deepEqual(
-			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN],
-			[false, false, false, false],
+			[paragraph.Pr.Kinsoku, paragraph.Pr.OverflowPunct, paragraph.Pr.AutoSpaceDE, paragraph.Pr.AutoSpaceDN, paragraph.Pr.SnapToGrid],
+			[false, false, false, false, false],
 			"Redo restores direct values"
 		);
 	});
@@ -210,7 +215,8 @@ $(function () {
 			[AscDFH.historyitem_Paragraph_Kinsoku, "Kinsoku"],
 			[AscDFH.historyitem_Paragraph_OverflowPunct, "OverflowPunct"],
 			[AscDFH.historyitem_Paragraph_AutoSpaceDE, "AutoSpaceDE"],
-			[AscDFH.historyitem_Paragraph_AutoSpaceDN, "AutoSpaceDN"]
+			[AscDFH.historyitem_Paragraph_AutoSpaceDN, "AutoSpaceDN"],
+			[AscDFH.historyitem_Paragraph_SnapToGrid, "SnapToGrid"]
 		];
 
 		for (let i = 0; i < properties.length; ++i)
@@ -238,14 +244,15 @@ $(function () {
 			Kinsoku      : false,
 			OverflowPunct: true,
 			AutoSpaceDE  : false,
-			AutoSpaceDN  : true
+			AutoSpaceDN  : true,
+			SnapToGrid   : false
 		});
 
 		let json = source.ToJson(true);
 		let fromJson = AscWord.CParaPr.FromJson(json, true);
 		assert.deepEqual(
-			[fromJson.Kinsoku, fromJson.OverflowPunct, fromJson.AutoSpaceDE, fromJson.AutoSpaceDN],
-			[false, true, false, true],
+			[fromJson.Kinsoku, fromJson.OverflowPunct, fromJson.AutoSpaceDE, fromJson.AutoSpaceDN, fromJson.SnapToGrid],
+			[false, true, false, true, false],
 			"JSON preserves explicit true and false values"
 		);
 
@@ -254,8 +261,8 @@ $(function () {
 		let fromModelBinary = new AscWord.CParaPr();
 		fromModelBinary.ReadFromBinary(AscTest.GetBinaryReader(modelWriter));
 		assert.deepEqual(
-			[fromModelBinary.Kinsoku, fromModelBinary.OverflowPunct, fromModelBinary.AutoSpaceDE, fromModelBinary.AutoSpaceDN],
-			[false, true, false, true],
+			[fromModelBinary.Kinsoku, fromModelBinary.OverflowPunct, fromModelBinary.AutoSpaceDE, fromModelBinary.AutoSpaceDN, fromModelBinary.SnapToGrid],
+			[false, true, false, true, false],
 			"CParaPr binary serialization preserves all values"
 		);
 
@@ -269,8 +276,8 @@ $(function () {
 			AscTest.GetBinaryReader(editorBinWriter)
 		).Read(editorBinWriter.GetCurPosition(), fromEditorBin);
 		assert.deepEqual(
-			[fromEditorBin.Kinsoku, fromEditorBin.OverflowPunct, fromEditorBin.AutoSpaceDE, fromEditorBin.AutoSpaceDN],
-			[false, true, false, true],
+			[fromEditorBin.Kinsoku, fromEditorBin.OverflowPunct, fromEditorBin.AutoSpaceDE, fromEditorBin.AutoSpaceDN, fromEditorBin.SnapToGrid],
+			[false, true, false, true, false],
 			"Editor.bin preserves all values"
 		);
 	});
@@ -282,16 +289,64 @@ $(function () {
 		properties.put_OverflowPunct(true);
 		properties.put_AutoSpaceDE(false);
 		properties.put_AutoSpaceDN(true);
+		properties.put_SnapToGrid(false);
 
 		assert.deepEqual(
 			[
 				properties.get_Kinsoku(),
 				properties.get_OverflowPunct(),
 				properties.get_AutoSpaceDE(),
-				properties.get_AutoSpaceDN()
+				properties.get_AutoSpaceDN(),
+				properties.get_SnapToGrid()
 			],
-			[false, true, false, true],
+			[false, true, false, true, false],
 			"Public getters and setters preserve independent values"
 		);
+	});
+
+	QUnit.test("Run SnapToGrid model, history and binary round trips", function(assert)
+	{
+		let defaults = new AscWord.CTextPr();
+		defaults.InitDefault();
+		assert.strictEqual(defaults.SnapToGrid, true, "Run SnapToGrid defaults to true");
+
+		let source = new AscWord.CTextPr();
+		source.SnapToGrid = false;
+		let copy = source.Copy();
+		assert.strictEqual(copy.SnapToGrid, false, "Copy preserves run SnapToGrid");
+
+		let modelWriter = AscTest.GetBinaryWriter();
+		source.WriteToBinary(modelWriter);
+		let fromModelBinary = new AscWord.CTextPr();
+		fromModelBinary.ReadFromBinary(AscTest.GetBinaryReader(modelWriter));
+		assert.strictEqual(fromModelBinary.SnapToGrid, false, "CTextPr binary preserves run SnapToGrid");
+
+		let editorBinWriter = AscTest.GetBinaryWriter();
+		new Binary_rPrWriter(editorBinWriter, null).Write_rPr(source, null, null);
+		let fromEditorBin = new AscWord.CTextPr();
+		new Binary_rPrReader(
+			logicDocument,
+			new DocReadResult(logicDocument),
+			AscTest.GetBinaryReader(editorBinWriter)
+		).Read(editorBinWriter.GetCurPosition(), fromEditorBin, null);
+		assert.strictEqual(fromEditorBin.SnapToGrid, false, "Editor.bin preserves run SnapToGrid");
+
+		let paraTextPr = new AscWord.ParaTextPr();
+		let ChangeClass = AscDFH.changesFactory[AscDFH.historyitem_TextPr_SnapToGrid];
+		let changeWriter = AscTest.GetBinaryWriter();
+		new ChangeClass(paraTextPr, undefined, false).WriteToBinary(changeWriter);
+		let loadedChange = new ChangeClass(paraTextPr);
+		loadedChange.ReadFromBinary(AscTest.GetBinaryReader(changeWriter));
+		loadedChange.Load();
+		assert.strictEqual(paraTextPr.Value.SnapToGrid, false, "Collaborative change applies run SnapToGrid");
+
+		let run = new AscWord.CRun();
+		let RunChangeClass = AscDFH.changesFactory[AscDFH.historyitem_ParaRun_SnapToGrid];
+		let runChangeWriter = AscTest.GetBinaryWriter();
+		new RunChangeClass(run, undefined, false).WriteToBinary(runChangeWriter);
+		let loadedRunChange = new RunChangeClass(run);
+		loadedRunChange.ReadFromBinary(AscTest.GetBinaryReader(runChangeWriter));
+		loadedRunChange.Load();
+		assert.strictEqual(run.Pr.SnapToGrid, false, "Collaborative run change applies direct SnapToGrid");
 	});
 });

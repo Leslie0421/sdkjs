@@ -1345,6 +1345,8 @@ Paragraph.prototype.private_RecalculateLineMetrics     = function(CurLine, CurPa
 
 Paragraph.prototype.private_RecalculateLinePosition    = function(CurLine, CurPage, PRS, ParaPr)
 {
+	this.private_SnapLineToDocumentGrid(CurLine, CurPage, PRS, ParaPr);
+
 	// Важно: Значение Border.Space учитывается всегда, даже когда Border.Value = none, а
 	//        вот Border.Size зависит уже от Border.Value
 
@@ -1585,6 +1587,67 @@ Paragraph.prototype.private_RecalculateLinePosition    = function(CurLine, CurPa
     PRS.LineTop2       = AscCommon.CorrectMMToTwips(Top2);
     PRS.LineBottom2    = AscCommon.CorrectMMToTwips(Bottom2);
     PRS.LinePrevBottom = AscCommon.CorrectMMToTwips(PrevBottom);
+};
+
+Paragraph.prototype.private_GetDocumentGridLinePitch = function(PRS, ParaPr)
+{
+	if (!PRS.LineSnapToGrid)
+		return 0;
+
+	let docGrid = PRS.getDocumentGrid(ParaPr);
+	if (!docGrid || (Asc.c_oAscDocGridType.Lines !== docGrid.Type
+		&& Asc.c_oAscDocGridType.LinesAndChars !== docGrid.Type)
+		|| !docGrid.LinePitch || docGrid.LinePitch <= 0)
+		return 0;
+
+	return AscCommon.TwipsToMM(docGrid.LinePitch);
+};
+
+Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, PRS, ParaPr)
+{
+	let pitch = this.private_GetDocumentGridLinePitch(PRS, ParaPr);
+	if (pitch < 0.001 || this.Lines[CurLine].Info & paralineinfo_RangeY)
+		return;
+
+	let metrics = this.Lines[CurLine].Metrics;
+	let pageFirstLine = this.Pages[CurPage].FirstLine;
+	let baseline;
+	if (CurLine === pageFirstLine)
+	{
+		baseline = this.Pages[CurPage].Y + metrics.Ascent;
+		if (this.Check_FirstPage(CurPage, true))
+		{
+			if (this.private_CheckNeedBeforeSpacing(CurPage, PRS.Parent, PRS.GetPageAbs(), ParaPr))
+				baseline += ParaPr.Spacing.Before;
+			if (true === ParaPr.Brd.First || 1 === CurPage)
+			{
+				baseline += ParaPr.Brd.Top.Space;
+				if (border_Single === ParaPr.Brd.Top.Value)
+					baseline += ParaPr.Brd.Top.Size;
+			}
+			else if (false === ParaPr.Brd.First)
+			{
+				baseline += ParaPr.Brd.Between.Space;
+				if (border_Single === ParaPr.Brd.Between.Value)
+					baseline += ParaPr.Brd.Between.Size;
+			}
+		}
+	}
+	else
+	{
+		let previousMetrics = this.Lines[CurLine - 1].Metrics;
+		baseline = PRS.Y + PRS.BaseLineOffset + previousMetrics.Descent + previousMetrics.LineGap + metrics.Ascent;
+	}
+
+	let sectPr = PRS.GetSectPr();
+	let origin = sectPr ? sectPr.GetContentFrame(PRS.GetPageAbs()).Top : this.Pages[CurPage].Y;
+	if (!(PRS.GetTopDocument() instanceof CDocument))
+		origin = this.Pages[CurPage].Y;
+
+	let gridLine = Math.max(1, Math.ceil((baseline - origin - 0.001) / pitch));
+	let snappedBaseline = origin + gridLine * pitch;
+	if (snappedBaseline > baseline + 0.001)
+		metrics.Ascent += snappedBaseline - baseline;
 };
 
 Paragraph.prototype.private_RecalculateLineBottomBound = function(CurLine, CurPage, PRS, ParaPr)
@@ -3415,6 +3478,7 @@ function CParagraphRecalculateStateWrap()
     this.LineTextAscent2 = 0;
     this.LineAscent      = 0;
     this.LineDescent     = 0;
+	this.LineSnapToGrid  = true;
 
     this.LineTop        = 0;
     this.LineBottom     = 0;
@@ -3564,6 +3628,7 @@ CParagraphRecalculateStateWrap.prototype.Reset_Line = function()
 	this.LineTextDescent = 0;
 	this.LineAscent      = 0;
 	this.LineDescent     = 0;
+	this.LineSnapToGrid  = true;
 	
 	this.NewPage      = false;
 	this.ForceNewPage = false;
@@ -3697,6 +3762,40 @@ CParagraphRecalculateStateWrap.prototype.isKinsokuEnabledForRun = function(paraP
 
 	let textPr = run.Get_CompiledPr(false);
 	return !AscWord.IsEastAsianLanguage(textPr.Lang.EastAsia);
+};
+CParagraphRecalculateStateWrap.prototype.getDocumentGrid = function(paraPr, run)
+{
+	if (false === paraPr.SnapToGrid || (run && false === run.Get_CompiledPr(false).SnapToGrid))
+		return null;
+	if (this.IsInTable() && this.getDocumentSettings().isDoNotSnapToGridInCell())
+		return null;
+
+	let sectPr = this.GetSectPr();
+	return sectPr ? sectPr.GetDocGrid() : null;
+};
+CParagraphRecalculateStateWrap.prototype.getCharGridSpaceBefore = function(item, run, paraPr, x)
+{
+	if (!item || para_Text !== item.Type || !item.IsEastAsianGridCharacter())
+		return null;
+
+	let docGrid = this.getDocumentGrid(paraPr, run);
+	if (!docGrid || (Asc.c_oAscDocGridType.LinesAndChars !== docGrid.Type
+		&& Asc.c_oAscDocGridType.SnapToChars !== docGrid.Type))
+		return null;
+
+	let textPr = run.Get_CompiledPr(false);
+	let pitch = (textPr.FontSize + (docGrid.CharSpace || 0) / 4096) * g_dKoef_pt_to_mm;
+	if (pitch < 0.001)
+		return null;
+
+	let frame = this.GetSectPr().GetContentFrame(this.PageAbs);
+	let offset = (x - frame.Left) % pitch;
+	if (offset < 0)
+		offset += pitch;
+	if (offset < 0.001 || pitch - offset < 0.001)
+		return 0;
+
+	return pitch - offset;
 };
 CParagraphRecalculateStateWrap.prototype.ResetLastAutoHyphen = function()
 {

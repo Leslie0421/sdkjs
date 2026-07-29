@@ -101,4 +101,56 @@ $(function () {
 		AscTest.Recalculate();
 		checkLineHeight(assert, p1, [20, 25]);
 	});
+
+	QUnit.test("Document line grid snaps baselines and respects paragraph and run overrides", function(assert)
+	{
+		let paragraph = logicDocument.GetElement(0);
+		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Exact, Line : 20});
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
+		let pitchTwips = 360;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+
+		paragraph.SetSnapToGrid(true);
+		run.SetSnapToGrid(true);
+		AscTest.Recalculate();
+		assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps to multiple lines");
+		let snappedDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
+		assert.close(snappedDistance / pitch, Math.round(snappedDistance / pitch), 0.001, "Adjacent baselines use an integral number of line-grid pitches");
+
+		paragraph.SetSnapToGrid(false);
+		AscTest.Recalculate();
+		let paragraphOverrideDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
+		assert.close(paragraphOverrideDistance, 20, 0.001, "Paragraph SnapToGrid=false restores exact line spacing");
+
+		paragraph.SetSnapToGrid(true);
+		run.SetSnapToGrid(false);
+		AscTest.Recalculate();
+		let runOverrideDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
+		assert.close(runOverrideDistance, 20, 0.001, "Run SnapToGrid=false disables grid snapping for affected lines");
+	});
+
+	QUnit.test("Document character grid uses virtual spacing and respects SnapToGrid", function(assert)
+	{
+		let paragraph = logicDocument.GetElement(0);
+		let run = AscTest.AddTextToParagraph(paragraph, "甲，１A丙");
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(
+			Asc.c_oAscDocGridType.SnapToChars,
+			5 * 4096,
+			undefined
+		));
+
+		paragraph.SetSnapToGrid(true);
+		run.SetSnapToGrid(true);
+		AscTest.Recalculate();
+		assert.ok(run.GetElement(1).GetAutoSpaceBefore() > 0, "East Asian punctuation is aligned to the next character-grid position");
+		assert.ok(run.GetElement(2).GetAutoSpaceBefore() > 0, "A full-width digit participates in the character grid");
+		assert.ok(run.GetElement(4).GetAutoSpaceBefore() > 0, "Latin text spans its natural width before the next full-width character is aligned");
+
+		paragraph.SetSnapToGrid(false);
+		AscTest.Recalculate();
+		assert.strictEqual(run.GetElement(1).GetAutoSpaceBefore(), 0, "Paragraph SnapToGrid=false clears character-grid spacing");
+		assert.strictEqual(run.GetElement(2).GetAutoSpaceBefore(), 0, "Full-width digit spacing is cleared on recalculation");
+		assert.strictEqual(run.GetElement(4).GetAutoSpaceBefore(), 0, "All character-grid spacing is cleared on recalculation");
+	});
 });

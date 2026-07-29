@@ -66,6 +66,10 @@ $(function ()
 			[false, true, false, true],
 			"ApiParaPr exposes all East Asian typography properties"
 		);
+
+		let apiRun = apiParagraph.AddText("网格");
+		apiRun.SetSnapToGrid(false);
+		assert.strictEqual(apiRun.GetSnapToGrid(), false, "ApiRun exposes run-level SnapToGrid");
 	});
 	
 	QUnit.test("GetText", function (assert)

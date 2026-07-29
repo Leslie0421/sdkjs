@@ -403,7 +403,9 @@ var c_oSerProp_secPrType = {
 	footnotePr: 10,
 	endnotePr: 11,
 	rtlGutter: 12,
-	lnNumType: 13
+	lnNumType: 13,
+	docGrid: 14,
+	bidi: 15
 };
 var c_oSerProp_secPrSettingsType = {
     titlePg: 0,
@@ -430,6 +432,11 @@ var c_oSerProp_Columns = {
 	Column: 4,
 	ColumnSpace: 5,
 	ColumnW: 6
+};
+var c_oSerProp_DocGrid = {
+	Type: 0,
+	CharSpace: 1,
+	LinePitch: 2
 };
 var c_oSerParType = {
     Par:0,
@@ -2581,6 +2588,12 @@ function Binary_pPrWriter(memory, oNumIdMap, oBinaryHeaderFooterTableWriter, sav
 			this.memory.WriteByte(c_oSerPropLenType.Byte);
 			this.memory.WriteBool(pPr.AutoSpaceDN);
 		}
+		if (null != pPr.SnapToGrid)
+		{
+			this.memory.WriteByte(c_oSerProp_pPrType.SnapToGrid);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(pPr.SnapToGrid);
+		}
     };
     this.WriteInd = function(Ind)
     {
@@ -2835,7 +2848,19 @@ function Binary_pPrWriter(memory, oNumIdMap, oBinaryHeaderFooterTableWriter, sav
 			this.bs.WriteItem(c_oSerProp_secPrType.endnotePr, function(){oThis.WriteNotePr(sectPr.EndnotePr, c_oSerNotes.PrEndPos);});
 		if(sectPr.IsGutterRTL())
 			this.bs.WriteItem(c_oSerProp_secPrType.rtlGutter, function(){oThis.memory.WriteBool(true);});
+		if (sectPr.DocGrid)
+			this.bs.WriteItem(c_oSerProp_secPrType.docGrid, function(){oThis.WriteDocGrid(sectPr.DocGrid);});
     };
+	this.WriteDocGrid = function(docGrid)
+	{
+		let oThis = this;
+		if (undefined !== docGrid.Type)
+			this.bs.WriteItem(c_oSerProp_DocGrid.Type, function(){oThis.memory.WriteByte(docGrid.Type);});
+		if (undefined !== docGrid.CharSpace)
+			this.bs.WriteItem(c_oSerProp_DocGrid.CharSpace, function(){oThis.memory.WriteLong(docGrid.CharSpace);});
+		if (undefined !== docGrid.LinePitch)
+			this.bs.WriteItem(c_oSerProp_DocGrid.LinePitch, function(){oThis.memory.WriteLong(docGrid.LinePitch);});
+	};
 	this.WriteNotePr = function(notePr, posType)
 	{
 		var oThis = this;
@@ -3447,6 +3472,12 @@ function Binary_rPrWriter(memory, saveParams)
 			this.memory.WriteByte(c_oSerProp_rPrType.Ligatures);
 			this.memory.WriteByte(c_oSerPropLenType.Byte);
 			this.memory.WriteByte(rPr.Ligatures);
+		}
+		if (undefined !== rPr.SnapToGrid)
+		{
+			this.memory.WriteByte(c_oSerProp_rPrType.SnapToGrid);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteBool(rPr.SnapToGrid);
 		}
 		if (undefined !== rPr.TextScale)
 		{
@@ -7358,6 +7389,7 @@ function BinarySettingsTableWriter(memory, doc, saveParams)
 		}
 		this.bs.WriteItem(c_oSerCompat.Flags1, function() {oThis.memory.WriteULong(flags1);});
 		var flags2 = 0;
+		flags2 |=  (oSettings.DoNotSnapToGridInCell ? 1 : 0) << 10;
 		flags2 |=  (oSettings.UseFELayout ? 1 : 0) << 17;
 		if (this.saveParams.isCompatible) {
 			flags2 |= (oSettings.SplitPageBreakAndParaMark ? 1 : 0) << 27;
@@ -9359,6 +9391,9 @@ function Binary_pPrReader(doc, oReadResult, stream)
 			case c_oSerProp_pPrType.AutoSpaceDN:
 				pPr.AutoSpaceDN = this.stream.GetBool();
 				break;
+			case c_oSerProp_pPrType.SnapToGrid:
+				pPr.SnapToGrid = this.stream.GetBool();
+				break;
             case c_oSerProp_pPrType.contextualSpacing:
 				pPr.ContextualSpacing = this.stream.GetBool();
                 break;
@@ -9846,10 +9881,29 @@ function Binary_pPrReader(doc, oReadResult, stream)
 			}
 		} else if( c_oSerProp_secPrType.rtlGutter === type ) {
 			oSectPr.SetGutterRTL(this.stream.GetBool());
+		} else if (c_oSerProp_secPrType.docGrid === type) {
+			let docGrid = new AscWord.SectionDocGrid();
+			res = this.bcr.Read1(length, function(t, l) {
+				return oThis.ReadDocGrid(t, l, docGrid);
+			});
+			oSectPr.SetDocGrid(docGrid);
 		} else
             res = c_oSerConstants.ReadUnknown;
         return res;
     };
+	this.ReadDocGrid = function(type, length, docGrid)
+	{
+		if (c_oSerProp_DocGrid.Type === type)
+			docGrid.Type = this.stream.GetUChar();
+		else if (c_oSerProp_DocGrid.CharSpace === type)
+			docGrid.CharSpace = this.stream.GetLongLE();
+		else if (c_oSerProp_DocGrid.LinePitch === type)
+			docGrid.LinePitch = this.stream.GetLongLE();
+		else
+			return c_oSerConstants.ReadUnknown;
+
+		return c_oSerConstants.ReadOk;
+	};
 	this.ReadNotePr = function(type, length, props, refs) {
 		var res = c_oSerConstants.ReadOk;
 		var oThis = this;
@@ -10449,6 +10503,9 @@ function Binary_rPrReader(doc, oReadResult, stream)
 				break;
 			case c_oSerProp_rPrType.Ligatures:
 				rPr.Ligatures = this.stream.GetByte();
+				break;
+			case c_oSerProp_rPrType.SnapToGrid:
+				rPr.SnapToGrid = this.stream.GetBool();
 				break;
 			case c_oSerProp_rPrType.CompressText:
 				rPr.TextScale = this.stream.GetLongLE();
@@ -17115,6 +17172,7 @@ function Binary_SettingsTableReader(doc, oReadResult, stream)
 			Settings.DoNotExpandShiftReturn = 0 != ((flags1 >> 10) & 1);
 		} else if (c_oSerCompat.Flags2 === type) {
 			var flags2 = this.stream.GetULong(length);
+			Settings.DoNotSnapToGridInCell = 0 != ((flags2 >> 10) & 1);
 			Settings.UseFELayout = 0 != ((flags2 >> 17) & 1);
 			Settings.SplitPageBreakAndParaMark = 0 != ((flags2 >> 27) & 1);
 		} else

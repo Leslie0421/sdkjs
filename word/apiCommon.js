@@ -1033,6 +1033,7 @@
 			this.OverflowPunct = undefined !== obj.OverflowPunct ? obj.OverflowPunct : null;
 			this.AutoSpaceDE = undefined !== obj.AutoSpaceDE ? obj.AutoSpaceDE : null;
 			this.AutoSpaceDN = undefined !== obj.AutoSpaceDN ? obj.AutoSpaceDN : null;
+			this.SnapToGrid = undefined !== obj.SnapToGrid ? obj.SnapToGrid : null;
 			this.Ind = (undefined != obj.Ind && null != obj.Ind) ? new Asc.asc_CParagraphInd(obj.Ind) : null;
 			this.Jc = (undefined != obj.Jc) ? obj.Jc : null;
 			this.KeepLines = (undefined != obj.KeepLines) ? obj.KeepLines : null;
@@ -1089,6 +1090,7 @@
 			this.OverflowPunct = true;
 			this.AutoSpaceDE = true;
 			this.AutoSpaceDN = true;
+			this.SnapToGrid = true;
 			this.Ind = new Asc.asc_CParagraphInd();
 			this.Jc = AscCommon.align_Left;
 			this.KeepLines = false;
@@ -1121,6 +1123,10 @@
 	CParagraphPropEx.prototype.get_AutoSpaceDN = function ()
 	{
 		return this.AutoSpaceDN;
+	};
+	CParagraphPropEx.prototype.get_SnapToGrid = function ()
+	{
+		return this.SnapToGrid;
 	};
 	CParagraphPropEx.prototype.get_Ind = function ()
 	{
@@ -1287,6 +1293,7 @@
 	CParagraphPropEx.prototype['get_OverflowPunct'] = CParagraphPropEx.prototype.get_OverflowPunct;
 	CParagraphPropEx.prototype['get_AutoSpaceDE'] = CParagraphPropEx.prototype.get_AutoSpaceDE;
 	CParagraphPropEx.prototype['get_AutoSpaceDN'] = CParagraphPropEx.prototype.get_AutoSpaceDN;
+	CParagraphPropEx.prototype['get_SnapToGrid'] = CParagraphPropEx.prototype.get_SnapToGrid;
 	CParagraphPropEx.prototype['get_Ind'] = CParagraphPropEx.prototype.get_Ind;
 	CParagraphPropEx.prototype['get_Jc'] = CParagraphPropEx.prototype.get_Jc;
 	CParagraphPropEx.prototype['get_KeepLines'] = CParagraphPropEx.prototype.get_KeepLines;

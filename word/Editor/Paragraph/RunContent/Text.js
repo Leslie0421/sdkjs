@@ -513,6 +513,14 @@
 
 		return 0;
 	};
+	CRunText.prototype.IsEastAsianGridCharacter = function()
+	{
+		if (this.IsCombiningMark() || this.IsLigatureContinue() || this.IsNBSP())
+			return false;
+
+		return (AscCommon.isEastAsianScript(this.Value)
+			|| AscCommon.isEastAsianPunctuation(this.Value));
+	};
 	CRunText.prototype.IsHangingPunctuation = function(lang)
 	{
 		if (!isEastAsianLanguage(lang))

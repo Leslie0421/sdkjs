@@ -70,6 +70,7 @@ AscDFH.changesFactory[AscDFH.historyitem_TextPr_BoldCS]                = CChange
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_ItalicCS]              = CChangesParaTextPrItalicCS;
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_Ligatures]             = CChangesParaTextPrLigatures;
 AscDFH.changesFactory[AscDFH.historyitem_TextPr_TextScale]             = CChangesParaTextPrTextScale;
+AscDFH.changesFactory[AscDFH.historyitem_TextPr_SnapToGrid]            = CChangesParaTextPrSnapToGrid;
 
 //----------------------------------------------------------------------------------------------------------------------
 // Карта зависимости изменений
@@ -168,7 +169,8 @@ AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_Value]           = [
 	AscDFH.historyitem_TextPr_BoldCS,
 	AscDFH.historyitem_TextPr_ItalicCS,
 	AscDFH.historyitem_TextPr_Ligatures,
-	AscDFH.historyitem_TextPr_TextScale
+	AscDFH.historyitem_TextPr_TextScale,
+	AscDFH.historyitem_TextPr_SnapToGrid
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_RFonts]          = [
 	AscDFH.historyitem_TextPr_RFonts,
@@ -284,6 +286,10 @@ AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_Ligatures] = [
 ];
 AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_TextScale] = [
 	AscDFH.historyitem_TextPr_TextScale,
+	AscDFH.historyitem_TextPr_Value
+];
+AscDFH.changesRelationMap[AscDFH.historyitem_TextPr_SnapToGrid] = [
+	AscDFH.historyitem_TextPr_SnapToGrid,
 	AscDFH.historyitem_TextPr_Value
 ];
 
@@ -918,6 +924,11 @@ CChangesParaTextPrValue.prototype.Merge = function(oChange)
 		case AscDFH.historyitem_TextPr_TextScale:
 		{
 			this.New.TextScale = oChange.New;
+			break;
+		}
+		case AscDFH.historyitem_TextPr_SnapToGrid:
+		{
+			this.New.SnapToGrid = oChange.New;
 			break;
 		}
 	}
@@ -1712,3 +1723,19 @@ CChangesParaTextPrTextScale.prototype.private_SetValue = function(Value)
 	this.Class.Value.TextScale = Value;
 };
 CChangesParaTextPrTextScale.prototype.Merge = private_ParaTextPrChangesOnMergeValue;
+/**
+ * @constructor
+ * @extends {AscDFH.CChangesBaseBoolProperty}
+ */
+function CChangesParaTextPrSnapToGrid(Class, Old, New, Color)
+{
+	AscDFH.CChangesBaseBoolProperty.call(this, Class, Old, New, Color);
+}
+CChangesParaTextPrSnapToGrid.prototype = Object.create(AscDFH.CChangesBaseBoolProperty.prototype);
+CChangesParaTextPrSnapToGrid.prototype.constructor = CChangesParaTextPrSnapToGrid;
+CChangesParaTextPrSnapToGrid.prototype.Type = AscDFH.historyitem_TextPr_SnapToGrid;
+CChangesParaTextPrSnapToGrid.prototype.private_SetValue = function(Value)
+{
+	this.Class.Value.SnapToGrid = Value;
+};
+CChangesParaTextPrSnapToGrid.prototype.Merge = private_ParaTextPrChangesOnMergeValue;

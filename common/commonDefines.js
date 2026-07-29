@@ -3736,6 +3736,17 @@ window.AscCommon.g_cIsBeta = "false";
 		ToEnd   : 1,
 		All     : 2
 	};
+	var c_oAscDocGridType = {
+		Default      : 0,
+		Lines        : 1,
+		LinesAndChars: 2,
+		SnapToChars  : 3
+	};
+	var c_oAscDocGridApplyType = {
+		Current : 0,
+		Selected: 1,
+		All     : 2
+	};
 
 	var c_oAscSlideSZType = {
 			Sz35mm: 0,
@@ -6240,6 +6251,16 @@ window.AscCommon.g_cIsBeta = "false";
 	prot['Current'] = c_oAscSectionApplyType.Current;
 	prot['ToEnd']   = c_oAscSectionApplyType.ToEnd;
 	prot['All']     = c_oAscSectionApplyType.All;
+
+	prot = window['Asc']['c_oAscDocGridType'] = window['Asc'].c_oAscDocGridType = c_oAscDocGridType;
+	prot['Default']       = c_oAscDocGridType.Default;
+	prot['Lines']         = c_oAscDocGridType.Lines;
+	prot['LinesAndChars'] = c_oAscDocGridType.LinesAndChars;
+	prot['SnapToChars']   = c_oAscDocGridType.SnapToChars;
+	prot = window['Asc']['c_oAscDocGridApplyType'] = window['Asc'].c_oAscDocGridApplyType = c_oAscDocGridApplyType;
+	prot['Current']  = c_oAscDocGridApplyType.Current;
+	prot['Selected'] = c_oAscDocGridApplyType.Selected;
+	prot['All']      = c_oAscDocGridApplyType.All;
 
 	prot = window['Asc']['c_oAscSlideSZType'] = window['Asc'].c_oAscSlideSZType = c_oAscSlideSZType;
 	prot['Sz35mm'] = prot.Sz35mm;

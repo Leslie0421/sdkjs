@@ -4196,7 +4196,8 @@ background-repeat: no-repeat;\
 			Kinsoku      : Props.get_Kinsoku ? Props.get_Kinsoku() : Props.Kinsoku,
 			OverflowPunct: Props.get_OverflowPunct ? Props.get_OverflowPunct() : Props.OverflowPunct,
 			AutoSpaceDE  : Props.get_AutoSpaceDE ? Props.get_AutoSpaceDE() : Props.AutoSpaceDE,
-			AutoSpaceDN  : Props.get_AutoSpaceDN ? Props.get_AutoSpaceDN() : Props.AutoSpaceDN
+			AutoSpaceDN  : Props.get_AutoSpaceDN ? Props.get_AutoSpaceDN() : Props.AutoSpaceDN,
+			SnapToGrid   : Props.get_SnapToGrid ? Props.get_SnapToGrid() : Props.SnapToGrid
 		};
 		if (undefined != Props.DefaultTab)
 		{
@@ -4343,13 +4344,15 @@ background-repeat: no-repeat;\
 			if (undefined !== eastAsianTypography.Kinsoku
 				|| undefined !== eastAsianTypography.OverflowPunct
 				|| undefined !== eastAsianTypography.AutoSpaceDE
-				|| undefined !== eastAsianTypography.AutoSpaceDN)
+				|| undefined !== eastAsianTypography.AutoSpaceDN
+				|| undefined !== eastAsianTypography.SnapToGrid)
 			{
 				oLogicDocument.SetParagraphEastAsianTypography(
 					eastAsianTypography.Kinsoku,
 					eastAsianTypography.OverflowPunct,
 					eastAsianTypography.AutoSpaceDE,
-					eastAsianTypography.AutoSpaceDN
+					eastAsianTypography.AutoSpaceDN,
+					eastAsianTypography.SnapToGrid
 				);
 			}
 

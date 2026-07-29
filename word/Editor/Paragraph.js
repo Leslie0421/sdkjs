@@ -11660,6 +11660,7 @@ Paragraph.prototype.Clear_Formatting = function()
 	this.SetOverflowPunct(undefined);
 	this.SetAutoSpaceDE(undefined);
 	this.SetAutoSpaceDN(undefined);
+	this.SetSnapToGrid(undefined);
 	this.Set_Ind(new CParaInd(), true);
 	this.Set_Align(undefined, false);
 	this.Set_KeepLines(undefined);
@@ -14395,6 +14396,7 @@ Paragraph.prototype.Refresh_RecalcData = function(Data)
 		case AscDFH.historyitem_Paragraph_OverflowPunct:
 		case AscDFH.historyitem_Paragraph_AutoSpaceDE:
 		case AscDFH.historyitem_Paragraph_AutoSpaceDN:
+		case AscDFH.historyitem_Paragraph_SnapToGrid:
 		case AscDFH.historyitem_Paragraph_Align:
 		case AscDFH.historyitem_Paragraph_DefaultTabSize:
 		case AscDFH.historyitem_Paragraph_Ind_First:
@@ -17019,6 +17021,13 @@ Paragraph.prototype.SetAutoSpaceDN = function(value)
 	this.private_SetEastAsianParagraphProperty(this.Pr.AutoSpaceDN, value, CChangesParagraphAutoSpaceDN, function(paragraph, newValue)
 	{
 		paragraph.Pr.AutoSpaceDN = newValue;
+	});
+};
+Paragraph.prototype.SetSnapToGrid = function(value)
+{
+	this.private_SetEastAsianParagraphProperty(this.Pr.SnapToGrid, value, CChangesParagraphSnapToGrid, function(paragraph, newValue)
+	{
+		paragraph.Pr.SnapToGrid = newValue;
 	});
 };
 Paragraph.prototype.SetParagraphBidi = function(isRtl)

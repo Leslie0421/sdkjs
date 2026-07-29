@@ -3039,6 +3039,7 @@ function (window, undefined) {
 			this.OverflowPunct = undefined !== obj.OverflowPunct ? obj.OverflowPunct : undefined;
 			this.AutoSpaceDE = undefined !== obj.AutoSpaceDE ? obj.AutoSpaceDE : undefined;
 			this.AutoSpaceDN = undefined !== obj.AutoSpaceDN ? obj.AutoSpaceDN : undefined;
+			this.SnapToGrid = undefined !== obj.SnapToGrid ? obj.SnapToGrid : undefined;
 			this.Ind = (undefined != obj.Ind && null != obj.Ind) ? new asc_CParagraphInd(obj.Ind) : null;
 			this.KeepLines = (undefined != obj.KeepLines) ? obj.KeepLines : null;
 			this.KeepNext = (undefined != obj.KeepNext) ? obj.KeepNext : undefined;
@@ -3107,6 +3108,7 @@ function (window, undefined) {
 			this.OverflowPunct = undefined;
 			this.AutoSpaceDE = undefined;
 			this.AutoSpaceDN = undefined;
+			this.SnapToGrid = undefined;
 			this.Ind = new asc_CParagraphInd();
 			this.KeepLines = undefined;
 			this.KeepNext = undefined;
@@ -3179,6 +3181,12 @@ function (window, undefined) {
 	};
 	asc_CParagraphProperty.prototype.asc_putAutoSpaceDN = function (v) {
 		this.AutoSpaceDN = v;
+	};
+	asc_CParagraphProperty.prototype.asc_getSnapToGrid = function () {
+		return this.SnapToGrid;
+	};
+	asc_CParagraphProperty.prototype.asc_putSnapToGrid = function (v) {
+		this.SnapToGrid = v;
 	};
 	asc_CParagraphProperty.prototype.asc_getInd = function () {
 		return this.Ind;
@@ -8808,6 +8816,8 @@ function (window, undefined) {
 	prot["put_AutoSpaceDE"] = prot["asc_putAutoSpaceDE"] = prot.asc_putAutoSpaceDE;
 	prot["get_AutoSpaceDN"] = prot["asc_getAutoSpaceDN"] = prot.asc_getAutoSpaceDN;
 	prot["put_AutoSpaceDN"] = prot["asc_putAutoSpaceDN"] = prot.asc_putAutoSpaceDN;
+	prot["get_SnapToGrid"] = prot["asc_getSnapToGrid"] = prot.asc_getSnapToGrid;
+	prot["put_SnapToGrid"] = prot["asc_putSnapToGrid"] = prot.asc_putSnapToGrid;
 	prot["get_Ind"] = prot["asc_getInd"] = prot.asc_getInd;
 	prot["put_Ind"] = prot["asc_putInd"] = prot.asc_putInd;
 	prot["get_Jc"] = prot["asc_getJc"] = prot.asc_getJc;

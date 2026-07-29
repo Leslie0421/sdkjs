@@ -57,4 +57,90 @@ $(function () {
 			assert.strictEqual(space, checkSpaces[idx], `The set space with idx = ${idx} differs from the received one`);
 		});
 	});
+
+	QUnit.test('Document grid model, history and public section properties', function(assert)
+	{
+		let document = AscTest.JsApi.GetDocument().Document;
+		let section = document.GetFinalSectPr();
+		AscCommon.History.Clear();
+
+		document.StartAction(AscDFH.historydescription_Document_SetSectionProps);
+		section.SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.LinesAndChars, -128, 360));
+		document.FinalizeAction();
+
+		let grid = section.GetDocGrid();
+		assert.deepEqual(
+			[grid.Type, grid.CharSpace, grid.LinePitch],
+			[Asc.c_oAscDocGridType.LinesAndChars, -128, 360],
+			'Document grid preserves raw OOXML values, including signed charSpace'
+		);
+
+		document.Document_Undo();
+		assert.strictEqual(section.GetDocGrid(), undefined, 'Undo restores an absent document grid');
+		document.Document_Redo();
+		assert.ok(section.GetDocGrid().IsEqual(grid), 'Redo restores all document-grid fields');
+
+		let ChangeClass = AscDFH.changesFactory[AscDFH.historyitem_Section_DocGrid];
+		let writer = AscTest.GetBinaryWriter();
+		new ChangeClass(section, undefined, grid).WriteToBinary(writer);
+		let loadedChange = new ChangeClass(section);
+		loadedChange.ReadFromBinary(AscTest.GetBinaryReader(writer));
+		loadedChange.Load();
+		assert.ok(section.GetDocGrid().IsEqual(grid), 'Collaborative change preserves document-grid fields');
+
+		let editorBinWriter = AscTest.GetBinaryWriter();
+		new Binary_pPrWriter(editorBinWriter, null, null, null).WriteSectPr(section, document);
+		let reopenedSection = new AscWord.SectPr(document);
+		let sectionReader = new Binary_pPrReader(
+			document,
+			new DocReadResult(document),
+			AscTest.GetBinaryReader(editorBinWriter)
+		);
+		sectionReader.bcr.Read1(editorBinWriter.GetCurPosition(), function(type, length)
+		{
+			return sectionReader.Read_SecPr(type, length, reopenedSection, {});
+		});
+		assert.ok(reopenedSection.GetDocGrid().IsEqual(grid), 'Editor.bin preserves all document-grid fields');
+
+		let props = new Asc.CDocumentSectionProps(section, document);
+		assert.deepEqual(
+			[props.get_DocGridType(), props.get_DocGridCharSpace(), props.get_DocGridLinePitch()],
+			[Asc.c_oAscDocGridType.LinesAndChars, -128, 360],
+			'Public section properties expose the current document grid'
+		);
+		assert.ok(props.get_DocGridDefaultFontSize() > 0, 'Public section properties expose a usable default font size');
+
+		props.put_DocGridLinesPerPage(40);
+		props.put_DocGridCharsPerLine(45);
+		assert.strictEqual(props.get_DocGridLinesPerPage(), 40, 'Lines-per-page API converts to and from line pitch');
+		assert.strictEqual(props.get_DocGridCharsPerLine(), 45, 'Characters-per-line API converts to and from signed charSpace');
+		assert.strictEqual(props.get_DocGridType(), Asc.c_oAscDocGridType.LinesAndChars, 'Count APIs select the combined document-grid type');
+
+		let firstParagraph = document.GetElement(0);
+		let firstSection = new AscWord.SectPr(document);
+		firstParagraph.SetSectionPr(firstSection);
+		document.PushToContent(AscTest.CreateParagraph());
+
+		let allSectionsProps = new Asc.CDocumentSectionProps();
+		allSectionsProps.put_DocGridType(Asc.c_oAscDocGridType.Lines);
+		allSectionsProps.put_DocGridLinePitch(420);
+		allSectionsProps.put_DocGridApplyType(Asc.c_oAscSectionApplyType.All);
+		document.Set_SectionProps(allSectionsProps);
+
+		let allSections = document.GetSectionsByApplyType(Asc.c_oAscSectionApplyType.All);
+		assert.strictEqual(allSections.length, 2, 'Apply-to-all preserves the section break and targets every section');
+		assert.ok(firstParagraph.Get_SectionPr() === firstSection, 'Applying the grid does not replace the existing section break');
+		assert.deepEqual(
+			allSections.map(function(sectionPr)
+			{
+				let sectionGrid = sectionPr.GetDocGrid();
+				return [sectionGrid.Type, sectionGrid.LinePitch];
+			}),
+			[
+				[Asc.c_oAscDocGridType.Lines, 420],
+				[Asc.c_oAscDocGridType.Lines, 420]
+			],
+			'Apply-to-all updates each section with identical grid settings'
+		);
+	});
 });

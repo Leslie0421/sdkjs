@@ -6738,7 +6738,7 @@ CDocument.prototype.SetParagraphBidi = function(isRtl)
 	this.UpdateInterface();
 	this.UpdateSelection();
 };
-CDocument.prototype.SetParagraphEastAsianTypography = function(kinsoku, overflowPunct, autoSpaceDE, autoSpaceDN)
+CDocument.prototype.SetParagraphEastAsianTypography = function(kinsoku, overflowPunct, autoSpaceDE, autoSpaceDN, snapToGrid)
 {
 	let paragraphs = this.GetSelectedParagraphs();
 	for (let i = 0; i < paragraphs.length; ++i)
@@ -6752,6 +6752,8 @@ CDocument.prototype.SetParagraphEastAsianTypography = function(kinsoku, overflow
 			paragraph.SetAutoSpaceDE(autoSpaceDE);
 		if (undefined !== autoSpaceDN)
 			paragraph.SetAutoSpaceDN(autoSpaceDN);
+		if (undefined !== snapToGrid)
+			paragraph.SetSnapToGrid(snapToGrid);
 	}
 
 	this.Recalculate();
@@ -16851,6 +16853,35 @@ CDocument.prototype.Set_SectionProps = function(Props)
 
 		if (undefined !== Props.get_Orientation())
 			SectPr.SetOrientation(Props.get_Orientation(), false);
+
+		if (undefined !== Props.get_DocGridType()
+			|| undefined !== Props.get_DocGridCharSpace()
+			|| undefined !== Props.get_DocGridLinePitch())
+		{
+			let gridSections = [SectPr];
+			let applyType = Props.get_DocGridApplyType ? Props.get_DocGridApplyType() : Asc.c_oAscDocGridApplyType.Current;
+			if (Asc.c_oAscDocGridApplyType.Selected === applyType)
+				gridSections = this.GetSectionsByApplyType(Asc.c_oAscSectionApplyType.Current);
+			else if (Asc.c_oAscDocGridApplyType.All === applyType)
+				gridSections = this.GetSectionsByApplyType(Asc.c_oAscSectionApplyType.All);
+
+			for (let gridIndex = 0; gridIndex < gridSections.length; ++gridIndex)
+			{
+				let gridSection = gridSections[gridIndex];
+				let currentGrid = gridSection.GetDocGrid();
+				let gridType = undefined !== Props.get_DocGridType()
+					? Props.get_DocGridType()
+					: (currentGrid ? currentGrid.Type : undefined);
+				let charSpace = undefined !== Props.get_DocGridCharSpace()
+					? Props.get_DocGridCharSpace()
+					: (currentGrid ? currentGrid.CharSpace : undefined);
+				let linePitch = undefined !== Props.get_DocGridLinePitch()
+					? Props.get_DocGridLinePitch()
+					: (currentGrid ? currentGrid.LinePitch : undefined);
+
+				gridSection.SetDocGrid(new AscWord.SectionDocGrid(gridType, charSpace, linePitch));
+			}
+		}
 
 		this.Recalculate();
 		this.UpdateSelection();

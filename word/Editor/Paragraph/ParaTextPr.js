@@ -230,6 +230,9 @@ ParaTextPr.prototype.Apply_TextPr = function(TextPr)
 
 	if (undefined !== TextPr.TextScale)
 		this.SetTextScale(TextPr.TextScale);
+
+	if (undefined !== TextPr.SnapToGrid)
+		this.SetSnapToGrid(TextPr.SnapToGrid);
 };
 ParaTextPr.prototype.Clear_Style = function()
 {
@@ -265,6 +268,9 @@ ParaTextPr.prototype.Clear_Style = function()
 
 	if (undefined != this.Value.TextScale)
 		this.SetTextScale(undefined);
+
+	if (undefined != this.Value.SnapToGrid)
+		this.SetSnapToGrid(undefined);
 
 	if (undefined != this.Value.DStrikeout)
 		this.Set_DStrikeout(undefined);
@@ -724,6 +730,18 @@ ParaTextPr.prototype.SetTextScale = function(nValue)
 	let oChange = new CChangesParaTextPrTextScale(this, this.Value.TextScale, nValue);
 	AscCommon.History.Add(oChange);
 	oChange.Redo();
+};
+ParaTextPr.prototype.SetSnapToGrid = function(value)
+{
+	if (null === value)
+		value = undefined;
+
+	if (this.Value.SnapToGrid === value)
+		return;
+
+	let change = new CChangesParaTextPrSnapToGrid(this, this.Value.SnapToGrid, value);
+	AscCommon.History.Add(change);
+	change.Redo();
 };
 /**
  * Жестко выставляем заданные настройки

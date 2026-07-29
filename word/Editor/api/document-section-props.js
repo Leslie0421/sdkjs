@@ -57,6 +57,18 @@
 			this.GutterRTL     = oSectPr.IsGutterRTL();
 			this.GutterAtTop   = oLogicDocument.IsGutterAtTop();
 			this.MirrorMargins = oLogicDocument.IsMirrorMargins();
+
+			let docGrid       = oSectPr.GetDocGrid();
+			this.DocGridType  = docGrid ? docGrid.Type : undefined;
+			this.DocGridCharSpace = docGrid ? docGrid.CharSpace : undefined;
+			this.DocGridLinePitch = docGrid ? docGrid.LinePitch : undefined;
+			this.DocGridContentWidth = oSectPr.GetContentFrameWidth();
+			this.DocGridContentHeight = oSectPr.GetContentFrameHeight();
+			let defaultTextPr = oLogicDocument.GetStyles().Get_DefaultTextPr();
+			this.DocGridDefaultFontSize = defaultTextPr && isFinite(defaultTextPr.FontSize) && defaultTextPr.FontSize > 0
+				? defaultTextPr.FontSize
+				: 11;
+			this.DocGridApplyType = Asc.c_oAscDocGridApplyType.Current;
 		}
 		else
 		{
@@ -76,6 +88,13 @@
 			this.GutterRTL     = undefined;
 			this.GutterAtTop   = undefined;
 			this.MirrorMargins = undefined;
+			this.DocGridType      = undefined;
+			this.DocGridCharSpace = undefined;
+			this.DocGridLinePitch = undefined;
+			this.DocGridContentWidth = undefined;
+			this.DocGridContentHeight = undefined;
+			this.DocGridDefaultFontSize = 11;
+			this.DocGridApplyType = undefined;
 		}
 	}
 	CDocumentSectionProps.prototype.get_W = function()
@@ -182,6 +201,117 @@
 	{
 		this.MirrorMargins = isMirrorMargins;
 	};
+	CDocumentSectionProps.prototype.get_DocGridType = function()
+	{
+		return this.DocGridType;
+	};
+	CDocumentSectionProps.prototype.put_DocGridType = function(type)
+	{
+		this.DocGridType = type;
+	};
+	CDocumentSectionProps.prototype.get_DocGridCharSpace = function()
+	{
+		return this.DocGridCharSpace;
+	};
+	CDocumentSectionProps.prototype.put_DocGridCharSpace = function(charSpace)
+	{
+		this.DocGridCharSpace = charSpace;
+	};
+	CDocumentSectionProps.prototype.get_DocGridLinePitch = function()
+	{
+		return this.DocGridLinePitch;
+	};
+	CDocumentSectionProps.prototype.put_DocGridLinePitch = function(linePitch)
+	{
+		this.DocGridLinePitch = linePitch;
+	};
+	CDocumentSectionProps.prototype.get_DocGridDefaultFontSize = function()
+	{
+		return this.DocGridDefaultFontSize;
+	};
+	CDocumentSectionProps.prototype.put_DocGridDefaultFontSize = function(fontSize)
+	{
+		if (undefined !== fontSize && null !== fontSize && isFinite(fontSize) && fontSize > 0)
+			this.DocGridDefaultFontSize = fontSize;
+	};
+	CDocumentSectionProps.prototype.get_DocGridLinesPerPage = function()
+	{
+		let contentHeight = this.private_GetDocGridContentHeight();
+		if (!this.DocGridLinePitch || !contentHeight)
+			return undefined;
+
+		return Math.max(1, Math.round(contentHeight / AscCommon.TwipsToMM(this.DocGridLinePitch)));
+	};
+	CDocumentSectionProps.prototype.put_DocGridLinesPerPage = function(count)
+	{
+		count = Math.round(count);
+		if (!isFinite(count) || count < 1)
+			return;
+
+		let contentHeight = this.private_GetDocGridContentHeight();
+		if (!contentHeight)
+			return;
+
+		this.DocGridLinePitch = Math.max(1, Math.round(AscCommon.MMToTwips(contentHeight / count)));
+		if (Asc.c_oAscDocGridType.SnapToChars === this.DocGridType)
+			this.DocGridType = Asc.c_oAscDocGridType.LinesAndChars;
+		else if (Asc.c_oAscDocGridType.LinesAndChars !== this.DocGridType)
+			this.DocGridType = Asc.c_oAscDocGridType.Lines;
+	};
+	CDocumentSectionProps.prototype.get_DocGridCharsPerLine = function()
+	{
+		let contentWidth = this.private_GetDocGridContentWidth();
+		if (!contentWidth)
+			return undefined;
+
+		let pitchPt = this.DocGridDefaultFontSize + (this.DocGridCharSpace || 0) / 4096;
+		if (pitchPt <= 0)
+			return undefined;
+
+		return Math.max(1, Math.round(contentWidth / (pitchPt * g_dKoef_pt_to_mm)));
+	};
+	CDocumentSectionProps.prototype.put_DocGridCharsPerLine = function(count)
+	{
+		count = Math.round(count);
+		if (!isFinite(count) || count < 1)
+			return;
+
+		let contentWidth = this.private_GetDocGridContentWidth();
+		if (!contentWidth)
+			return;
+
+		let pitchPt = contentWidth / count / g_dKoef_pt_to_mm;
+		this.DocGridCharSpace = Math.round((pitchPt - this.DocGridDefaultFontSize) * 4096);
+		if (Asc.c_oAscDocGridType.Lines === this.DocGridType)
+			this.DocGridType = Asc.c_oAscDocGridType.LinesAndChars;
+		else if (Asc.c_oAscDocGridType.LinesAndChars !== this.DocGridType)
+			this.DocGridType = Asc.c_oAscDocGridType.SnapToChars;
+	};
+	CDocumentSectionProps.prototype.get_DocGridApplyType = function()
+	{
+		return this.DocGridApplyType;
+	};
+	CDocumentSectionProps.prototype.put_DocGridApplyType = function(type)
+	{
+		this.DocGridApplyType = type;
+	};
+	CDocumentSectionProps.prototype.private_GetDocGridContentWidth = function()
+	{
+		if (undefined === this.W || undefined === this.Left || undefined === this.Right)
+			return this.DocGridContentWidth;
+
+		let gutter = (!this.GutterAtTop && this.Gutter > 0 ? this.Gutter : 0);
+		return Math.max(0, this.W - this.Left - this.Right - gutter);
+	};
+	CDocumentSectionProps.prototype.private_GetDocGridContentHeight = function()
+	{
+		if (undefined === this.H || undefined === this.Top || undefined === this.Bottom)
+			return this.DocGridContentHeight;
+
+		let gutter = (this.GutterAtTop && this.Gutter > 0 ? this.Gutter : 0);
+		let top = this.Top < 0 ? -this.Top : this.Top;
+		return Math.max(0, this.H - top - this.Bottom - gutter);
+	};
 	//--------------------------------------------------------export----------------------------------------------------
 	window['Asc']['CDocumentSectionProps'] = window['Asc'].CDocumentSectionProps = CDocumentSectionProps;
 	CDocumentSectionProps.prototype["get_W"]              = CDocumentSectionProps.prototype.get_W;
@@ -210,6 +340,20 @@
 	CDocumentSectionProps.prototype["put_GutterAtTop"]    = CDocumentSectionProps.prototype.put_GutterAtTop;
 	CDocumentSectionProps.prototype["get_MirrorMargins"]  = CDocumentSectionProps.prototype.get_MirrorMargins;
 	CDocumentSectionProps.prototype["put_MirrorMargins"]  = CDocumentSectionProps.prototype.put_MirrorMargins;
+	CDocumentSectionProps.prototype["get_DocGridType"]      = CDocumentSectionProps.prototype.get_DocGridType;
+	CDocumentSectionProps.prototype["put_DocGridType"]      = CDocumentSectionProps.prototype.put_DocGridType;
+	CDocumentSectionProps.prototype["get_DocGridCharSpace"] = CDocumentSectionProps.prototype.get_DocGridCharSpace;
+	CDocumentSectionProps.prototype["put_DocGridCharSpace"] = CDocumentSectionProps.prototype.put_DocGridCharSpace;
+	CDocumentSectionProps.prototype["get_DocGridLinePitch"] = CDocumentSectionProps.prototype.get_DocGridLinePitch;
+	CDocumentSectionProps.prototype["put_DocGridLinePitch"] = CDocumentSectionProps.prototype.put_DocGridLinePitch;
+	CDocumentSectionProps.prototype["get_DocGridDefaultFontSize"] = CDocumentSectionProps.prototype.get_DocGridDefaultFontSize;
+	CDocumentSectionProps.prototype["put_DocGridDefaultFontSize"] = CDocumentSectionProps.prototype.put_DocGridDefaultFontSize;
+	CDocumentSectionProps.prototype["get_DocGridLinesPerPage"] = CDocumentSectionProps.prototype.get_DocGridLinesPerPage;
+	CDocumentSectionProps.prototype["put_DocGridLinesPerPage"] = CDocumentSectionProps.prototype.put_DocGridLinesPerPage;
+	CDocumentSectionProps.prototype["get_DocGridCharsPerLine"] = CDocumentSectionProps.prototype.get_DocGridCharsPerLine;
+	CDocumentSectionProps.prototype["put_DocGridCharsPerLine"] = CDocumentSectionProps.prototype.put_DocGridCharsPerLine;
+	CDocumentSectionProps.prototype["get_DocGridApplyType"] = CDocumentSectionProps.prototype.get_DocGridApplyType;
+	CDocumentSectionProps.prototype["put_DocGridApplyType"] = CDocumentSectionProps.prototype.put_DocGridApplyType;
 	
 	/**
 	 * @constructor

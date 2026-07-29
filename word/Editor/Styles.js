@@ -13030,7 +13030,8 @@ function CTextPr()
     this.FontRef    = undefined;
 
     this.Shd        = undefined;
-    this.Vanish     = undefined;
+	this.Vanish     = undefined;
+	this.SnapToGrid = undefined;
 	this.Ligatures  = undefined;
 
     this.TextOutline    = undefined;
@@ -13074,6 +13075,7 @@ CTextPr.prototype.Clear = function()
 	this.FontRef        = undefined;
 	this.Shd            = undefined;
 	this.Vanish         = undefined;
+	this.SnapToGrid     = undefined;
 	this.Ligatures      = undefined;
 	this.TextOutline    = undefined;
 	this.TextFill       = undefined;
@@ -13140,6 +13142,7 @@ CTextPr.prototype.Copy = function(bCopyPrChange, oPr)
 		TextPr.FontScale = this.FontScale;
 
 	TextPr.Vanish    = this.Vanish;
+	TextPr.SnapToGrid = this.SnapToGrid;
 	TextPr.Ligatures = this.Ligatures;
 
 	if (true === bCopyPrChange && undefined !== this.PrChange)
@@ -13180,6 +13183,7 @@ CTextPr.prototype.createDuplicateForSmartArt = function(oPr)
 	TextPr.RFonts     = this.RFonts.Copy()
 
 	TextPr.Vanish    = this.Vanish;
+	TextPr.SnapToGrid = this.SnapToGrid;
 	TextPr.Ligatures = this.Ligatures;
 
 	if (oPr.custT) {
@@ -13333,6 +13337,9 @@ CTextPr.prototype.Merge = function(TextPr)
 
 	if (undefined !== TextPr.Vanish && null !== TextPr.Vanish)
 		this.Vanish = TextPr.Vanish;
+
+	if (undefined !== TextPr.SnapToGrid && null !== TextPr.SnapToGrid)
+		this.SnapToGrid = TextPr.SnapToGrid;
 
 	if (undefined !== TextPr.Ligatures && null !== TextPr.Ligatures)
 		this.Ligatures = TextPr.Ligatures;
@@ -13515,6 +13522,11 @@ CTextPr.prototype.Apply = function(textPr)
 		this.Vanish = undefined;
 	else if (undefined !== textPr.Vanish)
 		this.Vanish = textPr.Vanish;
+
+	if (null === textPr.SnapToGrid)
+		this.SnapToGrid = undefined;
+	else if (undefined !== textPr.SnapToGrid)
+		this.SnapToGrid = textPr.SnapToGrid;
 	
 	if (null === textPr.Ligatures)
 		this.Ligatures = undefined;
@@ -13558,6 +13570,7 @@ CTextPr.prototype.InitDefault = function(nCompatibilityMode)
 	this.FontRef = undefined;
 	this.Shd     = undefined;
 	this.Vanish  = false;
+	this.SnapToGrid = true;
 	this.Ligatures  = Asc.LigaturesType.None;
 
 	this.TextOutline    = undefined;
@@ -13638,6 +13651,7 @@ CTextPr.prototype.Set_FromObject = function(TextPr, isUndefinedToNull)
 	}
 
 	this.Vanish         = CheckUndefinedToNull(isUndefinedToNull, TextPr.Vanish);
+	this.SnapToGrid     = CheckUndefinedToNull(isUndefinedToNull, TextPr.SnapToGrid);
 	this.Ligatures      = CheckUndefinedToNull(isUndefinedToNull, TextPr.Ligatures);
 	this.Unifill        = CheckUndefinedToNull(isUndefinedToNull, TextPr.Unifill);
 	this.FontRef        = CheckUndefinedToNull(isUndefinedToNull, TextPr.FontRef);
@@ -13755,6 +13769,9 @@ CTextPr.prototype.Compare = function(TextPr)
 	// Vanish
 	if (undefined !== this.Vanish && this.Vanish !== TextPr.Vanish)
 		this.Vanish = undefined;
+
+	if (undefined !== this.SnapToGrid && this.SnapToGrid !== TextPr.SnapToGrid)
+		this.SnapToGrid = undefined;
 
 	if (undefined !== this.Ligatures && this.Ligatures !== TextPr.Ligatures)
 		this.Ligatures = undefined;
@@ -14136,16 +14153,23 @@ CTextPr.prototype.Write_ToBinary = function(Writer)
 		Flags |= 1073741824;
 	}
 
-	if (undefined != this.TextScale)
+	if (undefined != this.TextScale || undefined != this.SnapToGrid)
 	{
 		Writer.WriteByte(0xFF);
-		var ExtensionFlags = 2;
+		var ExtensionFlags = 0;
 		if (undefined != this.Ligatures)
 			ExtensionFlags |= 1;
+		if (undefined != this.TextScale)
+			ExtensionFlags |= 2;
+		if (undefined != this.SnapToGrid)
+			ExtensionFlags |= 4;
 		Writer.WriteLong(ExtensionFlags);
 		if (ExtensionFlags & 1)
 			Writer.WriteByte(this.Ligatures);
-		Writer.WriteLong(this.TextScale);
+		if (ExtensionFlags & 2)
+			Writer.WriteLong(this.TextScale);
+		if (ExtensionFlags & 4)
+			Writer.WriteBool(this.SnapToGrid);
 		Flags |= (1 << 31);
 	}
 	else if (undefined != this.Ligatures)
@@ -14329,6 +14353,8 @@ CTextPr.prototype.Read_FromBinary = function(Reader)
 				this.Ligatures = Reader.GetByte();
 			if (ExtensionFlags & 2)
 				this.TextScale = Reader.GetLong();
+			if (ExtensionFlags & 4)
+				this.SnapToGrid = Reader.GetBool();
 		}
 		else
 		{
@@ -14599,6 +14625,9 @@ CTextPr.prototype.Is_Equal = function(TextPr)
 	if (this.Vanish !== TextPr.Vanish)
 		return false;
 
+	if (this.SnapToGrid !== TextPr.SnapToGrid)
+		return false;
+
 	if (this.Ligatures !== TextPr.Ligatures)
 		return false;
 
@@ -14652,6 +14681,7 @@ CTextPr.prototype.Is_Empty = function()
 		|| undefined !== this.FontRef
 		|| undefined !== this.Shd
 		|| undefined !== this.Vanish
+		|| undefined !== this.SnapToGrid
 		|| undefined !== this.Ligatures
 		|| undefined !== this.TextOutline
 		|| undefined !== this.TextFill
@@ -14765,6 +14795,9 @@ CTextPr.prototype.GetDiff = function(oTextPr)
 
 	if (this.Vanish !== oTextPr.Vanish)
 		oResultTextPr.Vanish = this.Vanish;
+
+	if (this.SnapToGrid !== oTextPr.SnapToGrid)
+		oResultTextPr.SnapToGrid = this.SnapToGrid;
 
 	if (this.Ligatures !== oTextPr.Ligatures)
 		oResultTextPr.Ligatures = this.Ligatures;
@@ -15092,6 +15125,14 @@ CTextPr.prototype.SetTextScale = function(nValue)
 CTextPr.prototype.GetTextScale = function()
 {
 	return this.TextScale;
+};
+CTextPr.prototype.SetSnapToGrid = function(value)
+{
+	this.SnapToGrid = value;
+};
+CTextPr.prototype.GetSnapToGrid = function()
+{
+	return this.SnapToGrid;
 };
 CTextPr.prototype.WriteToBinary = function(oWriter)
 {
@@ -15453,6 +15494,8 @@ CTextPr.prototype['get_Ligatures']  = CTextPr.prototype.GetLigatures;
 CTextPr.prototype['put_Ligatures']  = CTextPr.prototype.SetLigatures;
 CTextPr.prototype['get_TextScale']  = CTextPr.prototype.GetTextScale;
 CTextPr.prototype['put_TextScale']  = CTextPr.prototype.SetTextScale;
+CTextPr.prototype['get_SnapToGrid'] = CTextPr.prototype.GetSnapToGrid;
+CTextPr.prototype['put_SnapToGrid'] = CTextPr.prototype.SetSnapToGrid;
 //----------------------------------------------------------------------------------------------------------------------
 
 function CParaTab(Value, Pos, Leader)
@@ -16299,6 +16342,7 @@ function CParaPr()
 	this.OverflowPunct     = undefined;
 	this.AutoSpaceDE       = undefined;
 	this.AutoSpaceDN       = undefined;
+	this.SnapToGrid       = undefined;
 	this.Ind               = new CParaInd();     // Отступы
 	this.Jc                = undefined;          // Прилегание параграфа
 	this.KeepLines         = undefined;          // Неразрывный параграф
@@ -16348,6 +16392,7 @@ CParaPr.prototype.Copy = function(bCopyPrChange, oPr)
 	ParaPr.OverflowPunct     = this.OverflowPunct;
 	ParaPr.AutoSpaceDE       = this.AutoSpaceDE;
 	ParaPr.AutoSpaceDN       = this.AutoSpaceDN;
+	ParaPr.SnapToGrid       = this.SnapToGrid;
 
 	if (undefined != this.Ind)
 		ParaPr.Ind = this.Ind.Copy();
@@ -16480,6 +16525,9 @@ CParaPr.prototype.Merge = function(ParaPr)
 
 	if (undefined !== ParaPr.AutoSpaceDN)
 		this.AutoSpaceDN = ParaPr.AutoSpaceDN;
+
+	if (undefined !== ParaPr.SnapToGrid)
+		this.SnapToGrid = ParaPr.SnapToGrid;
 
 	if (undefined != ParaPr.Ind)
 		this.Ind.Merge(ParaPr.Ind);
@@ -16637,6 +16685,7 @@ CParaPr.prototype.InitDefault = function(nCompatibilityMode)
 	this.OverflowPunct             = true;
 	this.AutoSpaceDE               = true;
 	this.AutoSpaceDN               = true;
+	this.SnapToGrid               = true;
 	this.Ind                       = new CParaInd();
 	this.Ind.Left                  = 0;
 	this.Ind.Right                 = 0;
@@ -16683,6 +16732,7 @@ CParaPr.prototype.Set_FromObject = function(ParaPr)
 	this.OverflowPunct     = ParaPr.OverflowPunct;
 	this.AutoSpaceDE       = ParaPr.AutoSpaceDE;
 	this.AutoSpaceDN       = ParaPr.AutoSpaceDN;
+	this.SnapToGrid       = ParaPr.SnapToGrid;
 
 	this.Ind = new CParaInd();
 	if (undefined != ParaPr.Ind)
@@ -16832,6 +16882,9 @@ CParaPr.prototype.Compare = function(ParaPr)
 
 	if (ParaPr.AutoSpaceDN === this.AutoSpaceDN)
 		Result_ParaPr.AutoSpaceDN = ParaPr.AutoSpaceDN;
+
+	if (ParaPr.SnapToGrid === this.SnapToGrid)
+		Result_ParaPr.SnapToGrid = ParaPr.SnapToGrid;
 
 	Result_ParaPr.Ind = new CParaInd();
 	if (undefined != ParaPr.Ind && undefined != this.Ind)
@@ -17140,6 +17193,12 @@ CParaPr.prototype.Write_ToBinary = function(Writer)
 		Flags |= (1 << 29);
 	}
 
+	if (undefined !== this.SnapToGrid)
+	{
+		Writer.WriteBool(this.SnapToGrid);
+		Flags |= (1 << 30);
+	}
+
 	var EndPos = Writer.GetCurPosition();
 	Writer.Seek(StartPos);
 	Writer.WriteLong(Flags);
@@ -17286,6 +17345,9 @@ CParaPr.prototype.Read_FromBinary = function(Reader)
 
 	if (Flags & (1 << 29))
 		this.AutoSpaceDN = Reader.GetBool();
+
+	if (Flags & (1 << 30))
+		this.SnapToGrid = Reader.GetBool();
 };
 CParaPr.prototype.isEqual = function(ParaPrUOld,ParaPrNew)
 {
@@ -17318,6 +17380,7 @@ CParaPr.prototype.Is_Equal = function(ParaPr)
 		|| this.OverflowPunct !== ParaPr.OverflowPunct
 		|| this.AutoSpaceDE !== ParaPr.AutoSpaceDE
 		|| this.AutoSpaceDN !== ParaPr.AutoSpaceDN
+		|| this.SnapToGrid !== ParaPr.SnapToGrid
 		|| true !== IsEqualStyleObjects(this.Ind, ParaPr.Ind)
 		|| this.Jc !== ParaPr.Jc
 		|| this.KeepLines !== ParaPr.KeepLines
@@ -17367,6 +17430,9 @@ CParaPr.prototype.GetDiff = function(oParaPr)
 
 	if (this.AutoSpaceDN !== oParaPr.AutoSpaceDN)
 		oResultParaPr.AutoSpaceDN = this.AutoSpaceDN;
+
+	if (this.SnapToGrid !== oParaPr.SnapToGrid)
+		oResultParaPr.SnapToGrid = this.SnapToGrid;
 
 	if (!this.Ind.IsEqual(oParaPr.Ind))
 		oResultParaPr.Ind = this.Ind.Copy();
@@ -17546,6 +17612,7 @@ CParaPr.prototype.Is_Empty = function(oPr)
 		|| undefined !== this.OverflowPunct
 		|| undefined !== this.AutoSpaceDE
 		|| undefined !== this.AutoSpaceDN
+		|| undefined !== this.SnapToGrid
 		|| true !== (bIsSingleLvlPresetJSON || this.Ind.Is_Empty())
 		|| undefined !== this.Jc
 		|| undefined !== this.KeepLines
@@ -17607,6 +17674,9 @@ CParaPr.prototype.GetDiffPrChange = function()
 
 	if (this.AutoSpaceDN !== PrChange.AutoSpaceDN)
 		ParaPr.AutoSpaceDN = this.AutoSpaceDN;
+
+	if (this.SnapToGrid !== PrChange.SnapToGrid)
+		ParaPr.SnapToGrid = this.SnapToGrid;
 
 	ParaPr.Ind = this.Ind.Get_Diff(PrChange.Ind);
 
@@ -17718,6 +17788,14 @@ CParaPr.prototype.GetAutoSpaceDN = function()
 CParaPr.prototype.SetAutoSpaceDN = function(value)
 {
 	this.AutoSpaceDN = value;
+};
+CParaPr.prototype.GetSnapToGrid = function()
+{
+	return this.SnapToGrid;
+};
+CParaPr.prototype.SetSnapToGrid = function(value)
+{
+	this.SnapToGrid = value;
 };
 CParaPr.prototype.GetIndLeft = function()
 {
@@ -17915,6 +17993,8 @@ CParaPr.prototype['get_AutoSpaceDE']              = CParaPr.prototype.get_AutoSp
 CParaPr.prototype['put_AutoSpaceDE']              = CParaPr.prototype.put_AutoSpaceDE              = CParaPr.prototype.SetAutoSpaceDE;
 CParaPr.prototype['get_AutoSpaceDN']              = CParaPr.prototype.get_AutoSpaceDN              = CParaPr.prototype.GetAutoSpaceDN;
 CParaPr.prototype['put_AutoSpaceDN']              = CParaPr.prototype.put_AutoSpaceDN              = CParaPr.prototype.SetAutoSpaceDN;
+CParaPr.prototype['get_SnapToGrid']              = CParaPr.prototype.get_SnapToGrid              = CParaPr.prototype.GetSnapToGrid;
+CParaPr.prototype['put_SnapToGrid']              = CParaPr.prototype.put_SnapToGrid              = CParaPr.prototype.SetSnapToGrid;
 CParaPr.prototype['get_IndLeft']                  = CParaPr.prototype.get_IndLeft                  = CParaPr.prototype['Get_IndLeft']                  = CParaPr.prototype.GetIndLeft;
 CParaPr.prototype['get_IndRight']                 = CParaPr.prototype.get_IndRight                 = CParaPr.prototype['Get_IndRight']                 = CParaPr.prototype.GetIndRight;
 CParaPr.prototype['get_IndFirstLine']             = CParaPr.prototype.get_IndFirstLine             = CParaPr.prototype['Get_IndFirstLine']             = CParaPr.prototype.GetIndFirstLine;
