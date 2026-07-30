@@ -186,4 +186,23 @@ $(function () {
 		assert.strictEqual(reopenedSettings.isDoNotWrapTextWithPunct(), true, 'doNotWrapTextWithPunct survives Editor.bin');
 		assert.strictEqual(reopenedSettings.isDoNotUseEastAsianBreakRules(), true, 'doNotUseEastAsianBreakRules survives Editor.bin');
 	});
+
+	QUnit.test('Character spacing control survives Editor.bin', function(assert)
+	{
+		let document = AscTest.JsApi.GetDocument().Document;
+		let settings = document.GetDocumentSettings();
+		let oldMode = settings.CharacterSpacingControl;
+		settings.CharacterSpacingControl = AscWord.CHARACTER_SPACING_COMPRESS_PUNCTUATION;
+
+		let writer = AscTest.GetBinaryWriter();
+		new BinarySettingsTableWriter(writer, document, {isCompatible: true}).Write();
+		settings.CharacterSpacingControl = AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS;
+
+		let reader = new Binary_SettingsTableReader(document, new DocReadResult(document), AscTest.GetBinaryReader(writer));
+		reader.Read();
+		assert.strictEqual(settings.CharacterSpacingControl, AscWord.CHARACTER_SPACING_COMPRESS_PUNCTUATION,
+			'compressPunctuation survives the full settings table round trip');
+
+		settings.CharacterSpacingControl = oldMode;
+	});
 });

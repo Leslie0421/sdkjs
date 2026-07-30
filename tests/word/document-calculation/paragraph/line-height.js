@@ -216,6 +216,37 @@ $(function () {
 			"Adjacent paragraphs keep the same 1.5-grid baseline advance as lines within a paragraph");
 	});
 
+	QUnit.test("Adjacent paragraph spacing collapses to the larger value on a document grid", function(assert)
+	{
+		let first = logicDocument.GetElement(0);
+		let second = AscTest.CreateParagraph();
+		logicDocument.AddToContent(1, second);
+
+		let firstRun = AscTest.AddTextToParagraph(first, "第一段");
+		let secondRun = AscTest.AddTextToParagraph(second, "第二段");
+		let pitchTwips = 312;
+		let paragraphSpacing = AscCommon.TwipsToMM(160);
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+
+		[first, second].forEach(function(paragraph)
+		{
+			paragraph.SetParagraphSpacing({After : paragraphSpacing, Before : paragraphSpacing, LineRule : linerule_Auto, Line : 1.5});
+			paragraph.SetSnapToGrid(true);
+		});
+		firstRun.SetSnapToGrid(true);
+		secondRun.SetSnapToGrid(true);
+		AscTest.Recalculate();
+
+		let firstBaseline = first.GetPageBounds(0).Top + first.getLine(0).Y;
+		let secondBaseline = second.GetPageBounds(0).Top + second.getLine(0).Y;
+		let firstMetrics = first.getLine(0).Metrics;
+		let expectedAdvance = firstMetrics.Ascent + firstMetrics.Descent + firstMetrics.LineGap + paragraphSpacing;
+		assert.close(secondBaseline - firstBaseline, expectedAdvance, 0.001,
+			"The previous After and current Before spacing use max(), not their sum");
+		assert.close(second.Get_CompiledPr().ParaPr.Spacing.Before, 0, 0.001,
+			"The current paragraph does not retain duplicate Before spacing after compilation");
+	});
+
 	QUnit.test("Table line-grid compatibility settings control snapping", function(assert)
 	{
 		AscTest.ClearDocument();
@@ -257,6 +288,8 @@ $(function () {
 		));
 
 		paragraph.SetSnapToGrid(true);
+		paragraph.SetAutoSpaceDE(false);
+		paragraph.SetAutoSpaceDN(false);
 		run.SetSnapToGrid(true);
 		AscTest.Recalculate();
 		assert.ok(run.GetElement(1).GetAutoSpaceBefore() > 0, "East Asian punctuation is aligned to the next character-grid position");
@@ -281,7 +314,7 @@ $(function () {
 		paragraph.SetSnapToGrid(true);
 		let charSpace = Math.round((charWidth / g_dKoef_pt_to_mm - AscTest.FontSize) * 4096);
 		let section = AscTest.GetFinalSection();
-		section.SetPageSize(L_FIELD + R_FIELD + 1.5 * charWidth, 1000);
+		section.SetPageSize(L_FIELD + R_FIELD + 2 * charWidth, 1000);
 		section.SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.LinesAndChars, charSpace, 1440));
 		let settings = logicDocument.GetDocumentSettings();
 

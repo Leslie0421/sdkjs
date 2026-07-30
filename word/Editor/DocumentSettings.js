@@ -35,6 +35,9 @@
 (function(window)
 {
 	const DEFAULT_HYPHENATION_ZONE = 360;
+	const CHARACTER_SPACING_COMPRESS_PUNCTUATION = 0;
+	const CHARACTER_SPACING_COMPRESS_PUNCTUATION_AND_KANA = 1;
+	const CHARACTER_SPACING_DO_NOT_COMPRESS = 2;
 	
 	/**
 	 * Класс с глобальными настройками для документа
@@ -65,6 +68,7 @@
 		this.GutterAtTop     = false;
 		this.MirrorMargins   = false;
 		this.TrackRevisions  = false; // Флаг рецензирования, который записан в самом файле
+		this.CharacterSpacingControl = CHARACTER_SPACING_DO_NOT_COMPRESS;
 
 		// Compatibility
 		this.SplitPageBreakAndParaMark        = false;
@@ -96,6 +100,10 @@
 	DocumentSettings.prototype.isDoNotUseEastAsianBreakRules = function()
 	{
 		return this.DoNotUseEastAsianBreakRules;
+	};
+	DocumentSettings.prototype.getCharacterSpacingControl = function()
+	{
+		return this.CharacterSpacingControl;
 	};
 	DocumentSettings.prototype.isAutoHyphenation = function()
 	{
@@ -149,5 +157,8 @@
 	window['AscWord'].DocumentSettings          = DocumentSettings;
 	window['AscWord'].DEFAULT_DOCUMENT_SETTINGS = new DocumentSettings(null);
 	window['AscWord'].DEFAULT_HYPHENATION_ZONE  = DEFAULT_HYPHENATION_ZONE;
+	window['AscWord'].CHARACTER_SPACING_COMPRESS_PUNCTUATION = CHARACTER_SPACING_COMPRESS_PUNCTUATION;
+	window['AscWord'].CHARACTER_SPACING_COMPRESS_PUNCTUATION_AND_KANA = CHARACTER_SPACING_COMPRESS_PUNCTUATION_AND_KANA;
+	window['AscWord'].CHARACTER_SPACING_DO_NOT_COMPRESS = CHARACTER_SPACING_DO_NOT_COMPRESS;
 
 })(window);

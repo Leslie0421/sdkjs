@@ -3814,6 +3814,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 						let gridSpace = PRS.getCharGridSpaceBefore(Item, this, ParaPr, X + SpaceLen + WordLen);
 						if (null !== gridSpace)
 							Item.SetAutoSpaceBefore(gridSpace);
+						PRS.AddCompressiblePunctuationToRange(Item, this, ParaPr);
 					}
 
 					if (true !== PRS.IsFastRecalculate())
@@ -3879,7 +3880,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					let isBreakAfter = Item.IsSpaceAfter(textPr.RFonts.Hint);
 
 					if (FirstItemOnLine
-						&& (X + SpaceLen + WordLen + GraphemeLen > TextXEnd
+						&& (!PRS.isFitOnLine(X, SpaceLen + WordLen + GraphemeLen, overflowPunctuationWidth)
 							|| (PRS.IsNeedShapeFirstWord(PRS.Line) && PRS.IsLastElementInWord(this, Pos))))
 					{
 						let oCurrentPos = PRS.CurPos.Copy();
@@ -3960,7 +3961,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
                         // Если слово только началось, и до него на строке ничего не было, и в строке нет разрывов, тогда не надо проверять убирается ли оно на строке.
                         if (!FirstItemOnLine || !Para.IsSingleRangeOnLine(ParaLine, ParaRange))
 						{
-							if (X + SpaceLen + LetterLen > TextXEnd)
+							if (!PRS.isFitOnLine(X, SpaceLen + LetterLen, overflowPunctuationWidth))
 							{
 								if (para_Text === ItemType && !Item.CanBeAtBeginOfLine(useKinsoku) && !PRS.LineBreakFirst)
 								{

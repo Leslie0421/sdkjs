@@ -1638,6 +1638,9 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	targetHeight = Math.ceil((targetHeight - 0.001) / snapPitch) * snapPitch;
 	metrics.LineGap = Math.max(0, targetHeight - contentHeight);
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
+	if (CurLine === pageFirstLine && this.private_HasPointParagraphSpacingAtGridBoundary(CurPage, PRS, ParaPr))
+		return;
+
 	let baseline;
 	if (CurLine === pageFirstLine)
 	{
@@ -1675,6 +1678,31 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	let snappedBaseline = origin + gridLine * snapPitch;
 	if (snappedBaseline > baseline + 0.001)
 		metrics.Ascent += snappedBaseline - baseline;
+};
+
+Paragraph.prototype.private_HasPointParagraphSpacingAtGridBoundary = function(CurPage, PRS, ParaPr)
+{
+	let spacing = this.Get_CompiledPr2(false).ParaPr.Spacing;
+	if ((spacing.BeforeAutoSpacing
+		|| ((!spacing.BeforeLines || spacing.BeforeLines === 0) && spacing.Before > 0.001))
+		&& this.private_CheckNeedBeforeSpacing(CurPage, PRS.Parent, PRS.GetPageAbs(), ParaPr))
+		return true;
+
+	let prev = this.GetPrevDocumentElement();
+	if (!prev || !prev.IsParagraph || !prev.IsParagraph())
+		return false;
+
+	let prevPage = prev.GetPagesCount() - 1;
+	if (prevPage < 0 || prev.GetAbsolutePage(prevPage) !== PRS.GetPageAbs())
+		return false;
+	let prevColumn = prev.GetAbsoluteColumn(prevPage);
+	let currentColumn = PRS.GetColumnAbs();
+	if (undefined !== prevColumn && undefined !== currentColumn && prevColumn !== currentColumn)
+		return false;
+
+	let prevSpacing = prev.Get_CompiledPr2(false).ParaPr.Spacing;
+	return (prevSpacing.AfterAutoSpacing
+		|| ((!prevSpacing.AfterLines || prevSpacing.AfterLines === 0) && prevSpacing.After > 0.001));
 };
 
 function private_GetDocumentGridGreatestCommonDivisor(first, second)
@@ -3497,6 +3525,7 @@ function CParagraphRecalculateStateWrap()
     this.AddNumbering    = true;
     this.TextOnLine      = false;
     this.RangeSpaces     = [];
+	this.RangePunctuation = [];
 
     this.BreakPageLine      = false; // Разрыв страницы (параграфа) в данной строке
     this.UseFirstLine       = false;
@@ -3717,6 +3746,7 @@ CParagraphRecalculateStateWrap.prototype.resetRange = function(range)
 	this.XEnd            = range.XEnd;
 	this.XRange          = range.X;
 	this.RangeSpaces     = [];
+	this.RangePunctuation = [];
 	
 	this.MoveToLBP      = false;
 	this.LineBreakPos   = new AscWord.CParagraphContentPos();
@@ -3768,6 +3798,13 @@ CParagraphRecalculateStateWrap.prototype.isDocumentEditor = function()
 CParagraphRecalculateStateWrap.prototype.getCompatibilityMode = function()
 {
 	return this.getDocumentSettings().getCompatibilityMode();
+};
+CParagraphRecalculateStateWrap.prototype.getCharacterSpacingControl = function()
+{
+	let settings = this.getDocumentSettings();
+	return settings && settings.getCharacterSpacingControl
+		? settings.getCharacterSpacingControl()
+		: AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS;
 };
 CParagraphRecalculateStateWrap.prototype.getXLimit = function()
 {
@@ -4404,6 +4441,19 @@ CParagraphRecalculateStateWrap.prototype.AddCondensedSpaceToRange = function(oSp
 	this.RangeSpaces.push(oSpace);
 	oSpace.ResetCondensedWidth();
 };
+CParagraphRecalculateStateWrap.prototype.AddCompressiblePunctuationToRange = function(item, run, paraPr)
+{
+	item.ResetPunctuationCompression();
+	if (!item.IsCompressiblePunctuation(this.getCharacterSpacingControl(), run.Get_CompiledPr(false).Lang.EastAsia))
+		return;
+
+	let docGrid = this.getDocumentGrid(paraPr, run);
+	if (docGrid && (Asc.c_oAscDocGridType.LinesAndChars === docGrid.Type
+		|| Asc.c_oAscDocGridType.SnapToChars === docGrid.Type))
+		return;
+
+	this.RangePunctuation.push(item);
+};
 /**
  * Проверяем убирается ли в заданном отрезке заданная ширина содержимого
  * @param x {number} - текущая позиция
@@ -4415,8 +4465,35 @@ CParagraphRecalculateStateWrap.prototype.isFitOnLine = function(x, width, overfl
 	let xLimit = this.getXLimit() + (overflowWidth || 0);
 	if (x + width <= xLimit)
 		return true;
-	
+
+	if (this.tryCompressPunctuation(x, xLimit, width))
+		return true;
+
 	return this.tryCondenseSpaces(x, xLimit, width);
+};
+CParagraphRecalculateStateWrap.prototype.tryCompressPunctuation = function(x, xLimit, width)
+{
+	if (AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS === this.getCharacterSpacingControl()
+		|| this.RangePunctuation.length <= 0)
+		return false;
+
+	let required = x + width - xLimit;
+	let available = 0;
+	for (let i = 0; i < this.RangePunctuation.length; ++i)
+		available += this.RangePunctuation[i].GetPunctuationCompressionCapacity();
+
+	if (required > available + 0.001)
+		return false;
+
+	let remaining = Math.max(0, required + 0.001);
+	for (let i = 0; i < this.RangePunctuation.length; ++i)
+	{
+		let item = this.RangePunctuation[i];
+		let reduction = Math.min(item.GetPunctuationCompressionCapacity(), remaining);
+		item.SetPunctuationCompression(reduction);
+		remaining -= reduction;
+	}
+	return true;
 };
 /**
  * Пытаемся ужать пробелы по

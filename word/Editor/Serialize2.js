@@ -761,7 +761,14 @@ var c_oSer_SettingsType = {
 	AutoHyphenation: 21,
 	HyphenationZone: 22,
 	DoNotHyphenateCaps: 23,
-	ConsecutiveHyphenLimit: 24
+	ConsecutiveHyphenLimit: 24,
+	DrawingGridHorizontalOrigin: 25,
+	DrawingGridHorizontalSpacing: 26,
+	DrawingGridVerticalOrigin: 27,
+	DrawingGridVerticalSpacing: 28,
+	DisplayHorizontalDrawingGridEvery: 29,
+	DisplayVerticalDrawingGridEvery: 30,
+	CharacterSpacingControl: 31
 };
 var c_oDocProtect = {
 	AlgorithmName: 0,
@@ -7342,6 +7349,8 @@ function BinarySettingsTableWriter(memory, doc, saveParams)
 			this.bs.WriteItem(c_oSer_SettingsType.DoNotHyphenateCaps, function() {oThis.memory.WriteBool(true);});
 		if (undefined !== settings.consecutiveHyphenLimit)
 			this.bs.WriteItem(c_oSer_SettingsType.ConsecutiveHyphenLimit, function() {oThis.memory.WriteLong(settings.consecutiveHyphenLimit);});
+		if (undefined !== settings.CharacterSpacingControl)
+			this.bs.WriteItem(c_oSer_SettingsType.CharacterSpacingControl, function() {oThis.memory.WriteByte(settings.CharacterSpacingControl);});
 		
 		// if (oThis.Document.Settings && null != oThis.Document.Settings.PrintTwoOnOne) {
 		// 	this.bs.WriteItem(c_oSer_SettingsType.PrintTwoOnOne, function() {oThis.memory.WriteBool(oThis.Document.Settings.PrintTwoOnOne);});
@@ -16740,6 +16749,13 @@ function Binary_SettingsTableReader(doc, oReadResult, stream)
 		else if (c_oSer_SettingsType.DoNotHyphenateCaps === type)
 		{
 			Settings.setHyphenateCaps(!this.stream.GetBool());
+		}
+		else if (c_oSer_SettingsType.CharacterSpacingControl === type)
+		{
+			let mode = this.stream.GetUChar();
+			if (mode >= AscWord.CHARACTER_SPACING_COMPRESS_PUNCTUATION
+				&& mode <= AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS)
+				Settings.CharacterSpacingControl = mode;
 		}
         else
             res = c_oSerConstants.ReadUnknown;

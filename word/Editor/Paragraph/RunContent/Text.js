@@ -124,6 +124,15 @@
 	HANGING_PUNCTUATION[lcid_ja] = new Set(COMMON_HANGING_PUNCTUATION.concat([0x30FB]));
 	HANGING_PUNCTUATION[lcid_ko] = new Set(COMMON_HANGING_PUNCTUATION);
 
+	const OPENING_COMPRESSIBLE_PUNCTUATION = new Set([
+		0x3008, 0x300A, 0x300C, 0x300E, 0x3010, 0x3014, 0x3016, 0x3018,
+		0x301A, 0x301D, 0xFF08, 0xFF3B, 0xFF5B
+	]);
+	const COMPRESSIBLE_PUNCTUATION = new Set(COMMON_HANGING_PUNCTUATION.concat([
+		0x3008, 0x300A, 0x300C, 0x300E, 0x3010, 0x3014, 0x3016, 0x3018,
+		0x301A, 0x301D, 0x30FB, 0xFF08, 0xFF3B, 0xFF5B
+	]));
+
 	/**
 	 * Класс представляющий текстовый символ
 	 * @param {Number} nCharCode - Юникодное значение символа
@@ -140,6 +149,7 @@
 		this.Grapheme  = AscFonts.NO_GRAPHEME;
 		this.TextScale = 1;
 		this.AutoSpaceBefore = 0;
+		this.PunctuationCompression = 0;
 
 		this.SetSpaceAfter(this.private_IsSpaceAfter());
 		this.updateRtlFlag();
@@ -155,6 +165,7 @@
 	CRunText.prototype.SetCharCode = function(CharCode)
 	{
 		this.Value = CharCode;
+		this.PunctuationCompression = 0;
 		this.SetSpaceAfter(this.private_IsSpaceAfter());
 		this.updateRtlFlag();
 		
@@ -363,7 +374,7 @@
 			width = (this.Width / AscWord.TEXTWIDTH_DIVIDER);
 		
 		if (!(this.Flags & FLAGS_VISIBLE_WIDTH))
-			width += this.AutoSpaceBefore;
+			width += this.AutoSpaceBefore - this.PunctuationCompression;
 
 		return (width > 0 ? width : 0);
 	};
@@ -382,7 +393,7 @@
 		if (this.Flags & FLAGS_GAPS)
 			nWidth += this.LGap + this.RGap;
 
-		nWidth += this.AutoSpaceBefore;
+		nWidth += this.AutoSpaceBefore - this.PunctuationCompression;
 
 		return (nWidth > 0 ? nWidth : 0);
 	};
@@ -397,6 +408,8 @@
 	CRunText.prototype.Draw = function(X, Y, Context, PDSE, oTextPr, forceGrapheme)
 	{
 		X += this.AutoSpaceBefore;
+		if (this.PunctuationCompression > 0 && OPENING_COMPRESSIBLE_PUNCTUATION.has(this.Value))
+			X -= this.PunctuationCompression;
 
 		if (Context.m_bIsTextDrawer === true)
 		{
@@ -474,6 +487,7 @@
 		t.Grapheme  = this.Grapheme;
 		t.TextScale = this.TextScale;
 		t.AutoSpaceBefore = this.AutoSpaceBefore;
+		t.PunctuationCompression = this.PunctuationCompression;
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{
@@ -528,6 +542,29 @@
 
 		let punctuation = HANGING_PUNCTUATION[lang & 0x03FF];
 		return !!(punctuation && punctuation.has(this.Value));
+	};
+	CRunText.prototype.IsCompressiblePunctuation = function(mode, lang)
+	{
+		return (AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS !== mode
+			&& isEastAsianLanguage(lang)
+			&& COMPRESSIBLE_PUNCTUATION.has(this.Value));
+	};
+	CRunText.prototype.GetPunctuationCompressionCapacity = function()
+	{
+		let width = (this.Flags & FLAGS_TEMPORARY ? this.TempWidth : this.Width) / AscWord.TEXTWIDTH_DIVIDER;
+		return Math.max(0, width / 2);
+	};
+	CRunText.prototype.SetPunctuationCompression = function(value)
+	{
+		this.PunctuationCompression = Math.max(0, Math.min(this.GetPunctuationCompressionCapacity(), value || 0));
+	};
+	CRunText.prototype.ResetPunctuationCompression = function()
+	{
+		this.PunctuationCompression = 0;
+	};
+	CRunText.prototype.GetPunctuationCompression = function()
+	{
+		return this.PunctuationCompression;
 	};
 	CRunText.prototype.SetAutoSpaceBefore = function(value)
 	{
@@ -789,6 +826,7 @@
 			state.push(this.RGapFont);
 		}
 
+		state.push(this.PunctuationCompression);
 		return state;
 	};
 	CRunText.prototype.LoadRecalculateObject = function(oState)
@@ -827,6 +865,8 @@
 			this.RGapFontSlot  = oState[nPos++];
 			this.RGapFont      = oState[nPos++];
 		}
+
+		this.PunctuationCompression = nPos < oState.length ? oState[nPos] : 0;
 	};
 	CRunText.prototype.GetCombWidth = function()
 	{
@@ -878,6 +918,8 @@
 		t.Flags    = this.Flags;
 		t.Grapheme  = this.Grapheme;
 		t.TextScale = this.TextScale;
+		t.AutoSpaceBefore = this.AutoSpaceBefore;
+		t.PunctuationCompression = this.PunctuationCompression;
 
 		if (this.Flags & FLAGS_TEMPORARY)
 		{

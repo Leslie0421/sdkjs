@@ -177,6 +177,37 @@ $(function () {
 		para.SetOverflowPunct(undefined);
 	});
 
+	QUnit.test("Document punctuation compression is applied only when a line needs it", function(assert)
+	{
+		let settings = AscWord.DEFAULT_DOCUMENT_SETTINGS;
+		let oldMode = settings.CharacterSpacingControl;
+		setText("甲，乙丙");
+		run.Set_Lang_EastAsia(lcid_zhCN);
+		para.SetKinsoku(false);
+		para.SetOverflowPunct(false);
+
+		settings.CharacterSpacingControl = AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS;
+		recalculate(charWidth * 3.6);
+		assert.strictEqual(para.GetTextOnLine(0), "甲，乙", "Uncompressed punctuation keeps the fourth character on the next line");
+
+		settings.CharacterSpacingControl = AscWord.CHARACTER_SPACING_COMPRESS_PUNCTUATION;
+		recalculate(charWidth * 3.6);
+		assert.strictEqual(para.GetTextOnLine(0), "甲，乙丙", "A full-width comma can release half an em when the line would otherwise wrap");
+		assert.ok(run.GetElement(1).GetPunctuationCompression() > 0, "The punctuation stores a virtual advance reduction");
+		let compressedText = "";
+		for (let i = 0; i < para.GetLinesCount(); ++i)
+			compressedText += para.GetTextOnLine(i);
+		assert.strictEqual(compressedText, "甲，乙丙", "Compression does not change the character stream");
+
+		settings.CharacterSpacingControl = AscWord.CHARACTER_SPACING_DO_NOT_COMPRESS;
+		recalculate(charWidth * 20);
+		assert.strictEqual(run.GetElement(1).GetPunctuationCompression(), 0, "A non-full line restores the punctuation's normal advance");
+
+		settings.CharacterSpacingControl = oldMode;
+		para.SetKinsoku(undefined);
+		para.SetOverflowPunct(undefined);
+	});
+
 	QUnit.test("Test line breaks for Asian text", function (assert)
 	{
 		setText("你好世界! 你好世界! 你好世界! 你好世界! ");

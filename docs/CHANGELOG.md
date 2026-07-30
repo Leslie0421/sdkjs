@@ -2,6 +2,33 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-30：对齐中文标点压缩和网格段距
+
+- `word/Editor/DocumentSettings.js`、`Serialize2.js`
+  - 增加文档级 `CharacterSpacingControl` 三态模型，缺省为 OOXML 的 `doNotCompress`；Editor.bin 设置表使用编号 31，与 core 一致。
+  - 保存和重开可保留 `compressPunctuation`、`compressPunctuationAndJapaneseKana`、`doNotCompress`，旧文件缺少该项时不改变默认语义。
+- `word/Editor/Paragraph/RunContent/Text.js`、`Run.js`、`Paragraph_Recalculate.js`
+  - 当文档请求压缩标点且一行原本将换行时，才按实际所需宽度压缩可压缩的中文/日文/韩文全角标点，最多释放标点自身半个字宽；非满行恢复正常字宽。
+  - 压缩只改变排版前进宽度，不修改字符流，并同步进入绘制、光标/选择宽度、复制和重算状态；字符网格继续优先，避免两套字距规则叠加。
+  - 文档行网格下，显式磅值或自动段前/段后间距不再被基线对齐再次向上取整；相邻段落仍按既有规则取较大值，`beforeLines` / `afterLines` 的行单位语义保持不变。
+- `tests/word/document-calculation/paragraph/*.js`、`tests/word/js-api/api-section.js`
+  - 覆盖按需压缩、非满行复原、字符流不变、相邻段距折叠、字符网格边界条件和设置表保存重开。
+
+### 样本文档结论
+
+- WPS 样本包含 `w:characterSpacingControl w:val="compressPunctuation"`；此前 core 未把该设置送入 sdkjs，导致临界行少排字符并在长文档中累计增加页数。
+- 附件段落的 8 pt 段前/段后值此前会在 15.6 pt 行网格上再次向上取整，单个相邻段落边界可能额外增加 15.6 pt；本次保留显式磅值并只对行高应用网格。
+
+### 验证状态
+
+- 段落计算 QUnit 26/26 用例、393/393 断言通过；Editor.bin 标点压缩设置定向用例 1/1 通过。
+- 相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- core C++ 尚需在官方 build-tools 环境集中编译；部署后仍需用同一份 59 页 WPS 样本重新生成 PDF，确认分页和临界行文字位置。
+
+### 跨项目依赖
+
+- 对应 core 设置表桥接位于 `../core`；`../web-apps` 本次无界面改动。
+
 ## 2026-07-30：修正文档网格中的倍数行距和“行”单位段距
 
 - `word/Editor/Paragraph_Recalculate.js`
