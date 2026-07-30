@@ -110,6 +110,16 @@ $(function () {
 		);
 		assert.ok(props.get_DocGridDefaultFontSize() > 0, 'Public section properties expose a usable default font size');
 
+		let importedProps = new Asc.CDocumentSectionProps();
+		importedProps.put_H(AscCommon.TwipsToMM(16838));
+		importedProps.put_TopMargin(AscCommon.TwipsToMM(1440));
+		importedProps.put_BottomMargin(AscCommon.TwipsToMM(1440));
+		importedProps.put_Gutter(0);
+		importedProps.put_GutterAtTop(false);
+		importedProps.put_DocGridLinePitch(312);
+		assert.strictEqual(importedProps.get_DocGridLinesPerPage(), 44,
+			'Imported line pitch reports only complete grid lines that fit in the text area');
+
 		props.put_DocGridLinesPerPage(40);
 		props.put_DocGridCharsPerLine(45);
 		assert.strictEqual(props.get_DocGridLinesPerPage(), 40, 'Lines-per-page API converts to and from line pitch');

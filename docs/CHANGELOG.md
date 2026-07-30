@@ -2,6 +2,23 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-30：修正文档网格每页行数反算
+
+- `word/Editor/api/document-section-props.js`
+  - 从 OOXML `linePitch` 反算“每页行数”时改为统计版心中能够完整容纳的网格行，不再对不足一行的余量四舍五入。
+  - A4、上下边距各 1440 twip、`linePitch=312` 的样本文档可用高度为 13958 twip，反算结果从错误的 45 行恢复为 WPS 显示的 44 行；原始 `linePitch` 保持不变。
+- `tests/word/js-api/api-section.js`
+  - 增加上述真实页面参数的定向回归测试，并保留行数设置后的双向换算测试。
+
+### 影响范围
+
+- 本修正只影响页面设置界面的行数显示和公共 API 反算，不改变文档打开时已经加载的原始网格节距，也不直接改变分页。
+
+### 验证状态
+
+- 相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 定向 QUnit 已加入现有 JS API 测试页；当前环境仍缺少 `node-qunit-puppeteer`，未将其标记为浏览器实跑通过。
+
 ## 2026-07-30：保留网格行基线后的完整行高
 
 - `word/Editor/Paragraph_Recalculate.js`

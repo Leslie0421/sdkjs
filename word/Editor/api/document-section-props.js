@@ -240,7 +240,8 @@
 		if (!this.DocGridLinePitch || !contentHeight)
 			return undefined;
 
-		return Math.max(1, Math.round(contentHeight / AscCommon.TwipsToMM(this.DocGridLinePitch)));
+		let linePitch = AscCommon.TwipsToMM(this.DocGridLinePitch);
+		return Math.max(1, Math.floor(contentHeight / linePitch + 0.01));
 	};
 	CDocumentSectionProps.prototype.put_DocGridLinesPerPage = function(count)
 	{
