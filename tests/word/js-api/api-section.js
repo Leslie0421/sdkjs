@@ -150,13 +150,19 @@ $(function () {
 		let settings = document.GetDocumentSettings();
 		let oldAdjustLineHeight = settings.AdjustLineHeightInTable;
 		let oldDoNotSnap = settings.DoNotSnapToGridInCell;
+		let oldDoNotWrapTextWithPunct = settings.DoNotWrapTextWithPunct;
+		let oldDoNotUseEastAsianBreakRules = settings.DoNotUseEastAsianBreakRules;
 		settings.AdjustLineHeightInTable = true;
 		settings.DoNotSnapToGridInCell = true;
+		settings.DoNotWrapTextWithPunct = true;
+		settings.DoNotUseEastAsianBreakRules = true;
 
 		let writer = AscTest.GetBinaryWriter();
 		new BinarySettingsTableWriter(writer, document, {isCompatible: true}).WriteCompat();
 		settings.AdjustLineHeightInTable = oldAdjustLineHeight;
 		settings.DoNotSnapToGridInCell = oldDoNotSnap;
+		settings.DoNotWrapTextWithPunct = oldDoNotWrapTextWithPunct;
+		settings.DoNotUseEastAsianBreakRules = oldDoNotUseEastAsianBreakRules;
 
 		let reopenedSettings = new AscWord.DocumentSettings(document);
 		let reader = new Binary_SettingsTableReader(document, new DocReadResult(document), AscTest.GetBinaryReader(writer));
@@ -167,5 +173,7 @@ $(function () {
 
 		assert.strictEqual(reopenedSettings.isAdjustLineHeightInTable(), true, 'adjustLineHeightInTable survives Editor.bin');
 		assert.strictEqual(reopenedSettings.isDoNotSnapToGridInCell(), true, 'doNotSnapToGridInCell survives Editor.bin');
+		assert.strictEqual(reopenedSettings.isDoNotWrapTextWithPunct(), true, 'doNotWrapTextWithPunct survives Editor.bin');
+		assert.strictEqual(reopenedSettings.isDoNotUseEastAsianBreakRules(), true, 'doNotUseEastAsianBreakRules survives Editor.bin');
 	});
 });

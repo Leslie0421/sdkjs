@@ -45,6 +45,11 @@ $(function () {
 	{
 		AscTest.ClearDocument();
 		logicDocument.AddToContent(0, AscTest.CreateParagraph());
+		let settings = logicDocument.GetDocumentSettings();
+		settings.AdjustLineHeightInTable = false;
+		settings.DoNotSnapToGridInCell = false;
+		settings.DoNotWrapTextWithPunct = false;
+		settings.DoNotUseEastAsianBreakRules = false;
 		
 		let sectPr = AscTest.GetFinalSection();
 		sectPr.SetPageSize(PAGE_W, 1000);
@@ -102,32 +107,80 @@ $(function () {
 		checkLineHeight(assert, p1, [20, 25]);
 	});
 
-	QUnit.test("Document line grid snaps baselines and respects paragraph and run overrides", function(assert)
+	QUnit.test("Exact line spacing overrides the document line grid", function(assert)
 	{
 		let paragraph = logicDocument.GetElement(0);
 		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Exact, Line : 20});
 		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
-		let pitchTwips = 360;
-		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		let pitchTwips = 1440;
 		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
 
 		paragraph.SetSnapToGrid(true);
 		run.SetSnapToGrid(true);
 		AscTest.Recalculate();
 		assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps to multiple lines");
-		let snappedDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
-		assert.close(snappedDistance / pitch, Math.round(snappedDistance / pitch), 0.001, "Adjacent baselines use an integral number of line-grid pitches");
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 20, 0.001, "Exact line spacing is not rounded to the document grid");
+	});
 
+	QUnit.test("Automatic line spacing uses the document line-grid pitch", function(assert)
+	{
+		let paragraph = logicDocument.GetElement(0);
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
+		let pitchTwips = 1440;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+		paragraph.SetSnapToGrid(true);
+		run.SetSnapToGrid(true);
+
+		[1, 1.5, 2].forEach(function(multiplier)
+		{
+			paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : multiplier});
+			AscTest.Recalculate();
+			assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps for " + multiplier + "x line spacing");
+			assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001, multiplier + "x automatic spacing occupies one grid pitch when the text fits");
+		});
+
+		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : 2});
 		paragraph.SetSnapToGrid(false);
 		AscTest.Recalculate();
 		let paragraphOverrideDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
-		assert.close(paragraphOverrideDistance, 20, 0.001, "Paragraph SnapToGrid=false restores exact line spacing");
+		assert.close(paragraphOverrideDistance, 40, 0.001, "Paragraph SnapToGrid=false restores multiple line spacing");
 
 		paragraph.SetSnapToGrid(true);
 		run.SetSnapToGrid(false);
 		AscTest.Recalculate();
 		let runOverrideDistance = paragraph.getLine(1).Y - paragraph.getLine(0).Y;
-		assert.close(runOverrideDistance, 20, 0.001, "Run SnapToGrid=false disables grid snapping for affected lines");
+		assert.close(runOverrideDistance, 40, 0.001, "Run SnapToGrid=false disables grid snapping for affected lines");
+	});
+
+	QUnit.test("Table line-grid compatibility settings control snapping", function(assert)
+	{
+		AscTest.ClearDocument();
+		let table = AscTest.CreateTable(1, 1, [40]);
+		logicDocument.AddToContent(0, table);
+		let paragraph = table.GetRow(0).GetCell(0).GetContent().GetElement(0);
+		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : 2});
+		paragraph.SetSnapToGrid(true);
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
+		run.SetSnapToGrid(true);
+		let pitchTwips = 1440;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+		let settings = logicDocument.GetDocumentSettings();
+
+		settings.AdjustLineHeightInTable = false;
+		settings.DoNotSnapToGridInCell = false;
+		AscTest.Recalculate();
+		assert.ok(paragraph.GetLinesCount() > 1, "Table text wraps to multiple lines");
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 40, 0.001, "Grid line pitch is ignored in table cells by default");
+
+		settings.AdjustLineHeightInTable = true;
+		AscTest.Recalculate();
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001, "adjustLineHeightInTable enables grid line pitch in table cells");
+
+		settings.DoNotSnapToGridInCell = true;
+		AscTest.Recalculate();
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 40, 0.001, "doNotSnapToGridInCell overrides adjustLineHeightInTable");
 	});
 
 	QUnit.test("Document character grid uses virtual spacing and respects SnapToGrid", function(assert)
@@ -152,5 +205,30 @@ $(function () {
 		assert.strictEqual(run.GetElement(1).GetAutoSpaceBefore(), 0, "Paragraph SnapToGrid=false clears character-grid spacing");
 		assert.strictEqual(run.GetElement(2).GetAutoSpaceBefore(), 0, "Full-width digit spacing is cleared on recalculation");
 		assert.strictEqual(run.GetElement(4).GetAutoSpaceBefore(), 0, "All character-grid spacing is cleared on recalculation");
+	});
+
+	QUnit.test("Character-grid compatibility can disable hanging punctuation", function(assert)
+	{
+		let paragraph = logicDocument.GetElement(0);
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙，丙");
+		run.Set_Lang_EastAsia(lcid_zhCN);
+		run.SetSnapToGrid(true);
+		paragraph.SetKinsoku(true);
+		paragraph.SetOverflowPunct(true);
+		paragraph.SetSnapToGrid(true);
+		let charSpace = Math.round((charWidth / g_dKoef_pt_to_mm - AscTest.FontSize) * 4096);
+		let section = AscTest.GetFinalSection();
+		section.SetPageSize(L_FIELD + R_FIELD + 1.5 * charWidth, 1000);
+		section.SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.LinesAndChars, charSpace, 1440));
+		let settings = logicDocument.GetDocumentSettings();
+
+		settings.DoNotWrapTextWithPunct = false;
+		AscTest.Recalculate();
+		assert.ok(/，$/.test(paragraph.GetTextOnLine(0)), "OverflowPunct allows closing punctuation to hang with a character grid");
+
+		settings.DoNotWrapTextWithPunct = true;
+		AscTest.Recalculate();
+		assert.notOk(/，$/.test(paragraph.GetTextOnLine(0)), "doNotWrapTextWithPunct disables hanging punctuation with a character grid");
+		assert.strictEqual(paragraph.GetTextOnLine(0).indexOf("，"), -1, "Closing punctuation moves to the next line");
 	});
 });

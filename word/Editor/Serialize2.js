@@ -7391,6 +7391,8 @@ function BinarySettingsTableWriter(memory, doc, saveParams)
 		var flags2 = 0;
 		flags2 |=  (oSettings.AdjustLineHeightInTable ? 1 : 0) << 2;
 		flags2 |=  (oSettings.DoNotSnapToGridInCell ? 1 : 0) << 10;
+		flags2 |=  (oSettings.DoNotWrapTextWithPunct ? 1 : 0) << 13;
+		flags2 |=  (oSettings.DoNotUseEastAsianBreakRules ? 1 : 0) << 14;
 		flags2 |=  (oSettings.UseFELayout ? 1 : 0) << 17;
 		if (this.saveParams.isCompatible) {
 			flags2 |= (oSettings.SplitPageBreakAndParaMark ? 1 : 0) << 27;
@@ -17175,6 +17177,8 @@ function Binary_SettingsTableReader(doc, oReadResult, stream)
 			var flags2 = this.stream.GetULong(length);
 			Settings.AdjustLineHeightInTable = 0 != ((flags2 >> 2) & 1);
 			Settings.DoNotSnapToGridInCell = 0 != ((flags2 >> 10) & 1);
+			Settings.DoNotWrapTextWithPunct = 0 != ((flags2 >> 13) & 1);
+			Settings.DoNotUseEastAsianBreakRules = 0 != ((flags2 >> 14) & 1);
 			Settings.UseFELayout = 0 != ((flags2 >> 17) & 1);
 			Settings.SplitPageBreakAndParaMark = 0 != ((flags2 >> 27) & 1);
 		} else

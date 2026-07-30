@@ -3869,7 +3869,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					let LetterLen   = Item.GetWidth();
 					let isLigature  = Item.IsLigature();
 					let GraphemeLen = isLigature ? Item.GetLigatureWidth() + Item.GetAutoSpaceBefore() : LetterLen;
-					let overflowPunctuationWidth = (true === ParaPr.OverflowPunct
+					let overflowPunctuationWidth = (PRS.canUseOverflowPunctuation(ParaPr, this)
 						&& para_Text === ItemType
 						&& Item.IsHangingPunctuation(textPr.Lang.EastAsia))
 						? Math.max(0, LetterLen - Item.GetAutoSpaceBefore())

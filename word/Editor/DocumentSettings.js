@@ -74,6 +74,8 @@
 		this.UseFELayout                      = false;
 		this.AdjustLineHeightInTable          = false;
 		this.DoNotSnapToGridInCell            = false;
+		this.DoNotWrapTextWithPunct           = false;
+		this.DoNotUseEastAsianBreakRules      = false;
 	}
 	DocumentSettings.prototype.getCompatibilityMode = function()
 	{
@@ -86,6 +88,14 @@
 	DocumentSettings.prototype.isAdjustLineHeightInTable = function()
 	{
 		return this.AdjustLineHeightInTable;
+	};
+	DocumentSettings.prototype.isDoNotWrapTextWithPunct = function()
+	{
+		return this.DoNotWrapTextWithPunct;
+	};
+	DocumentSettings.prototype.isDoNotUseEastAsianBreakRules = function()
+	{
+		return this.DoNotUseEastAsianBreakRules;
 	};
 	DocumentSettings.prototype.isAutoHyphenation = function()
 	{

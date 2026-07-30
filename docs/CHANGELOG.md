@@ -2,6 +2,30 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-30：修正文档网格行距和表格兼容语义
+
+- `word/Editor/Paragraph_Recalculate.js`
+  - 固定值行距按 OOXML 语义优先于文档行网格，不再被网格节距取整。
+  - 自动行距在启用行网格时由网格控制基线；1 倍、1.5 倍和 2 倍行距在字形高度可容纳时均占一个网格，避免先扩张倍数行距再向上取整导致页数异常增加。
+  - 表格内只有 `adjustLineHeightInTable` 启用时才应用行网格节距；`doNotSnapToGridInCell` 仍具有更高优先级。字符网格不被 `adjustLineHeightInTable` 错误关闭。
+- `word/Editor/DocumentSettings.js`、`Serialize2.js`、`Run.js`
+  - 补齐 Editor.bin flags2 bit 13 `doNotWrapTextWithPunct` 和 bit 14 `doNotUseEastAsianBreakRules` 的无损读写，与 core 既有协议一致。
+  - 字符网格启用且 `doNotWrapTextWithPunct` 为真时禁止标点悬挂；行网格和未对齐网格的文字不受影响。
+  - `doNotUseEastAsianBreakRules` 仅按 OOXML 兼容标志保存，不错误映射为段落禁则开关。
+- `tests/word/document-calculation/paragraph/line-height.js`、`tests/word/js-api/api-section.js`
+  - 增加固定值、1/1.5/2 倍行距、段落/Run 关闭对齐、表格兼容位、字符网格悬挂标点和 Editor.bin 往返测试。
+
+### 样本文档结论
+
+- WPS 生成的合同样本共 9 节，均使用 `linePitch=312` 的行网格；1059 个段落中 989 个继承 1.5 倍行距，988 个默认与网格对齐，389 个段落位于表格中，并启用 `adjustLineHeightInTable`。
+- 原实现把自动倍数行距计入自然基线后再向网格取整，足以让大量正文行占用两个网格，是 59 页与 75 页差异的主导因素；字体缺失仍由部署环境单独处理。
+
+### 验证状态
+
+- 相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 新增 QUnit 已覆盖关键分支；本地浏览器策略拒绝临时 `127.0.0.1` 测试地址，因此本轮未将测试标记为已执行，待允许的浏览器环境及 WPS/ONLYOFFICE 样本重开验证。
+- core 已静态确认完整读写 docGrid、四个相关兼容标志及 Editor.bin 协议，本次没有 C++ 改动，也不需要额外 core 编译。
+
 ## 2026-07-29：完成东亚禁则、自动间距、溢出标点和文档网格排版
 
 - S3（`6090d59281`）

@@ -1593,6 +1593,10 @@ Paragraph.prototype.private_GetDocumentGridLinePitch = function(PRS, ParaPr)
 {
 	if (!PRS.LineSnapToGrid)
 		return 0;
+	if (linerule_Exact === ParaPr.Spacing.LineRule)
+		return 0;
+	if (PRS.IsInTable() && !PRS.getDocumentSettings().isAdjustLineHeightInTable())
+		return 0;
 
 	let docGrid = PRS.getDocumentGrid(ParaPr);
 	if (!docGrid || (Asc.c_oAscDocGridType.Lines !== docGrid.Type
@@ -1610,6 +1614,8 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 		return;
 
 	let metrics = this.Lines[CurLine].Metrics;
+	if (linerule_Auto === ParaPr.Spacing.LineRule)
+		metrics.LineGap = 0;
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
 	let baseline;
 	if (CurLine === pageFirstLine)
@@ -3772,6 +3778,17 @@ CParagraphRecalculateStateWrap.prototype.getDocumentGrid = function(paraPr, run)
 
 	let sectPr = this.GetSectPr();
 	return sectPr ? sectPr.GetDocGrid() : null;
+};
+CParagraphRecalculateStateWrap.prototype.canUseOverflowPunctuation = function(paraPr, run)
+{
+	if (true !== paraPr.OverflowPunct)
+		return false;
+	if (!this.getDocumentSettings().isDoNotWrapTextWithPunct())
+		return true;
+
+	let docGrid = this.getDocumentGrid(paraPr, run);
+	return !docGrid || (Asc.c_oAscDocGridType.LinesAndChars !== docGrid.Type
+		&& Asc.c_oAscDocGridType.SnapToChars !== docGrid.Type);
 };
 CParagraphRecalculateStateWrap.prototype.getCharGridSpaceBefore = function(item, run, paraPr, x)
 {
