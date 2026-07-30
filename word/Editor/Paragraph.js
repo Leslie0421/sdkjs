@@ -10762,6 +10762,7 @@ Paragraph.prototype.Get_CompiledPr = function()
 
 	var PrevEl = this.GetPrevDocumentElement();
 	var NextEl = this.GetNextDocumentElement();
+	var CurSpacingLineUnit = this.private_GetDocumentGridSpacingLineUnit(Pr.ParaPr.Spacing);
 
 	var oPrevParagraph = this.GetPrevParagraph();
 	var oNextParagraph = this.GetNextParagraph();
@@ -10835,8 +10836,8 @@ Paragraph.prototype.Get_CompiledPr = function()
 			Pr.ParaPr.Spacing.Before = 0;
 		else
 		{
-			Cur_Before = Pr.ParaPr.Spacing.CalculateBefore();
-			Prev_After = Prev_Pr.Spacing.CalculateAfter();
+			Cur_Before = Pr.ParaPr.Spacing.CalculateBefore(CurSpacingLineUnit);
+			Prev_After = Prev_Pr.Spacing.CalculateAfter(PrevEl.private_GetDocumentGridSpacingLineUnit(Prev_Pr.Spacing));
 
 			if ((true === Prev_Pr.ContextualSpacing
 				&& PrevStyle === StyleId)
@@ -10892,12 +10893,12 @@ Paragraph.prototype.Get_CompiledPr = function()
 		}
 		else
 		{
-			Pr.ParaPr.Spacing.Before = Pr.ParaPr.Spacing.CalculateBefore()
+			Pr.ParaPr.Spacing.Before = Pr.ParaPr.Spacing.CalculateBefore(CurSpacingLineUnit)
 		}
 	}
 	else if (type_Table === PrevEl.GetType())
 	{
-		Pr.ParaPr.Spacing.Before = Pr.ParaPr.Spacing.CalculateBefore()
+		Pr.ParaPr.Spacing.Before = Pr.ParaPr.Spacing.CalculateBefore(CurSpacingLineUnit)
 	}
 
 	var oTempNextEl = NextEl;
@@ -10931,7 +10932,7 @@ Paragraph.prototype.Get_CompiledPr = function()
 			if (true === Cur_AfterAuto && NextStyle === StyleId && undefined != Next_NumPr && undefined != NumPr && Next_NumPr.NumId === NumPr.NumId)
 				Pr.ParaPr.Spacing.After = 0;
 			else
-				Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter();
+				Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter(CurSpacingLineUnit);
 		}
 		else if (NextEl.IsTable() || NextEl.IsBlockLevelSdt())
 		{
@@ -10945,14 +10946,14 @@ Paragraph.prototype.Get_CompiledPr = function()
 				var Cur_AfterAuto   = Pr.ParaPr.Spacing.AfterAutoSpacing;
 				if (NextStyle === StyleId && true === Pr.ParaPr.ContextualSpacing)
 				{
-					Cur_After   = Pr.ParaPr.Spacing.CalculateAfter();
-					Next_Before = Next_Pr.Spacing.CalculateBefore();
+					Cur_After   = Pr.ParaPr.Spacing.CalculateAfter(CurSpacingLineUnit);
+					Next_Before = Next_Pr.Spacing.CalculateBefore(oNextElFirstParagraph.private_GetDocumentGridSpacingLineUnit(Next_Pr.Spacing));
 
 					Pr.ParaPr.Spacing.After = Math.max(Next_Before, Cur_After) - Cur_After;
 				}
 				else
 				{
-					Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter();
+					Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter(CurSpacingLineUnit);
 				}
 			}
 		}
@@ -11003,11 +11004,25 @@ Paragraph.prototype.Get_CompiledPr = function()
 		}
 		else
 		{
-			Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter();
+			Pr.ParaPr.Spacing.After = Pr.ParaPr.Spacing.CalculateAfter(CurSpacingLineUnit);
 		}
 	}
 
 	return Pr;
+};
+Paragraph.prototype.private_GetDocumentGridSpacingLineUnit = function(spacing)
+{
+	if (!spacing || (!spacing.BeforeLines && !spacing.AfterLines))
+		return undefined;
+
+	let sectPr = this.Get_SectPr();
+	let docGrid = sectPr && sectPr.GetDocGrid ? sectPr.GetDocGrid() : (sectPr ? sectPr.DocGrid : null);
+	if (!docGrid || (Asc.c_oAscDocGridType.Lines !== docGrid.Type
+		&& Asc.c_oAscDocGridType.LinesAndChars !== docGrid.Type)
+		|| !docGrid.LinePitch || docGrid.LinePitch <= 0)
+		return undefined;
+
+	return AscCommon.TwipsToMM(docGrid.LinePitch);
 };
 Paragraph.prototype.getCompiledPr = function()
 {

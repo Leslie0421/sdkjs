@@ -1615,8 +1615,28 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 
 	let metrics = this.Lines[CurLine].Metrics;
 	let contentHeight = metrics.Ascent + metrics.Descent;
-	let gridLineCount = Math.max(1, Math.ceil((contentHeight - 0.001) / pitch));
-	metrics.LineGap = Math.max(0, gridLineCount * pitch - contentHeight);
+	let snapPitch = pitch;
+	if (Asc.linerule_Auto === ParaPr.Spacing.LineRule)
+	{
+		// Auto line spacing uses 240ths and beforeLines/afterLines use 100ths.
+		// A common 1200th sub-grid preserves both fractions without drift.
+		let lineUnits = Math.max(240, Math.round((ParaPr.Spacing.Line || 1) * 240));
+		let snapUnits = private_GetDocumentGridGreatestCommonDivisor(1200, lineUnits * 5);
+		if (ParaPr.Spacing.BeforeLines)
+			snapUnits = private_GetDocumentGridGreatestCommonDivisor(snapUnits, Math.abs(ParaPr.Spacing.BeforeLines) * 12);
+		if (ParaPr.Spacing.AfterLines)
+			snapUnits = private_GetDocumentGridGreatestCommonDivisor(snapUnits, Math.abs(ParaPr.Spacing.AfterLines) * 12);
+		snapPitch = pitch * snapUnits / 1200;
+	}
+
+	let targetHeight = Math.max(contentHeight, pitch);
+	if (Asc.linerule_Auto === ParaPr.Spacing.LineRule)
+		targetHeight = Math.max(targetHeight, pitch * Math.max(1, ParaPr.Spacing.Line || 1));
+	else if (Asc.linerule_AtLeast === ParaPr.Spacing.LineRule)
+		targetHeight = Math.max(targetHeight, ParaPr.Spacing.Line);
+
+	targetHeight = Math.ceil((targetHeight - 0.001) / snapPitch) * snapPitch;
+	metrics.LineGap = Math.max(0, targetHeight - contentHeight);
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
 	let baseline;
 	if (CurLine === pageFirstLine)
@@ -1651,11 +1671,24 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	if (!(PRS.GetTopDocument() instanceof CDocument))
 		origin = this.Pages[CurPage].Y;
 
-	let gridLine = Math.max(1, Math.ceil((baseline - origin - 0.001) / pitch));
-	let snappedBaseline = origin + gridLine * pitch;
+	let gridLine = Math.max(1, Math.ceil((baseline - origin - 0.001) / snapPitch));
+	let snappedBaseline = origin + gridLine * snapPitch;
 	if (snappedBaseline > baseline + 0.001)
 		metrics.Ascent += snappedBaseline - baseline;
 };
+
+function private_GetDocumentGridGreatestCommonDivisor(first, second)
+{
+	first = Math.abs(Math.round(first));
+	second = Math.abs(Math.round(second));
+	while (second)
+	{
+		let remainder = first % second;
+		first = second;
+		second = remainder;
+	}
+	return first || 1;
+}
 
 Paragraph.prototype.private_RecalculateLineBottomBound = function(CurLine, CurPage, PRS, ParaPr)
 {

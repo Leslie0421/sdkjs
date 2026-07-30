@@ -315,21 +315,21 @@
 		else
 			this.Line = g_dKoef_twips_to_mm * val;
 	};
-	ParaSpacing.prototype.CalculateBefore = function()
+	ParaSpacing.prototype.CalculateBefore = function(lineUnit)
 	{
 		if (true === this.BeforeAutoSpacing)
 			return 14 * g_dKoef_pt_to_mm;
 		else if (undefined !== this.BeforeLines && null !== this.BeforeLines && 0 !== this.BeforeLines)
-			return this.BeforeLines * 240 / 100 * g_dKoef_twips_to_mm;
+			return this.BeforeLines / 100 * (lineUnit || 240 * g_dKoef_twips_to_mm);
 		
 		return this.Before;
 	};
-	ParaSpacing.prototype.CalculateAfter = function()
+	ParaSpacing.prototype.CalculateAfter = function(lineUnit)
 	{
 		if (true === this.AfterAutoSpacing)
 			return 14 * g_dKoef_pt_to_mm;
 		else if (undefined !== this.AfterLines && null !== this.AfterLines && 0 !== this.AfterLines)
-			return this.AfterLines * 240 / 100 * g_dKoef_twips_to_mm;
+			return this.AfterLines / 100 * (lineUnit || 240 * g_dKoef_twips_to_mm);
 		
 		return this.After;
 	};

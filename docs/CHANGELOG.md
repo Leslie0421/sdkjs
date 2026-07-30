@@ -2,6 +2,29 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-30：修正文档网格中的倍数行距和“行”单位段距
+
+- `word/Editor/Paragraph_Recalculate.js`
+  - 纠正此前把 1 倍、1.5 倍和 2 倍自动行距全部压成一个网格的兼容判断；自动行距现在以节 `linePitch` 为单倍基准，保留原始倍数。
+  - 将自动行距的 240 分之一单位和 `beforeLines` / `afterLines` 的百分之一单位归一到共同子网格，1.5 倍与半行段距不会因基线再次取整产生累计漂移。
+  - 固定值行距继续优先于文档网格；表格仍受 `adjustLineHeightInTable` 和 `doNotSnapToGridInCell` 控制。
+- `word/Editor/Styles/para-spacing.js`、`word/Editor/Paragraph.js`
+  - `beforeLines` / `afterLines` 在存在行网格时按该节的 `linePitch` 换算；无行网格时继续使用现有的 240 twip 兼容回退值。
+  - 相邻段落、表格边界、上下文间距和非网格段落均通过同一换算入口，避免只修正文档正文中的单一路径。
+- `tests/word/document-calculation/paragraph/line-height.js`
+  - 覆盖固定值、1/1.5/2 倍、半行段距、跨段落基线连续性、Run/段落关闭网格及表格兼容开关。
+
+### 样本文档结论
+
+- 对比同一 DOCX 的 WPS/ONLYOFFICE PDF，WPS 正文基线主间距为 23.4 pt，即 `linePitch=15.6 pt × 1.5`；原 ONLYOFFICE 结果为 15.6 pt。本修正直接针对该分页主因。
+- 样本中的 0.5 行段前/段后间距应为 7.8 pt；旧实现固定按 12 pt 单倍行换算为 6 pt，单处少 1.8 pt，长文档中会继续累计压缩。
+
+### 验证状态
+
+- 浏览器逐项执行 5 个纵向网格 QUnit，共 20/20 断言通过。
+- 相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 本次不改变 core 的 DOCX/Editor.bin 协议，也不需要重新编译 core；仍需部署后用 59 页 WPS 样本复核最终页数。
+
 ## 2026-07-30：修正文档网格每页行数反算
 
 - `word/Editor/api/document-section-props.js`

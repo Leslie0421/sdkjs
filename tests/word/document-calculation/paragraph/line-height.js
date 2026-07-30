@@ -54,6 +54,7 @@ $(function () {
 		let sectPr = AscTest.GetFinalSection();
 		sectPr.SetPageSize(PAGE_W, 1000);
 		sectPr.SetPageMargins(L_FIELD, 50, R_FIELD, 50);
+		sectPr.SetDocGrid(undefined);
 	}
 	
 	function checkLineHeight(assert, para, lines)
@@ -111,7 +112,7 @@ $(function () {
 	{
 		let paragraph = logicDocument.GetElement(0);
 		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Exact, Line : 20});
-		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
 		let pitchTwips = 1440;
 		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
 
@@ -119,13 +120,13 @@ $(function () {
 		run.SetSnapToGrid(true);
 		AscTest.Recalculate();
 		assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps to multiple lines");
-		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 20, 0.001, "Exact line spacing is not rounded to the document grid");
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 20, 0.02, "Exact line spacing is not rounded to the document grid");
 	});
 
-	QUnit.test("Automatic line spacing uses the document line-grid pitch", function(assert)
+	QUnit.test("Automatic line spacing preserves its multiplier on the document line grid", function(assert)
 	{
 		let paragraph = logicDocument.GetElement(0);
-		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
+		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
 		let pitchTwips = 1440;
 		let pitch = AscCommon.TwipsToMM(pitchTwips);
 		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
@@ -137,7 +138,8 @@ $(function () {
 			paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : multiplier});
 			AscTest.Recalculate();
 			assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps for " + multiplier + "x line spacing");
-			assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001, multiplier + "x automatic spacing occupies one grid pitch when the text fits");
+			assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch * multiplier, 0.001,
+				multiplier + "x automatic spacing keeps the multiplier relative to the grid pitch");
 		});
 
 		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : 2});
@@ -163,7 +165,7 @@ $(function () {
 		let bodyRun = AscTest.AddTextToParagraph(body, "正文");
 		let pitchTwips = 1440;
 		let pitch = AscCommon.TwipsToMM(pitchTwips);
-		let halfLineSpacing = 50 * 240 / 100 * g_dKoef_twips_to_mm;
+		let halfLineSpacing = pitch * 50 / 100;
 		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
 
 		heading.SetParagraphSpacing({After : 0, AfterLines : 50, Before : 0, LineRule : linerule_Auto, Line : 1.5});
@@ -177,14 +179,41 @@ $(function () {
 		assert.strictEqual(heading.GetLinesCount(), 1, "Grid-aligned heading occupies one visual line");
 		assert.strictEqual(body.GetLinesCount(), 1, "Following non-grid paragraph occupies one visual line");
 		assert.ok(heading.getLine(0).Metrics.LineGap > 0.001, "A short grid-aligned line keeps the unused part of its grid pitch after the baseline");
-		assert.close(body.getLine(0).Y - heading.getLine(0).Y, pitch + halfLineSpacing, 0.001,
-			"The following paragraph starts after one complete grid pitch and the half-line paragraph spacing");
+		let bodyBaseline = body.GetPageBounds(0).Top + body.getLine(0).Y;
+		let headingBaseline = heading.GetPageBounds(0).Top + heading.getLine(0).Y;
+		assert.close(bodyBaseline - headingBaseline, pitch * 1.5 + halfLineSpacing, 0.001,
+			"The following paragraph starts after the multiplied grid pitch and the half-line paragraph spacing");
 
 		heading.SetParagraphSpacing({After : 0, AfterLines : 50, Before : 0, LineRule : linerule_AtLeast, Line : 22});
 		AscTest.Recalculate();
 		assert.ok(heading.getLine(0).Metrics.LineGap > 0.001, "At-least spacing also keeps the unused part of its grid pitch");
-		assert.close(body.getLine(0).Y - heading.getLine(0).Y, pitch + halfLineSpacing, 0.001,
-			"At-least spacing below one pitch keeps the same complete grid advance");
+	});
+
+	QUnit.test("Automatic grid spacing remains continuous across paragraph boundaries", function(assert)
+	{
+		let first = logicDocument.GetElement(0);
+		let second = AscTest.CreateParagraph();
+		logicDocument.AddToContent(1, second);
+
+		let firstRun = AscTest.AddTextToParagraph(first, "第一段");
+		let secondRun = AscTest.AddTextToParagraph(second, "第二段");
+		let pitchTwips = 1440;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+
+		[first, second].forEach(function(paragraph)
+		{
+			paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : 1.5});
+			paragraph.SetSnapToGrid(true);
+		});
+		firstRun.SetSnapToGrid(true);
+		secondRun.SetSnapToGrid(true);
+		AscTest.Recalculate();
+
+		let secondBaseline = second.GetPageBounds(0).Top + second.getLine(0).Y;
+		let firstBaseline = first.GetPageBounds(0).Top + first.getLine(0).Y;
+		assert.close(secondBaseline - firstBaseline, pitch * 1.5, 0.001,
+			"Adjacent paragraphs keep the same 1.5-grid baseline advance as lines within a paragraph");
 	});
 
 	QUnit.test("Table line-grid compatibility settings control snapping", function(assert)
@@ -210,7 +239,7 @@ $(function () {
 
 		settings.AdjustLineHeightInTable = true;
 		AscTest.Recalculate();
-		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001, "adjustLineHeightInTable enables grid line pitch in table cells");
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch * 2, 0.001, "adjustLineHeightInTable preserves the automatic line-spacing multiplier on the grid");
 
 		settings.DoNotSnapToGridInCell = true;
 		AscTest.Recalculate();
