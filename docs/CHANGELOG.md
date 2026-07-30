@@ -2,6 +2,26 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-07-30：保留网格行基线后的完整行高
+
+- `word/Editor/Paragraph_Recalculate.js`
+  - 自动或最小值行距对齐文档行网格时，不再把尾部 `LineGap` 留空或直接清零；改为按文字、公式和行内对象的实际高度补齐到一个或多个完整网格节距。
+  - 基线仍按节网格对齐，1 倍、1.5 倍和 2 倍自动行距不会再次被错误扩成两个网格；同时保留最后一行基线之后的剩余行高，避免标题、条款号等单行段落与后续正文过度贴近。
+  - 固定值行距、`snapToGrid=false`、表格兼容开关和超高行内容继续沿用既有分支，不受本次修正影响。
+- `tests/word/document-calculation/paragraph/line-height.js`
+  - 增加“网格单行标题 + 半行段后/段前间距 + 后续非网格正文”的自动/最小值行距回归测试，验证后一段基线位于完整网格节距和半行段距之后。
+
+### 样本文档结论
+
+- 截图像素对比显示，两行普通正文的基线间距在 WPS 与 ONLYOFFICE 中基本一致；主要差异集中在“标题/条款号到下一段”的段落间距。
+- 样本中的条款号段落继承 `beforeLines=50`、`afterLines=50`，正文段落显式 `snapToGrid=false`。原先清零网格行尾余量会在大量单行段落处累计压缩，能够解释页数由 59 页反向缩到 51 页的现象。
+
+### 验证状态
+
+- `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 新增 QUnit 已覆盖本次精确回归场景；当前环境缺少 `node-qunit-puppeteer`，尚未将浏览器 QUnit 标记为已执行，仍需部署后用 WPS/ONLYOFFICE 对同一份样本文档复核页数和段间距。
+- 本次只修改 sdkjs，不涉及 core Editor.bin/DOCX 读写或 web-apps 界面，无需重新编译 core。
+
 ## 2026-07-30：修正文档网格行距和表格兼容语义
 
 - `word/Editor/Paragraph_Recalculate.js`

@@ -1614,8 +1614,9 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 		return;
 
 	let metrics = this.Lines[CurLine].Metrics;
-	if (linerule_Auto === ParaPr.Spacing.LineRule)
-		metrics.LineGap = 0;
+	let contentHeight = metrics.Ascent + metrics.Descent;
+	let gridLineCount = Math.max(1, Math.ceil((contentHeight - 0.001) / pitch));
+	metrics.LineGap = Math.max(0, gridLineCount * pitch - contentHeight);
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
 	let baseline;
 	if (CurLine === pageFirstLine)

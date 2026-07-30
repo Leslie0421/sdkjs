@@ -153,6 +153,40 @@ $(function () {
 		assert.close(runOverrideDistance, 40, 0.001, "Run SnapToGrid=false disables grid snapping for affected lines");
 	});
 
+	QUnit.test("Grid-aligned lines preserve trailing grid leading", function(assert)
+	{
+		let heading = logicDocument.GetElement(0);
+		let body = AscTest.CreateParagraph();
+		logicDocument.AddToContent(1, body);
+
+		let headingRun = AscTest.AddTextToParagraph(heading, "条款标题");
+		let bodyRun = AscTest.AddTextToParagraph(body, "正文");
+		let pitchTwips = 1440;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		let halfLineSpacing = 50 * 240 / 100 * g_dKoef_twips_to_mm;
+		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
+
+		heading.SetParagraphSpacing({After : 0, AfterLines : 50, Before : 0, LineRule : linerule_Auto, Line : 1.5});
+		heading.SetSnapToGrid(true);
+		headingRun.SetSnapToGrid(true);
+		body.SetParagraphSpacing({After : 0, Before : 0, BeforeLines : 50, LineRule : linerule_Auto, Line : 1.5});
+		body.SetSnapToGrid(false);
+		bodyRun.SetSnapToGrid(false);
+		AscTest.Recalculate();
+
+		assert.strictEqual(heading.GetLinesCount(), 1, "Grid-aligned heading occupies one visual line");
+		assert.strictEqual(body.GetLinesCount(), 1, "Following non-grid paragraph occupies one visual line");
+		assert.ok(heading.getLine(0).Metrics.LineGap > 0.001, "A short grid-aligned line keeps the unused part of its grid pitch after the baseline");
+		assert.close(body.getLine(0).Y - heading.getLine(0).Y, pitch + halfLineSpacing, 0.001,
+			"The following paragraph starts after one complete grid pitch and the half-line paragraph spacing");
+
+		heading.SetParagraphSpacing({After : 0, AfterLines : 50, Before : 0, LineRule : linerule_AtLeast, Line : 22});
+		AscTest.Recalculate();
+		assert.ok(heading.getLine(0).Metrics.LineGap > 0.001, "At-least spacing also keeps the unused part of its grid pitch");
+		assert.close(body.getLine(0).Y - heading.getLine(0).Y, pitch + halfLineSpacing, 0.001,
+			"At-least spacing below one pitch keeps the same complete grid advance");
+	});
+
 	QUnit.test("Table line-grid compatibility settings control snapping", function(assert)
 	{
 		AscTest.ClearDocument();
