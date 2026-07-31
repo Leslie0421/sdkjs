@@ -23,7 +23,8 @@
 
 - 段落计算 QUnit 26/26 用例、393/393 断言通过；Editor.bin 标点压缩设置定向用例 1/1 通过。
 - 相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
-- core C++ 尚需在官方 build-tools 环境集中编译；部署后仍需用同一份 59 页 WPS 样本重新生成 PDF，确认分页和临界行文字位置。
+- 2026-07-31 已完成 core 官方 build-tools 编译，并与本提交一同部署；同一份 WPS 59 页样本文档在 ONLYOFFICE 中由上一版 64 页收敛到 61 页。
+- 当前剩余 2 页差异尚未归因，下一轮必须先取得部署后的最新 ONLYOFFICE PDF 和对应 WPS PDF，按章节/附件映射首次分页漂移，再决定是否修改标点压缩、段落边界、表格、页眉页脚或分页约束。
 
 ### 跨项目依赖
 
