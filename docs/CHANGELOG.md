@@ -2,6 +2,22 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-08-03：让文档网格接管自动行距并保持段落基线对齐
+
+- `word/Editor/Paragraph_Recalculate.js`
+  - 段落和 Run 启用 `SnapToGrid` 且当前节存在行网格时，1 倍、1.5 倍、2 倍等自动行距统一使用文档网格节距；行距属性本身仍保留，关闭网格对齐后立即恢复原效果。
+  - 显式磅值或自动段前/段后间距不再跳过首行基线对齐；段距可以推进到后续网格线，但不会把基线放在网格线之间。
+  - `beforeLines` / `afterLines` 继续按百分之一行保留分数子网格；固定值行距、最小值行距、表格 `adjustLineHeightInTable` / `doNotSnapToGridInCell` 和段落/Run 关闭网格的覆盖规则保持不变。
+- `tests/word/document-calculation/paragraph/line-height.js`
+  - 将 1/1.5/2 倍行距、跨段落连续性和表格网格用例改为 WPS 兼容预期。
+  - 增加磅值段距不能把基线拉离网格、关闭网格后恢复连续段距的回归断言。
+
+### 原因和验证
+
+- WPS 实测显示，勾选“如果定义了文档网格，则与网格对齐”后，切换 1 倍和 2 倍自动行距不改变版面；原实现却保留倍数并在遇到磅值段距时提前退出基线对齐，属于布局语义错误。
+- 段落计算 QUnit 26/26 用例、395/395 断言通过；相关 JavaScript `node --check`、`git diff --check` 通过，`build/node_modules/.bin/grunt compile-word` Closure 全量编译通过。
+- 本次只修改 sdkjs 布局和测试，不改变 core 协议或 web-apps 界面。旧部署的 61 页结果不代表本次修正后的页数，仍需部署后与 WPS 59 页 PDF 重新对比。
+
 ## 2026-07-30：对齐中文标点压缩和网格段距
 
 - `word/Editor/DocumentSettings.js`、`Serialize2.js`

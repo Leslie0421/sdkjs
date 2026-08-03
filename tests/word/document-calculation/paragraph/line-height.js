@@ -123,7 +123,7 @@ $(function () {
 		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, 20, 0.02, "Exact line spacing is not rounded to the document grid");
 	});
 
-	QUnit.test("Automatic line spacing preserves its multiplier on the document line grid", function(assert)
+	QUnit.test("Automatic line spacing uses the document line-grid pitch", function(assert)
 	{
 		let paragraph = logicDocument.GetElement(0);
 		let run = AscTest.AddTextToParagraph(paragraph, "甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸");
@@ -138,8 +138,8 @@ $(function () {
 			paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : multiplier});
 			AscTest.Recalculate();
 			assert.ok(paragraph.GetLinesCount() > 1, "Test content wraps for " + multiplier + "x line spacing");
-			assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch * multiplier, 0.001,
-				multiplier + "x automatic spacing keeps the multiplier relative to the grid pitch");
+			assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001,
+				multiplier + "x automatic spacing is ignored while the paragraph snaps to the document grid");
 		});
 
 		paragraph.SetParagraphSpacing({After : 0, Before : 0, LineRule : linerule_Auto, Line : 2});
@@ -181,8 +181,8 @@ $(function () {
 		assert.ok(heading.getLine(0).Metrics.LineGap > 0.001, "A short grid-aligned line keeps the unused part of its grid pitch after the baseline");
 		let bodyBaseline = body.GetPageBounds(0).Top + body.getLine(0).Y;
 		let headingBaseline = heading.GetPageBounds(0).Top + heading.getLine(0).Y;
-		assert.close(bodyBaseline - headingBaseline, pitch * 1.5 + halfLineSpacing, 0.001,
-			"The following paragraph starts after the multiplied grid pitch and the half-line paragraph spacing");
+		assert.close(bodyBaseline - headingBaseline, pitch + halfLineSpacing, 0.001,
+			"The following paragraph starts after one grid pitch and the half-line paragraph spacing");
 
 		heading.SetParagraphSpacing({After : 0, AfterLines : 50, Before : 0, LineRule : linerule_AtLeast, Line : 22});
 		AscTest.Recalculate();
@@ -212,11 +212,11 @@ $(function () {
 
 		let secondBaseline = second.GetPageBounds(0).Top + second.getLine(0).Y;
 		let firstBaseline = first.GetPageBounds(0).Top + first.getLine(0).Y;
-		assert.close(secondBaseline - firstBaseline, pitch * 1.5, 0.001,
-			"Adjacent paragraphs keep the same 1.5-grid baseline advance as lines within a paragraph");
+		assert.close(secondBaseline - firstBaseline, pitch, 0.001,
+			"Adjacent grid-aligned paragraphs ignore the automatic line-spacing multiplier");
 	});
 
-	QUnit.test("Adjacent paragraph spacing collapses to the larger value on a document grid", function(assert)
+	QUnit.test("Point paragraph spacing does not move a baseline off the document grid", function(assert)
 	{
 		let first = logicDocument.GetElement(0);
 		let second = AscTest.CreateParagraph();
@@ -224,8 +224,9 @@ $(function () {
 
 		let firstRun = AscTest.AddTextToParagraph(first, "第一段");
 		let secondRun = AscTest.AddTextToParagraph(second, "第二段");
-		let pitchTwips = 312;
-		let paragraphSpacing = AscCommon.TwipsToMM(160);
+		let pitchTwips = 1440;
+		let pitch = AscCommon.TwipsToMM(pitchTwips);
+		let paragraphSpacing = pitch / 4;
 		AscTest.GetFinalSection().SetDocGrid(new AscWord.SectionDocGrid(Asc.c_oAscDocGridType.Lines, 0, pitchTwips));
 
 		[first, second].forEach(function(paragraph)
@@ -239,12 +240,27 @@ $(function () {
 
 		let firstBaseline = first.GetPageBounds(0).Top + first.getLine(0).Y;
 		let secondBaseline = second.GetPageBounds(0).Top + second.getLine(0).Y;
-		let firstMetrics = first.getLine(0).Metrics;
-		let expectedAdvance = firstMetrics.Ascent + firstMetrics.Descent + firstMetrics.LineGap + paragraphSpacing;
-		assert.close(secondBaseline - firstBaseline, expectedAdvance, 0.001,
-			"The previous After and current Before spacing use max(), not their sum");
+		let contentTop = AscTest.GetFinalSection().GetContentFrame(0).Top;
+		let secondGridOffset = (secondBaseline - contentTop) / pitch;
+		assert.close(secondGridOffset, Math.round(secondGridOffset), 0.001,
+			"Point paragraph spacing keeps the following baseline on the document grid");
+		assert.close(secondBaseline - firstBaseline, pitch * 2, 0.001,
+			"Positive point spacing advances to the next complete grid line instead of creating an off-grid baseline");
 		assert.close(second.Get_CompiledPr().ParaPr.Spacing.Before, 0, 0.001,
 			"The current paragraph does not retain duplicate Before spacing after compilation");
+
+		first.SetParagraphSpacing({After : paragraphSpacing, Before : paragraphSpacing, LineRule : linerule_Auto, Line : 1.5});
+		second.SetParagraphSpacing({After : paragraphSpacing, Before : paragraphSpacing, LineRule : linerule_Auto, Line : 1.5});
+		first.SetSnapToGrid(false);
+		second.SetSnapToGrid(false);
+		firstRun.SetSnapToGrid(false);
+		secondRun.SetSnapToGrid(false);
+		AscTest.Recalculate();
+
+		firstBaseline = first.GetPageBounds(0).Top + first.getLine(0).Y;
+		secondBaseline = second.GetPageBounds(0).Top + second.getLine(0).Y;
+		assert.notOk(Math.abs((secondBaseline - contentTop) / pitch - Math.round((secondBaseline - contentTop) / pitch)) < 0.001,
+			"Disabling grid alignment restores continuous point paragraph spacing");
 	});
 
 	QUnit.test("Table line-grid compatibility settings control snapping", function(assert)
@@ -270,7 +286,7 @@ $(function () {
 
 		settings.AdjustLineHeightInTable = true;
 		AscTest.Recalculate();
-		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch * 2, 0.001, "adjustLineHeightInTable preserves the automatic line-spacing multiplier on the grid");
+		assert.close(paragraph.getLine(1).Y - paragraph.getLine(0).Y, pitch, 0.001, "adjustLineHeightInTable lets the document grid override automatic line spacing");
 
 		settings.DoNotSnapToGridInCell = true;
 		AscTest.Recalculate();

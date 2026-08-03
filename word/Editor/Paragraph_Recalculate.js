@@ -1618,10 +1618,10 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	let snapPitch = pitch;
 	if (Asc.linerule_Auto === ParaPr.Spacing.LineRule)
 	{
-		// Auto line spacing uses 240ths and beforeLines/afterLines use 100ths.
-		// A common 1200th sub-grid preserves both fractions without drift.
-		let lineUnits = Math.max(240, Math.round((ParaPr.Spacing.Line || 1) * 240));
-		let snapUnits = private_GetDocumentGridGreatestCommonDivisor(1200, lineUnits * 5);
+		// beforeLines/afterLines use 100ths of a line. A common 1200th
+		// sub-grid preserves those paragraph-spacing fractions without letting
+		// the automatic line-spacing multiplier override the document grid.
+		let snapUnits = 1200;
 		if (ParaPr.Spacing.BeforeLines)
 			snapUnits = private_GetDocumentGridGreatestCommonDivisor(snapUnits, Math.abs(ParaPr.Spacing.BeforeLines) * 12);
 		if (ParaPr.Spacing.AfterLines)
@@ -1630,17 +1630,12 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	}
 
 	let targetHeight = Math.max(contentHeight, pitch);
-	if (Asc.linerule_Auto === ParaPr.Spacing.LineRule)
-		targetHeight = Math.max(targetHeight, pitch * Math.max(1, ParaPr.Spacing.Line || 1));
-	else if (Asc.linerule_AtLeast === ParaPr.Spacing.LineRule)
+	if (Asc.linerule_AtLeast === ParaPr.Spacing.LineRule)
 		targetHeight = Math.max(targetHeight, ParaPr.Spacing.Line);
 
 	targetHeight = Math.ceil((targetHeight - 0.001) / snapPitch) * snapPitch;
 	metrics.LineGap = Math.max(0, targetHeight - contentHeight);
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
-	if (CurLine === pageFirstLine && this.private_HasPointParagraphSpacingAtGridBoundary(CurPage, PRS, ParaPr))
-		return;
-
 	let baseline;
 	if (CurLine === pageFirstLine)
 	{
@@ -1678,31 +1673,6 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	let snappedBaseline = origin + gridLine * snapPitch;
 	if (snappedBaseline > baseline + 0.001)
 		metrics.Ascent += snappedBaseline - baseline;
-};
-
-Paragraph.prototype.private_HasPointParagraphSpacingAtGridBoundary = function(CurPage, PRS, ParaPr)
-{
-	let spacing = this.Get_CompiledPr2(false).ParaPr.Spacing;
-	if ((spacing.BeforeAutoSpacing
-		|| ((!spacing.BeforeLines || spacing.BeforeLines === 0) && spacing.Before > 0.001))
-		&& this.private_CheckNeedBeforeSpacing(CurPage, PRS.Parent, PRS.GetPageAbs(), ParaPr))
-		return true;
-
-	let prev = this.GetPrevDocumentElement();
-	if (!prev || !prev.IsParagraph || !prev.IsParagraph())
-		return false;
-
-	let prevPage = prev.GetPagesCount() - 1;
-	if (prevPage < 0 || prev.GetAbsolutePage(prevPage) !== PRS.GetPageAbs())
-		return false;
-	let prevColumn = prev.GetAbsoluteColumn(prevPage);
-	let currentColumn = PRS.GetColumnAbs();
-	if (undefined !== prevColumn && undefined !== currentColumn && prevColumn !== currentColumn)
-		return false;
-
-	let prevSpacing = prev.Get_CompiledPr2(false).ParaPr.Spacing;
-	return (prevSpacing.AfterAutoSpacing
-		|| ((!prevSpacing.AfterLines || prevSpacing.AfterLines === 0) && prevSpacing.After > 0.001));
 };
 
 function private_GetDocumentGridGreatestCommonDivisor(first, second)
