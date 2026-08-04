@@ -1615,25 +1615,12 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 
 	let metrics = this.Lines[CurLine].Metrics;
 	let contentHeight = metrics.Ascent + metrics.Descent;
-	let snapPitch = pitch;
-	if (Asc.linerule_Auto === ParaPr.Spacing.LineRule)
-	{
-		// beforeLines/afterLines use 100ths of a line. A common 1200th
-		// sub-grid preserves those paragraph-spacing fractions without letting
-		// the automatic line-spacing multiplier override the document grid.
-		let snapUnits = 1200;
-		if (ParaPr.Spacing.BeforeLines)
-			snapUnits = private_GetDocumentGridGreatestCommonDivisor(snapUnits, Math.abs(ParaPr.Spacing.BeforeLines) * 12);
-		if (ParaPr.Spacing.AfterLines)
-			snapUnits = private_GetDocumentGridGreatestCommonDivisor(snapUnits, Math.abs(ParaPr.Spacing.AfterLines) * 12);
-		snapPitch = pitch * snapUnits / 1200;
-	}
-
-	let targetHeight = Math.max(contentHeight, pitch);
+	let naturalHeight = contentHeight + metrics.LineGap;
+	let targetHeight = Math.max(contentHeight, naturalHeight, pitch);
 	if (Asc.linerule_AtLeast === ParaPr.Spacing.LineRule)
 		targetHeight = Math.max(targetHeight, ParaPr.Spacing.Line);
 
-	targetHeight = Math.ceil((targetHeight - 0.001) / snapPitch) * snapPitch;
+	targetHeight = Math.ceil((targetHeight - 0.001) / pitch) * pitch;
 	metrics.LineGap = Math.max(0, targetHeight - contentHeight);
 	let pageFirstLine = this.Pages[CurPage].FirstLine;
 	let baseline;
@@ -1669,24 +1656,11 @@ Paragraph.prototype.private_SnapLineToDocumentGrid = function(CurLine, CurPage, 
 	if (!(PRS.GetTopDocument() instanceof CDocument))
 		origin = this.Pages[CurPage].Y;
 
-	let gridLine = Math.max(1, Math.ceil((baseline - origin - 0.001) / snapPitch));
-	let snappedBaseline = origin + gridLine * snapPitch;
+	let gridLine = Math.max(1, Math.ceil((baseline - origin - 0.001) / pitch));
+	let snappedBaseline = origin + gridLine * pitch;
 	if (snappedBaseline > baseline + 0.001)
 		metrics.Ascent += snappedBaseline - baseline;
 };
-
-function private_GetDocumentGridGreatestCommonDivisor(first, second)
-{
-	first = Math.abs(Math.round(first));
-	second = Math.abs(Math.round(second));
-	while (second)
-	{
-		let remainder = first % second;
-		first = second;
-		second = remainder;
-	}
-	return first || 1;
-}
 
 Paragraph.prototype.private_RecalculateLineBottomBound = function(CurLine, CurPage, PRS, ParaPr)
 {
