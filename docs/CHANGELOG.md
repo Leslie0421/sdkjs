@@ -2,6 +2,41 @@
 
 用于记录需要跨对话继续维护的关键改动。后续更新时按日期追加，重点写清文件、原因和依赖关系，无需记录完整实现细节。
 
+## 2026-08-07：原生文本定位后强制滚动视图
+
+- `word/api_plugins.js`
+  - `XytSearch` 的精确、去编号和全词放宽原生搜索分支，在最终选中后重新计算光标位置并调用 `ScrollToTarget`。
+  - 修复先定位表格并滚动到该页后，文本已高亮但视图仍停留在表格页的问题。
+- `tests/word/plugins/pluginsApi.js`
+  - 增加原生精确搜索和 `whole-word-relaxed` 搜索的滚动回归断言。
+
+## 2026-08-05：文本定位补全封闭式编号
+
+- `word/api_plugins.js`
+  - 去编号候选新增带圈数字、`【一】`、`[1]`、`（壹）` 和 `No.1` 等封闭式编号，并补全常见大写中文数字。
+  - `No.1` 在英文字母编号规则之前整体识别，避免只删除 `No.` 后遗留数字导致定位失败。所有候选仍必须与 Word 段落的真实自动编号反向校验，不放宽普通正文前缀。
+- `tests/word/plugins/pluginsApi.js`
+  - 按“定位编号.txt”的 9 条原始文本建立真实自动编号段落，覆盖 5 类格式的编号剔除、定位和结果回传。
+
+### 验证状态
+
+- 测试常量与“定位编号.txt”逐字比对 9/9 条通过，新正则对 9 条编号前缀全部完整提取。
+- `word/api_plugins.js`、`tests/word/plugins/pluginsApi.js` 的 `node --check` 通过，`git diff --check` 通过，Closure `compile-word` 生产编译通过。
+
+## 2026-08-04：文本定位支持英文字母自动编号
+
+- `word/api_plugins.js`
+  - `pluginMethod_XytSearch` 的去编号候选新增 `a.`、`A)`、`（a）` 及全角字母等常见英文字母编号形式，并支持 `z` 之后的 `aa.`、`ab.`。
+  - 多段 `^p` 搜索会逐段去除英文字母编号，再与 Word 段落的真实自动编号反向校验；编号不一致时拒绝候选，普通正文中的字面量 `a.` 不会被误定位。
+  - 修复 OCR 返回编号文本、但 Word 将编号保存在 `NumPr` 而非正文 Run 中时，多段文本所有降级模式均无法命中的问题。
+- `tests/word/plugins/pluginsApi.js`
+  - 增加真实 `a.`、`b.` 自动编号的跨段搜索回归用例，覆盖 OCR 空白差异、第二段编号不一致以及普通字面量前缀。
+
+### 验证状态
+
+- 插件 QUnit 回归用例 10/10 断言通过，覆盖真实 `a.`、`b.` 自动编号、OCR 空白差异、编号不匹配和普通正文前缀。
+- `word/api_plugins.js`、`tests/word/plugins/pluginsApi.js` 的 `node --check` 通过，`git diff --check` 通过，Closure `compile-word` 生产编译通过。
+
 ## 2026-08-04：按自然行高量化文档网格行距
 
 - `word/Editor/Paragraph_Recalculate.js`

@@ -173,7 +173,228 @@ $(function () {
 		// Set to none to pass subsequent tests
 		PluginsApi.pluginMethod_SetEditingRestrictions("none");
 	});
-	
+
+	QUnit.test("XytSearch matches multiple paragraphs with alphabetic automatic numbering", function(assert)
+	{
+		AscTest.ClearDocument();
+		logicDocument.RemoveFromContent(0, logicDocument.GetElementsCount(), false);
+
+		function AddTextParagraph(text)
+		{
+			let paragraph = MoveToNewParagraph();
+			let run = new AscWord.CRun();
+			run.AddText(text);
+			paragraph.AddToContentToEnd(run);
+			return paragraph;
+		}
+
+		let firstText = "首笔款：总价的【20】 %，于本合同签订后【10】 个工作日内支付。";
+		let secondText = "尾款：乙方交付全部产品并经甲方验收通过后的【20】个工作日内，甲方付清全部尾款。";
+		let firstParagraph = AddTextParagraph(firstText);
+		let secondParagraph = AddTextParagraph(secondText);
+		let numberingManager = logicDocument.GetNumberingManager();
+		let numberingInfo = AscWord.GetNumberingObjectByDeprecatedTypes(1, 6);
+		let numbering = numberingManager.CreateNum();
+		numberingInfo.FillNum(numbering);
+		numberingManager.AddNum(numbering);
+		firstParagraph.SetNumPr(numbering.GetId(), 0);
+		secondParagraph.SetNumPr(numbering.GetId(), 0);
+		logicDocument.Recalculate();
+
+		assert.strictEqual(firstParagraph.GetNumberingText(false), "a.", "Check first automatic numbering text");
+		assert.strictEqual(secondParagraph.GetNumberingText(false), "b.", "Check second automatic numbering text");
+
+		let searchText = "a.首笔款：总价的【20】%，于本合同签订后【10】个工作日内支付。^p"
+			+ "b.尾款：乙方交付全部产品并经甲方验收通过后的【20】个工作日内，甲方付清全部尾款。";
+		let result = PluginsApi.pluginMethod_XytSearch({
+			"searchVal" : searchText,
+			"selectIndex" : 0,
+			"matchCase" : true,
+			"wholeWords" : true,
+			"isNext" : true
+		});
+
+		assert.strictEqual(result["data"], true, "Find text after removing alphabetic numbering from every paragraph");
+		assert.strictEqual(result["matchMode"], "visible-loose", "Use loose visible text for OCR whitespace differences");
+		assert.strictEqual(result["ignoredNumbering"].length, 2, "Ignore both paragraph numbering prefixes");
+		assert.strictEqual(result["ignoredNumbering"][0]["prefix"].trim(), "a.", "Ignore first alphabetic prefix");
+		assert.strictEqual(result["ignoredNumbering"][1]["prefix"].trim(), "b.", "Ignore second alphabetic prefix");
+
+		let mismatch = PluginsApi.pluginMethod_XytSearch({
+			"searchVal" : searchText.replace("^pb.", "^pc."),
+			"selectIndex" : 0,
+			"matchCase" : true,
+			"wholeWords" : true,
+			"isNext" : true
+		});
+		assert.strictEqual(mismatch["data"], false, "Reject a stripped candidate when automatic numbering does not match");
+
+		AscTest.ClearDocument();
+		logicDocument.RemoveFromContent(0, logicDocument.GetElementsCount(), false);
+		AddTextParagraph("a.普通正文中的字母和句点");
+		logicDocument.Recalculate();
+		let literal = PluginsApi.pluginMethod_XytSearch({
+			"searchVal" : "a.普通正文中的字母和句点",
+			"selectIndex" : 0,
+			"matchCase" : true,
+			"wholeWords" : true,
+			"isNext" : true
+		});
+		assert.strictEqual(literal["data"], true, "Keep a literal alphabetic prefix searchable");
+		assert.strictEqual(literal["ignoredNumbering"].length, 0, "Do not treat a literal prefix as automatic numbering");
+	});
+
+	QUnit.test("XytSearch scrolls after native result selection", function(assert)
+	{
+		AscTest.ClearDocument();
+		logicDocument.RemoveFromContent(0, logicDocument.GetElementsCount(), false);
+
+		function AddTextParagraph(text)
+		{
+			let paragraph = MoveToNewParagraph();
+			let run = new AscWord.CRun();
+			run.AddText(text);
+			paragraph.AddToContentToEnd(run);
+		}
+
+		AddTextParagraph("精确定位目标");
+		AddTextParagraph("password");
+		logicDocument.Recalculate();
+
+		let originalScrollToTarget = logicDocument.ScrollToTarget;
+		let scrollCalls = 0;
+		logicDocument.ScrollToTarget = function()
+		{
+			scrollCalls++;
+		};
+		try
+		{
+			let exact = PluginsApi.pluginMethod_XytSearch({
+				"searchVal" : "精确定位目标",
+				"matchCase" : true,
+				"wholeWords" : true,
+				"isNext" : true
+			});
+			assert.strictEqual(exact["matchMode"], "exact", "Use the native exact-search path");
+			assert.strictEqual(scrollCalls, 1, "Scroll after an exact native result selection");
+
+			let relaxed = PluginsApi.pluginMethod_XytSearch({
+				"searchVal" : "word",
+				"matchCase" : true,
+				"wholeWords" : true,
+				"isNext" : true
+			});
+			assert.strictEqual(relaxed["matchMode"], "whole-word-relaxed", "Use the native whole-word-relaxed path");
+			assert.strictEqual(scrollCalls, 2, "Scroll after a whole-word-relaxed native result selection");
+		}
+		finally
+		{
+			logicDocument.ScrollToTarget = originalScrollToTarget;
+		}
+	});
+
+	QUnit.test("XytSearch matches numbering prefixes from positioning fixture", function(assert)
+	{
+		AscTest.ClearDocument();
+		logicDocument.RemoveFromContent(0, logicDocument.GetElementsCount(), false);
+
+		function AddTextParagraph(text)
+		{
+			let paragraph = MoveToNewParagraph();
+			let run = new AscWord.CRun();
+			run.AddText(text);
+			paragraph.AddToContentToEnd(run);
+			return paragraph;
+		}
+
+		function CreateNumbering(format, formatText)
+		{
+			let numberingManager = logicDocument.GetNumberingManager();
+			let numbering = numberingManager.CreateNum();
+			let level = numbering.GetLvl(0).Copy();
+			level.SetFormat(format);
+			level.SetLvlTextFormat(0, formatText);
+			numbering.SetLvl(level, 0);
+			numberingManager.AddNum(numbering);
+			return numbering;
+		}
+
+		let fixtureGroups = [
+			{
+				"format" : Asc.c_oAscNumberingFormat.DecimalEnclosedCircle,
+				"formatText" : "%1",
+				"lines" : [
+					"①\t双方应在合同生效后五个工作日内成立联合项目组并确定项目经理、业务负责人、技术负责人和关键用户。",
+					"②\t周例会形成会议纪要；涉及范围、工期、费用或责任变化的事项按附件四办理，甲方口头通知后即生效。"
+				]
+			},
+			{
+				"format" : Asc.c_oAscNumberingFormat.ChineseCounting,
+				"formatText" : "【%1】",
+				"lines" : [
+					"【一】\t单元测试和集成测试由乙方组织，系统应当基本可用、性能较好、代码质量较高并达到甲方满意。",
+					"【二】\t用户验收测试由甲方组织，乙方提供环境、数据模板、操作指导、缺陷修复和回归验证支持。"
+				]
+			},
+			{
+				"format" : Asc.c_oAscNumberingFormat.Decimal,
+				"formatText" : "[%1]",
+				"lines" : [
+					"[1]\t终验材料包括验收报告、部署说明、接口文档、数据字典、运维手册、测试报告和培训材料。",
+					"[2]\t轻微缺陷不影响终验的，可列入遗留事项，并由。"
+				]
+			},
+			{
+				"format" : Asc.c_oAscNumberingFormat.ChineseLegalSimplified,
+				"formatText" : "（%1）",
+				"lines" : [
+					"（壹）\t乙方在本合同签订前已经拥有的软件产品、工具、框架和通用组件的权利仍归乙方所有。"
+				]
+			},
+			{
+				"format" : Asc.c_oAscNumberingFormat.Decimal,
+				"formatText" : "No.%1",
+				"lines" : [
+					"No.1\t甲方的保密义务持续至乙方另行通知之日，乙方对甲方不承担保密期限限制。",
+					"No.2\t甲方发生泄密时应承担责任，具体违约金、损失范围和赔偿标准由乙方事后决定。"
+				]
+			}
+		];
+		let fixtureItems = [];
+		for (let groupIndex = 0; groupIndex < fixtureGroups.length; ++groupIndex)
+		{
+			let group = fixtureGroups[groupIndex];
+			let numbering = CreateNumbering(group["format"], group["formatText"]);
+			for (let lineIndex = 0; lineIndex < group["lines"].length; ++lineIndex)
+			{
+				let line = group["lines"][lineIndex];
+				let separatorIndex = line.indexOf("\t");
+				let prefix = line.substring(0, separatorIndex);
+				let text = line.substring(separatorIndex + 1);
+				let paragraph = AddTextParagraph(text);
+				paragraph.SetNumPr(numbering.GetId(), 0);
+				fixtureItems.push({"line" : line, "paragraph" : paragraph, "prefix" : prefix});
+			}
+		}
+		logicDocument.Recalculate();
+
+		for (let itemIndex = 0; itemIndex < fixtureItems.length; ++itemIndex)
+		{
+			let item = fixtureItems[itemIndex];
+			assert.strictEqual(item["paragraph"].GetNumberingText(false), item["prefix"], "Create fixture numbering " + item["prefix"]);
+			let result = PluginsApi.pluginMethod_XytSearch({
+				"searchVal" : item["line"],
+				"selectIndex" : 0,
+				"matchCase" : true,
+				"wholeWords" : true,
+				"isNext" : true
+			});
+			assert.strictEqual(result["data"], true, "Find fixture text with prefix " + item["prefix"]);
+			assert.strictEqual(result["matchMode"], "numbering-stripped", "Strip fixture prefix " + item["prefix"]);
+			assert.strictEqual(result["ignoredNumbering"][0]["prefix"].trim(), item["prefix"], "Report ignored prefix " + item["prefix"]);
+		}
+	});
+
 	QUnit.test("Test CurrenWord/CurrentSentence", function(assert)
 	{
 		AscTest.ClearDocument();

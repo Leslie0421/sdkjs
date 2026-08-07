@@ -1495,9 +1495,14 @@
 
 	function xytStripNumberingPrefix(text)
 	{
-		// Only remove conventional title/list prefixes. Bare numbers are deliberately
-		// excluded so dates, amounts and ordinary sentence content are not truncated.
-		let match = /^(\s*(?:(?:第[0-9０-９一二三四五六七八九十百千万零〇两]+[章节条款项编篇部分])|(?:[（(][0-9０-９一二三四五六七八九十百千万零〇两]+[）)])|(?:[0-9０-９]+(?:[.．][0-9０-９]+)+(?=\s))|(?:[0-9０-９]+(?:[.．][0-9０-９]+)*[、.．)）])|(?:[一二三四五六七八九十百千万零〇两]+[、.．]))\s*)/.exec(text);
+		// Only remove conventional title/list prefixes. This includes enclosed digits,
+		// Chinese financial numerals and common OCR-visible wrappers such as 【一】,
+		// [1] and No.1. Alphabetic numbering may be more than one letter after item z
+		// (aa., ab., ...). Bare numbers are deliberately excluded so dates, amounts and
+		// ordinary sentence content are not truncated.
+		// A stripped candidate is accepted only after xytParagraphMatchesNumbering verifies
+		// the prefix against the paragraph's real automatic numbering.
+		let match = /^(\s*(?:(?:第[0-9０-９一二三四五六七八九十百千万零〇两兩廿卅卌壹贰貳叁參肆伍陆陸柒捌玖拾佰仟萬億亿]+[章节条款项编篇部分])|(?:[（(][0-9０-９一二三四五六七八九十百千万零〇两兩廿卅卌壹贰貳叁參肆伍陆陸柒捌玖拾佰仟萬億亿A-Za-zＡ-Ｚａ-ｚ]+[）)])|(?:[【〔][0-9０-９一二三四五六七八九十百千万零〇两兩廿卅卌壹贰貳叁參肆伍陆陸柒捌玖拾佰仟萬億亿A-Za-zＡ-Ｚａ-ｚ]+[】〕])|(?:[\[［][0-9０-９一二三四五六七八九十百千万零〇两兩廿卅卌壹贰貳叁參肆伍陆陸柒捌玖拾佰仟萬億亿A-Za-zＡ-Ｚａ-ｚ]+[\]］])|(?:[NnＮｎ][oOｏＯ][.．]?\s*[0-9０-９]+(?:[.．][0-9０-９]+)*[、.．)）]?)|(?:[\u2460-\u249B\u24EA\u24F5-\u24FE\u2776-\u2793\u3251-\u325F\u32B1-\u32BF])|(?:[0-9０-９]+(?:[.．][0-9０-９]+)+(?=\s))|(?:[0-9０-９]+(?:[.．][0-9０-９]+)*[、.．)）])|(?:[A-Za-zＡ-Ｚａ-ｚ]+[、.．)）])|(?:[一二三四五六七八九十百千万零〇两兩廿卅卌壹贰貳叁參肆伍陆陸柒捌玖拾佰仟萬億亿]+[、.．]))\s*)/.exec(text);
 		if (!match || match[0].length >= text.length)
 			return null;
 
@@ -2067,6 +2072,14 @@
 			logicDocument.SelectSearchElement(validIds[selectedIndex]);
 		else if (count > 1)
 			api.asc_FindRepeatText(selectedIndex);
+
+		// Native search updates the selection but, unlike the visible-text fallback,
+		// does not request viewport movement. This leaves the viewport at a previously
+		// selected table even though the text result is highlighted on another page.
+		if (logicDocument && logicDocument.RecalculateCurPos)
+			logicDocument.RecalculateCurPos();
+		if (logicDocument && logicDocument.ScrollToTarget)
+			logicDocument.ScrollToTarget();
 
 		let result = {
 			"code" : selectedIndex === requestedIndex ? 200 : 206,
